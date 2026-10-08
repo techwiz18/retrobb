@@ -138,3 +138,10 @@ Vote on features in [issues](https://github.com/techwiz18/retrobb/issues).
 ## 📄 License
 
 MIT — see [LICENSE](LICENSE).
+
+## 🙏 Acknowledgments
+
+RetroBB is human-directed and human-reviewed, but most of the code, docs, and
+testing was pair-programmed with an AI assistant — **Muse Spark** (via
+[OpenCode](https://opencode.ai)). If you deploy it, treat it like any
+community project: review changes, keep backups, report issues.
