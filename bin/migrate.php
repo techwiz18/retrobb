@@ -86,5 +86,5 @@ foreach ($defaults as $k => $v) {
 echo "Migrations done.\n";
 
 if ($seed) {
-    require $root . '/bin/seed.php';
+    require_once $root . '/bin/seed.php';
 }

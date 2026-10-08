@@ -1,0 +1,3 @@
+# Keep runtime data out of git archives and checkouts.
+storage/ export-ignore
+config.php export-ignore

@@ -33,6 +33,20 @@ use RetroBB\Core\Auth;
 use RetroBB\Core\Plugins;
 use RetroBB\Core\Router;
 
+// Last-resort error page: never leak a stack trace to visitors.
+set_exception_handler(function (Throwable $e) {
+    error_log('RetroBB fatal: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    if (!headers_sent()) {
+        http_response_code(500);
+    }
+    try {
+        \RetroBB\Core\View::render('errors/500', ['pageTitle' => 'Error — ' . board_name()]);
+    } catch (Throwable) {
+        echo '<h1>Something broke.</h1>';
+    }
+    exit;
+});
+
 // Baseline security headers (CSP deliberately left to site owners: external
 // CAPTCHA providers need their own script allowlists).
 header('X-Frame-Options: SAMEORIGIN');

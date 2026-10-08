@@ -3,17 +3,31 @@ declare(strict_types=1);
 // Web installer: creates config + runs migrations + seed. Locks via storage/installed.lock.
 $root = dirname(__DIR__);
 $lock = $root . '/storage/installed.lock';
-if (is_file($lock) && !isset($_GET['force'])) {
+$installed = is_file($lock) && !isset($_GET['force']);
+if ($installed) {
+    // A stale lock (e.g. after switching DB drivers) must never brick setup:
+    // only treat the board as installed when the configured DB has users.
+    try {
+        require_once $root . '/core/Db.php';
+        $n = \RetroBB\Core\Db::pdo()->query('SELECT COUNT(*) c FROM users')->fetch()['c'] ?? 0;
+        if ((int) $n === 0) {
+            $installed = false;
+        }
+    } catch (Throwable) {
+        $installed = false;
+    }
+}
+if ($installed) {
     http_response_code(403);
     echo '<h1>RetroBB is already installed.</h1><p>Delete storage/installed.lock to re-run.</p>';
     exit;
 }
 $message = '';
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    require $root . '/core/Db.php';
+    require_once $root . '/core/Db.php';
     // migrate.php reads $argv (not $_SERVER['argv']); same scope via require.
     $argv = ['migrate.php', '--seed'];
-    require $root . '/bin/migrate.php';
+    require_once $root . '/bin/migrate.php';
     file_put_contents($lock, date('c'));
     $message = 'Installed! Admin login: <b>admin / admin123</b>. <a href="/">Visit board</a> (delete <code>public/install.php</code> when done).';
 }
