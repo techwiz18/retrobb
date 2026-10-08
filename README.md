@@ -3,8 +3,6 @@
 An old-school forum with an early-2000s soul, written from scratch in pure PHP 8.3+.
 No framework, no build step, shared-host safe. MIT licensed.
 
-> Not affiliated with RetroBBS (retrocomputacion) — that's a C64 BBS. This is a web forum.
-
 ## Quick start (local)
 
 ```bash
