@@ -63,8 +63,11 @@ function theme(): string
 
 function canonical_url(string $path): string
 {
-    // Note: HTTP_HOST is client-controlled; fine for 0.1 (no shared cache to
-    // poison). A board_url setting override can come with v0.2.
+    // Prefer the configured board URL when the owner set one at install.
+    $base = rtrim(setting('board_url', ''), '/');
+    if ($base !== '' && preg_match('#^https?://#i', $base)) {
+        return $base . $path;
+    }
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     return $scheme . '://' . $host . $path;

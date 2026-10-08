@@ -72,6 +72,7 @@ foreach ($migrations as $file) {
 $defaults = [
     'board_name' => 'RetroBB',
     'board_tagline' => 'An old-school forum for the modern web',
+    'board_url' => '',
     'default_skin' => 'classic',
     'posts_per_page' => '15',
     'topics_per_page' => '25',

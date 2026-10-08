@@ -46,8 +46,9 @@ most hosts), or MySQL if you prefer.
    let you pick it per *addon domain* or *subdomain* — use one of those.)
    *Why?* Only `public/` is meant for browsers. Everything else — forum code
    and your database — lives one level above, where visitors can't reach it.
-4. Visit `yoursite.com/install.php` and click **Install now**.
-5. Log in as `admin` / `admin123`, change the password, and **delete
+4. Click through: pick SQLite or MySQL, name your board, and create your
+   admin account (plus optional demo content to play with).
+5. Log in with the account you just made, and **delete
    `public/install.php`**. Done — go make some boards!
 
 **Option B — local test drive:**
@@ -56,7 +57,7 @@ git clone https://github.com/techwiz18/retrobb.git
 cd retrobb
 php bin/migrate.php --seed
 php -S localhost:8000 -t public/
-# open http://localhost:8000 — login admin / admin123
+# open http://localhost:8000 — the installer walks you through setup
 ```
 
 **MySQL instead of SQLite?** Copy `config.example.php` to `config.php` and fill
