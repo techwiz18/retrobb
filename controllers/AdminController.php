@@ -21,28 +21,80 @@ class AdminController
         }
     }
 
-    public function index(): void
+    private function cats(): array
     {
-        $this->guard();
         $pdo = Db::pdo();
-        $cats = $pdo->query('SELECT * FROM categories ORDER BY sort')->fetchAll();
+        $cats = $pdo->query('SELECT * FROM categories ORDER BY sort, id')->fetchAll();
         foreach ($cats as &$c) {
-            $st = $pdo->prepare('SELECT * FROM forums WHERE category_id=? ORDER BY sort');
+            $st = $pdo->prepare('SELECT * FROM forums WHERE category_id=? ORDER BY sort, id');
             $st->execute([$c['id']]);
             $c['forums'] = $st->fetchAll();
         }
-        $users = User::all(50);
-        $settings = $pdo->query('SELECT * FROM settings')->fetchAll();
+        return $cats;
+    }
+
+    private function settingsRows(): array
+    {
+        return Db::pdo()->query('SELECT * FROM settings')->fetchAll();
+    }
+
+    public function index(): void
+    {
+        $this->guard();
+        $bans = \RetroBB\Models\Moderation::banList(100);
+        $active = 0;
+        foreach ($bans as $b) {
+            if (empty($b['lifted_at']) && (empty($b['expires_at']) || strtotime($b['expires_at']) > time())) {
+                $active++;
+            }
+        }
+        View::render('admin/dashboard', [
+            'stats' => \RetroBB\Models\Board::stats(),
+            'openReports' => \RetroBB\Models\Report::openCount(),
+            'activeBans' => $active,
+            'pageTitle' => 'AdminCP — ' . board_name(),
+        ]);
+    }
+
+    public function settingsPage(): void
+    {
+        $this->guard();
+        View::render('admin/settings', ['settings' => $this->settingsRows(), 'pageTitle' => 'Settings — AdminCP']);
+    }
+
+    public function spamPage(): void
+    {
+        $this->guard();
+        View::render('admin/spam', ['settings' => $this->settingsRows(), 'pageTitle' => 'Spam protection — AdminCP']);
+    }
+
+    public function structurePage(): void
+    {
+        $this->guard();
+        View::render('admin/structure', ['cats' => $this->cats(), 'pageTitle' => 'Structure — AdminCP']);
+    }
+
+    public function bansPage(): void
+    {
+        $this->guard();
+        View::render('admin/bans', ['bans' => \RetroBB\Models\Moderation::banList(100), 'pageTitle' => 'Bans — AdminCP']);
+    }
+
+    public function usersPage(): void
+    {
+        $this->guard();
+        View::render('admin/users', ['users' => User::all(50), 'pageTitle' => 'Users — AdminCP']);
+    }
+
+    public function modlogPage(): void
+    {
+        $this->guard();
         $modpage = max(1, (int) ($_GET['modpage'] ?? 1));
         $modlog = \RetroBB\Core\Modlog::latest($modpage, 50);
-        $modpages = max(1, (int) ceil($modlog['total'] / 50));
-        View::render('admin/index', [
-            'cats' => $cats, 'users' => $users, 'settings' => $settings,
-            'bans' => \RetroBB\Models\Moderation::banList(50),
+        View::render('admin/modlog', [
             'modlog' => $modlog['entries'], 'modtotal' => $modlog['total'],
-            'modpage' => $modpage, 'modpages' => $modpages,
-            'openReports' => \RetroBB\Models\Report::openCount(),
-            'pageTitle' => 'AdminCP — ' . board_name(),
+            'modpage' => $modpage, 'modpages' => max(1, (int) ceil($modlog['total'] / 50)),
+            'pageTitle' => 'Mod log — AdminCP',
         ]);
     }
 
@@ -75,7 +127,14 @@ class AdminController
                 }
             }
         }
-        redirect('/admin?saved=1');
+        redirect($this->settingsReturn());
+    }
+
+    /** Where a settings POST should land: /admin/settings or /admin/spam. */
+    private function settingsReturn(): string
+    {
+        $to = (string) ($_POST['return'] ?? 'settings');
+        return $to === 'spam' ? '/admin/spam?saved=1' : '/admin/settings?saved=1';
     }
 
     public function addForum(): void
@@ -91,7 +150,7 @@ class AdminController
         if ($cat > 0 && $name !== '') {
             $pdo->prepare('INSERT INTO forums (category_id, name, slug, description, sort) VALUES (?,?,?,?,0)')->execute([$cat, $name, Slug::make($name), $desc]);
         }
-        redirect('/admin');
+        redirect('/admin/structure');
     }
 
     public function addCategory(): void
@@ -104,7 +163,7 @@ class AdminController
         if ($title !== '') {
             Db::pdo()->prepare('INSERT INTO categories (title, sort) VALUES (?,0)')->execute([$title]);
         }
-        redirect('/admin');
+        redirect('/admin/structure');
     }
 
     public function setGroup(int $id): void
@@ -118,7 +177,7 @@ class AdminController
             redirect('/admin');
         }
         User::setGroup($id, (string) ($_POST['group'] ?? 'member'));
-        redirect('/admin');
+        redirect('/admin/users');
     }
 
     public function moveCategory(int $id, string $dir): void
@@ -128,7 +187,7 @@ class AdminController
             redirect('/admin');
         }
         \RetroBB\Models\Board::moveCategory($id, $dir === 'up' ? -1 : 1);
-        redirect('/admin#structure');
+        redirect('/admin/structure');
     }
 
     public function moveForum(int $id, string $dir): void
@@ -138,7 +197,7 @@ class AdminController
             redirect('/admin');
         }
         \RetroBB\Models\Board::moveForum($id, $dir === 'up' ? -1 : 1);
-        redirect('/admin#structure');
+        redirect('/admin/structure');
     }
 
     public function unban(int $banId): void
@@ -148,6 +207,6 @@ class AdminController
             redirect('/admin');
         }
         \RetroBB\Models\Moderation::unban($banId, (int) Auth::user()['id']);
-        redirect('/admin#bans');
+        redirect('/admin/bans');
     }
 }

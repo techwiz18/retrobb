@@ -127,6 +127,49 @@ class ProfileController
         }
         \RetroBB\Models\Moderation::unban($banId, (int) \RetroBB\Core\Auth::user()['id']);
         $_SESSION['flash_ok'] = 'Ban lifted.';
-        redirect('/admin#bans');
+        redirect('/admin/bans');
+    }
+
+    public function settingsForm(): void
+    {
+        $me = \RetroBB\Core\Auth::user();
+        if (!$me) {
+            redirect('/login?next=' . urlencode('/settings/profile'));
+        }
+        $user = User::find((int) $me['id']);
+        \RetroBB\Core\View::render('profile/edit', [
+            'edituser' => $user, 'pageTitle' => 'Edit profile — ' . board_name(),
+            'error' => null,
+        ]);
+    }
+
+    public function settingsSubmit(): void
+    {
+        $me = \RetroBB\Core\Auth::user();
+        if (!$me) {
+            redirect('/login');
+        }
+        $user = User::find((int) $me['id']);
+        if (!\RetroBB\Core\Csrf::verify($_POST['csrf'] ?? null)) {
+            \RetroBB\Core\View::render('profile/edit', ['edituser' => $user, 'pageTitle' => 'Edit profile', 'error' => 'Session expired.']);
+            return;
+        }
+        $which = (string) ($_POST['form'] ?? 'profile');
+        if ($which === 'password') {
+            $res = User::changePassword((int) $me['id'], (string) ($_POST['current'] ?? ''), (string) ($_POST['new'] ?? ''));
+            if (!$res['ok']) {
+                \RetroBB\Core\View::render('profile/edit', ['edituser' => $user, 'pageTitle' => 'Edit profile', 'error' => $res['error']]);
+                return;
+            }
+            $_SESSION['flash_ok'] = 'Password changed.';
+            redirect(\RetroBB\Core\Slug::memberUrl($user));
+        }
+        $res = User::updateProfile((int) $me['id'], trim((string) ($_POST['email'] ?? '')), (string) ($_POST['bio'] ?? ''));
+        if (!$res['ok']) {
+            \RetroBB\Core\View::render('profile/edit', ['edituser' => $user, 'pageTitle' => 'Edit profile', 'error' => $res['error']]);
+            return;
+        }
+        $_SESSION['flash_ok'] = 'Profile updated.';
+        redirect(\RetroBB\Core\Slug::memberUrl(User::find((int) $me['id'])));
     }
 }

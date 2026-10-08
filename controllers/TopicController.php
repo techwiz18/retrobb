@@ -42,7 +42,14 @@ class TopicController
         if ($baseNoPage !== $canonical) {
             redirect($canonical, 301);
         }
-        Topic::bumpViews($id);
+        // Views count once per session: refreshes and post-action redirects don't inflate.
+        \RetroBB\Core\Auth::startSession();
+        $_SESSION['viewed_topics'] = $_SESSION['viewed_topics'] ?? [];
+        if (!in_array($id, $_SESSION['viewed_topics'], true)) {
+            Topic::bumpViews($id);
+            $_SESSION['viewed_topics'][] = $id;
+            $_SESSION['viewed_topics'] = array_slice($_SESSION['viewed_topics'], -200);
+        }
 
         $page = 1;
         if (preg_match('#/page-(\d+)$#', $base, $m)) {

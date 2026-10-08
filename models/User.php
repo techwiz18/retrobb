@@ -74,4 +74,34 @@ class User
         $group = in_array($group, ['admin', 'mod', 'member'], true) ? $group : 'member';
         Db::pdo()->prepare('UPDATE users SET user_group=? WHERE id=?')->execute([$group, $id]);
     }
+
+    /** Update a member's own editable fields. Returns [ok, error?]. */
+    public static function updateProfile(int $id, string $email, string $bio): array
+    {
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return ['ok' => false, 'error' => 'Invalid email address.'];
+        }
+        $chk = Db::pdo()->prepare('SELECT id FROM users WHERE LOWER(email)=LOWER(?) AND id != ? LIMIT 1');
+        $chk->execute([$email, $id]);
+        if ($chk->fetch()) {
+            return ['ok' => false, 'error' => 'That email is already in use.'];
+        }
+        Db::pdo()->prepare('UPDATE users SET email=?, bio=? WHERE id=?')
+            ->execute([$email, mb_substr(trim($bio), 0, 1000), $id]);
+        return ['ok' => true];
+    }
+
+    /** Change password after verifying the current one. Returns [ok, error?]. */
+    public static function changePassword(int $id, string $current, string $new): array
+    {
+        if (strlen($new) < 8) {
+            return ['ok' => false, 'error' => 'New password must be at least 8 characters.'];
+        }
+        $user = self::find($id);
+        if (!$user || !password_verify($current, $user['password_hash'])) {
+            return ['ok' => false, 'error' => 'Current password is wrong.'];
+        }
+        Db::pdo()->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash_safe($new), $id]);
+        return ['ok' => true];
+    }
 }

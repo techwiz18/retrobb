@@ -84,11 +84,19 @@ $r->get('#^/login$#', [\RetroBB\Controllers\AuthController::class, 'loginForm'])
 $r->post('#^/login$#', [\RetroBB\Controllers\AuthController::class, 'loginSubmit']);
 $r->post('#^/logout$#', [\RetroBB\Controllers\AuthController::class, 'logout']);
 $r->get('#^/members$#', [\RetroBB\Controllers\ProfileController::class, 'index']);
+$r->get('#^/settings/profile$#', [\RetroBB\Controllers\ProfileController::class, 'settingsForm']);
+$r->post('#^/settings/profile$#', [\RetroBB\Controllers\ProfileController::class, 'settingsSubmit']);
 $r->get('#^/members/([^/]+)$#', [\RetroBB\Controllers\ProfileController::class, 'show']);
 $r->post('#^/members/(\d+)/warn$#', [\RetroBB\Controllers\ProfileController::class, 'warn']);
 $r->post('#^/members/(\d+)/ban$#', [\RetroBB\Controllers\ProfileController::class, 'ban']);
 $r->post('#^/members/unban/(\d+)$#', [\RetroBB\Controllers\ProfileController::class, 'unban']);
 $r->get('#^/admin$#', [\RetroBB\Controllers\AdminController::class, 'index']);
+$r->get('#^/admin/settings$#', [\RetroBB\Controllers\AdminController::class, 'settingsPage']);
+$r->get('#^/admin/spam$#', [\RetroBB\Controllers\AdminController::class, 'spamPage']);
+$r->get('#^/admin/structure$#', [\RetroBB\Controllers\AdminController::class, 'structurePage']);
+$r->get('#^/admin/bans$#', [\RetroBB\Controllers\AdminController::class, 'bansPage']);
+$r->get('#^/admin/users$#', [\RetroBB\Controllers\AdminController::class, 'usersPage']);
+$r->get('#^/admin/modlog$#', [\RetroBB\Controllers\AdminController::class, 'modlogPage']);
 $r->post('#^/admin/settings$#', [\RetroBB\Controllers\AdminController::class, 'saveSettings']);
 $r->post('#^/admin/add-forum$#', [\RetroBB\Controllers\AdminController::class, 'addForum']);
 $r->post('#^/admin/add-category$#', [\RetroBB\Controllers\AdminController::class, 'addCategory']);
@@ -97,6 +105,7 @@ $r->post('#^/admin/category/(\d+)/move/(up|down)$#', [\RetroBB\Controllers\Admin
 $r->post('#^/admin/forum/(\d+)/move/(up|down)$#', [\RetroBB\Controllers\AdminController::class, 'moveForum']);
 $r->post('#^/admin/unban/(\d+)$#', [\RetroBB\Controllers\AdminController::class, 'unban']);
 $r->get('#^/sitemap\.xml$#', [\RetroBB\Controllers\SitemapController::class, 'xml']);
+$r->get('#^/sitemap\.xsl$#', [\RetroBB\Controllers\SitemapController::class, 'xsl']);
 // skin switcher + legacy compat
 $r->get('#^/skin/([a-z0-9]+)$#', function (string $s) {
     if (in_array($s, ['classic', 'midnight', 'silver'], true)) {
