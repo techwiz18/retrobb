@@ -33,12 +33,19 @@ MIT licensed. Made with nostalgia by [techwiz.dad](https://techwiz.dad).
 **You need:** any shared host or VPS with **PHP 8.1+** and SQLite (already on
 most hosts), or MySQL if you prefer.
 
-**Option A — upload (typical shared hosting, e.g. cPanel):**
+**Option A — shared hosting (e.g. cPanel):**
 1. Download the latest zip from the
    [releases page](https://github.com/techwiz18/retrobb/releases).
-2. Upload it to your hosting and unzip.
-3. Point your domain at the **`public/` folder** (this part matters — not the
-   top folder, the one called `public`).
+2. In cPanel → File Manager, open `public_html` and upload the zip there, then
+   **Extract** it. You'll get a folder like `public_html/retrobb/` containing
+   another folder called `public/`.
+3. Go to **Domains** (or **Addon Domains**) → point your domain at the inner
+   folder: `public_html/retrobb/public`. This is the important bit — the
+   domain must serve the `public` folder, *not* the top-level `retrobb`
+   folder. (Hosts that don't let you pick the folder per-domain usually still
+   let you pick it per *addon domain* or *subdomain* — use one of those.)
+   *Why?* Only `public/` is meant for browsers. Everything else — forum code
+   and your database — lives one level above, where visitors can't reach it.
 4. Visit `yoursite.com/install.php` and click **Install now**.
 5. Log in as `admin` / `admin123`, change the password, and **delete
    `public/install.php`**. Done — go make some boards!
