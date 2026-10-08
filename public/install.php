@@ -8,23 +8,27 @@ require_once $root . '/core/helpers.php';
 
 use RetroBB\Core\Db;
 
-$lock = $root . '/storage/installed.lock';
-$installed = is_file($lock) && !isset($_GET['force']);
-if ($installed) {
-    // A stale lock (e.g. after switching DB drivers) must never brick setup:
-    // only treat the board as installed when the configured DB has users.
+// True when the configured database already holds an owner account.
+// (Any failure — no tables yet, unreachable DB — simply means "not installed".)
+function db_has_users(): bool
+{
     try {
         $n = Db::pdo()->query('SELECT COUNT(*) c FROM users')->fetch()['c'] ?? 0;
-        if ((int) $n === 0) {
-            $installed = false;
-        }
+        return (int) $n > 0;
     } catch (Throwable) {
-        $installed = false;
+        return false;
     }
 }
 
+$lock = $root . '/storage/installed.lock';
+$force = isset($_GET['force']);
+// Installed = lock present OR the configured DB already has an owner —
+// whichever survives. ?force still overrides for disaster recovery.
+$installed = !$force && (is_file($lock) || db_has_users());
+
 $step = isset($_GET['step']) ? (string) $_GET['step'] : 'welcome';
 $errors = [];
+$installDisabled = false;
 $values = [
     'mysql_host' => '127.0.0.1', 'mysql_port' => '3306', 'mysql_db' => 'retrobb',
     'mysql_user' => 'retrobb', 'mysql_pass' => '',
@@ -178,11 +182,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
                 }
             }
             file_put_contents($lock, date('c'));
-            header('Location: install.php?step=done');
-            exit;
+            // Neutralize this very file so setup can't be re-run from the web:
+            // renaming beats deleting (atomic, visible, reversible). If the
+            // rename fails (permissions), the done page says so loudly.
+            $disabled = @rename(__FILE__, $root . '/public/install.disabled.php');
+            $step = 'done';
+            $installDisabled = $disabled;
         }
     }
-    $step = 'form';
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+        // Stay on the form to show validation errors (success sets done above).
+        $step = $step === 'done' ? 'done' : 'form';
+    }
 }
 ?>
 <!doctype html><html lang="en"><head><meta charset="utf-8">
@@ -200,10 +211,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
   <div class="maintitle">Welcome aboard! 🎉</div>
   <div class="flash-ok">Your board is installed. Log in with the admin account you just created.</div>
   <p><a class="btn" href="/">Visit your new board</a></p>
-  <p class="muted">Housekeeping: delete <code>public/install.php</code> now so nobody can re-run setup.</p>
+  <?php if (!empty($installDisabled)): ?>
+  <p class="muted">Housekeeping handled: this setup file has disabled itself (<code>install.disabled.php</code>) so it can't be re-run.</p>
+  <?php else: ?>
+  <p class="muted">One last thing: delete <code>public/install.php</code> — setup couldn't remove itself (file permissions), so please do it by hand.</p>
+  <?php endif; ?>
 <?php elseif ($installed): ?>
   <div class="maintitle">Already installed</div>
-  <p>This board already has an owner account. <a href="/">Visit the board</a>, or delete <code>storage/installed.lock</code> to re-run.</p>
+  <p>This board already has an owner account. <a href="/">Visit the board</a>.</p>
 <?php elseif ($step === 'form'): ?>
   <div class="steps"><div class="step">1. Requirements</div><div class="step on">2. Details</div><div class="step">3. Done</div></div>
   <div class="maintitle">Board details &amp; owner account</div>

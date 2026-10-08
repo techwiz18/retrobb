@@ -48,8 +48,8 @@ MIT licensed. Made with nostalgia by [techwiz.dad](https://techwiz.dad).
    and your database — lives one level above, where visitors can't reach it.
 4. Click through: enter your MySQL details, name your board, and create your
    admin account (plus optional demo content to play with).
-5. Log in with the account you just made, and **delete
-   `public/install.php`**. Done — go make some boards!
+5. Log in with the account you just made. The installer disables itself
+   when done — no cleanup needed. Go make some boards!
 
 **Option B — local test drive:**
 ```bash
