@@ -348,7 +348,7 @@ class TopicController
             $_SESSION['flash_error'] = $allowed;
             redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
         }
-        View::render('topic/edit', ['post' => $post, 'pageTitle' => 'Edit post — ' . board_name(), 'error' => null]);
+        View::render('topic/edit', ['post' => $post, 'is_first' => $postId === Topic::firstPostId((int) $post['topic_id']), 'pageTitle' => 'Edit post — ' . board_name(), 'error' => null]);
     }
 
     public function editPostSubmit(int $postId): void
@@ -357,19 +357,29 @@ class TopicController
         if (!$post) {
             redirect('/');
         }
+        $isFirst = $postId === Topic::firstPostId((int) $post['topic_id']);
         $allowed = $this->canEditPost($post);
         if ($allowed !== true) {
             $_SESSION['flash_error'] = $allowed;
             redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
         }
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            View::render('topic/edit', ['post' => $post, 'pageTitle' => 'Edit post', 'error' => 'Session expired.']);
+            View::render('topic/edit', ['post' => $post, 'is_first' => $isFirst, 'pageTitle' => 'Edit post', 'error' => 'Session expired.']);
             return;
         }
         $body = trim((string) ($_POST['body'] ?? ''));
         if (mb_strlen($body) < 2 || mb_strlen($body) > 20000) {
-            View::render('topic/edit', ['post' => $post, 'pageTitle' => 'Edit post', 'error' => 'Post is too short or too long.']);
+            View::render('topic/edit', ['post' => $post, 'is_first' => $isFirst, 'pageTitle' => 'Edit post', 'error' => 'Post is too short or too long.']);
             return;
+        }
+        if ($isFirst && isset($_POST['title'])) {
+            $res = Topic::retitle((int) $post['topic_id'], (string) $_POST['title']);
+            if (!$res['ok']) {
+                View::render('topic/edit', ['post' => $post, 'is_first' => $isFirst, 'pageTitle' => 'Edit post', 'error' => $res['error']]);
+                return;
+            }
+            \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'retitle', 'topic', (int) $post['topic_id'], mb_substr((string) $_POST['title'], 0, 150));
+            $post['topic_slug'] = \RetroBB\Core\Slug::make((string) $_POST['title']);
         }
         \RetroBB\Models\Post::updateBody($postId, $body);
         \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'edit', 'post', $postId, "topic {$post['topic_id']}");

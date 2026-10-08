@@ -179,6 +179,24 @@ class Topic
         return $st->fetchAll();
     }
 
+    /** Id of the topic's first post (its title lives here). */
+    public static function firstPostId(int $topicId): int
+    {
+        $row = Db::pdo()->query('SELECT MIN(id) m FROM posts WHERE topic_id=' . $topicId)->fetch();
+        return (int) ($row['m'] ?? 0);
+    }
+
+    /** Retitle a topic (slug follows; old URLs still 301 via the id). */
+    public static function retitle(int $id, string $title): array
+    {
+        $title = trim($title);
+        if (mb_strlen($title) < 3 || mb_strlen($title) > 120) {
+            return ['ok' => false, 'error' => 'Title must be 3–120 characters.'];
+        }
+        Db::pdo()->prepare('UPDATE topics SET title=?, slug=? WHERE id=?')->execute([$title, Slug::make($title), $id]);
+        return ['ok' => true];
+    }
+
     public static function move(int $id, int $destForumId, bool $ghost, int $modId): array
     {
         $topic = self::find($id);
