@@ -78,13 +78,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
         } catch (Throwable $t) {
             $errors[] = 'Could not connect to MySQL with those details — check host, port, username and password. (' . $t->getMessage() . ')';
         }
-        if (!$errors) {
-            try {
-                $mysql->exec('CREATE DATABASE IF NOT EXISTS `' . $values['mysql_db'] . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
-            } catch (Throwable $t) {
-                $errors[] = 'Connected, but your MySQL user is not allowed to create databases — create "' . $values['mysql_db'] . '" in your hosting panel, then try again.';
+            if (!$errors) {
+                // Most shared hosts (cPanel etc.) require the database to exist
+                // already with the user assigned to it — only try to create it
+                // as a convenience, and fall back to just using it.
+                try {
+                    $mysql->exec('CREATE DATABASE IF NOT EXISTS `' . $values['mysql_db'] . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+                } catch (Throwable $createError) {
+                    try {
+                        new PDO(
+                            'mysql:host=' . $values['mysql_host'] . ';port=' . ((int) $values['mysql_port'] ?: 3306) . ';dbname=' . $values['mysql_db'] . ';charset=utf8mb4',
+                            $values['mysql_user'],
+                            $values['mysql_pass'],
+                            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+                        );
+                    } catch (Throwable $t) {
+                        $errors[] = 'Could not use database "' . $values['mysql_db'] . '" — create it in your hosting panel (and add your MySQL user to it with all privileges), then try again.';
+                    }
+                }
             }
-        }
     }
 
     // --- validate board settings ---
@@ -205,7 +217,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
       <label>Username<br><input name="mysql_user" value="<?= e($values['mysql_user']) ?>"></label>
       <label>Password<br><input type="password" name="mysql_pass" value="<?= e($values['mysql_pass']) ?>"></label>
     </div>
-    <small class="muted">No database yet? Just pick a name — we'll create it for you. If your host doesn't allow that, create it in your hosting panel first, then come back.</small><br><br>
+    <small class="muted">On shared hosting (cPanel etc.), create the database first under MySQL Databases and add your user to it with all privileges — then enter it here. If your user is allowed to, we'll create it for you instead.</small><br><br>
     <div class="cat-row">Board</div>
     <label>Board name<br><input name="board_name" value="<?= e($values['board_name']) ?>" required style="width:100%"></label><br><br>
     <label>Tagline<br><input name="board_tagline" value="<?= e($values['board_tagline']) ?>" style="width:100%"></label><br><br>
