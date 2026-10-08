@@ -1,7 +1,7 @@
 import re, urllib.request, urllib.parse, http.cookiejar, urllib.error
 cj = http.cookiejar.CookieJar()
 op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
-base = 'http://localhost:8080'
+import os as _os; base = _os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
 html = op.open(base + '/login').read().decode()
 m = re.search(r'name="csrf" value="([^"]+)"', html)
 print('csrf found:', bool(m))

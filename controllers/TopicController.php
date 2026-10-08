@@ -50,6 +50,7 @@ class TopicController
         $_SESSION['viewed_topics'] = $_SESSION['viewed_topics'] ?? [];
         if (!in_array($id, $_SESSION['viewed_topics'], true)) {
             Topic::bumpViews($id);
+            $topic['views'] = (int) $topic['views'] + 1;
             $_SESSION['viewed_topics'][] = $id;
             $_SESSION['viewed_topics'] = array_slice($_SESSION['viewed_topics'], -200);
         }

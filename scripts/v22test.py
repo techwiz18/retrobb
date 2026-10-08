@@ -1,5 +1,5 @@
 import re, urllib.request, urllib.parse, http.cookiejar, urllib.error
-base = 'http://localhost:8080'
+import os as _os; base = _os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
 
 def session():
     cj = http.cookiejar.CookieJar()

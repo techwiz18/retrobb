@@ -39,6 +39,15 @@ class Db
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             ]);
             $pdo->exec('PRAGMA foreign_keys = ON');
+            // Best-effort durability/concurrency tuning: on read-only storage
+            // (fresh deploy before chown, locked-down hosts) these must never fatal.
+            foreach (['journal_mode = WAL', 'busy_timeout = 5000', 'synchronous = NORMAL'] as $pragma) {
+                try {
+                    $pdo->exec('PRAGMA ' . $pragma);
+                } catch (\Throwable $t) {
+                    error_log('RetroBB PRAGMA failed (' . $pragma . '): ' . $t->getMessage());
+                }
+            }
         }
         self::$pdo = $pdo;
         return $pdo;

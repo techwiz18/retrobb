@@ -1,4 +1,7 @@
 storage/*.sqlite
+storage/*.sqlite-wal
+storage/*.sqlite-shm
+storage/*.sqlite-journal
 storage/installed.lock
 # Local config (copy config.example.php to config.php and adjust).
 config.php

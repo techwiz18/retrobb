@@ -7,7 +7,7 @@ declare(strict_types=1);
 //   php bin/migrate.php --fresh --seed
 
 $root = dirname(__DIR__);
-require $root . '/core/Db.php';
+require_once $root . '/core/Db.php';
 
 use RetroBB\Core\Db;
 
@@ -26,9 +26,15 @@ if (($config['db_driver'] ?? 'sqlite') === 'sqlite' && $fresh) {
 }
 
 $pdo = Db::pdo();
+$driver = $config['db_driver'] ?? 'sqlite';
 $migrations = glob($root . '/migrations/*.sql');
 sort($migrations);
 foreach ($migrations as $file) {
+    // Prefer the MySQL dialect variant when one ships for this migration.
+    $variant = $root . '/migrations/mysql/' . basename($file);
+    if ($driver === 'mysql' && is_file($variant)) {
+        $file = $variant;
+    }
     echo 'Applying ' . basename($file) . "...\n";
     // Our migration files are plain DDL with one statement per chunk and no
     // semicolons inside statements: strip full-line comments, split on ";".
@@ -42,8 +48,9 @@ foreach ($migrations as $file) {
         try {
             $pdo->exec($stmt);
         } catch (Throwable $t) {
-            // Ignore "already exists" / "duplicate column" so re-runs are idempotent.
-            if (!str_contains($t->getMessage(), 'already exists') && !str_contains($t->getMessage(), 'duplicate column')) {
+            // Ignore idempotent re-run noise across both dialects.
+            $msg = $t->getMessage();
+            if (!str_contains($msg, 'already exists') && !str_contains($msg, 'duplicate column') && !str_contains($msg, 'Duplicate key name')) {
                 throw $t;
             }
         }

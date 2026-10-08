@@ -37,6 +37,21 @@ See `plugins/hello-world/`.
 
 Footer switcher or `/skin/{classic,midnight,silver}` — original retro-inspired designs in `public/assets/style-retro.css`.
 
+## Production checklist
+
+- Point the virtual host at `public/` (never the repo root). Apache needs
+  `AllowOverride All` so `public/.htaccess` works; an nginx snippet lives in
+  `docs/nginx-snippet.conf`.
+- PHP 8.2+, `pdo_sqlite` (or `pdo_mysql`), `mbstring`. Set
+  `display_errors=Off` / `log_errors=On` — fatals can leak paths.
+- `storage/` must be writable by the web user (SQLite file + sessions live
+  there). Delete `public/install.php` after setup.
+- MySQL: copy `config.example.php` to `config.php` or export
+  `RETROBB_DB=mysql` plus `RETROBB_MYSQL_HOST/PORT/DB/USER/PASS`, then
+  `php bin/migrate.php --seed`.
+- Back up the database regularly. SQLite uses WAL mode; back up the
+  `.sqlite` file (the `-wal`/`-shm` sidecars are transient).
+
 ## Roadmap
 
 - v0.1 core forum (this) · v0.2 trust & safety (reports, mod queue, bans) · v0.3 alerts/mentions/reactions/PMs

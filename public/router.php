@@ -8,4 +8,4 @@ if (PHP_SAPI === 'cli-server') {
         return false; // let the server serve it
     }
 }
-require __DIR__ . '/index.php';
+require_once __DIR__ . '/index.php';
