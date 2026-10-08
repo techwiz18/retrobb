@@ -92,4 +92,58 @@ class ReportController
         }
         redirect('/mod/reports');
     }
+
+    private function openReport(int $id): ?array
+    {
+        if (!Auth::isMod()) {
+            http_response_code(403);
+            echo 'Forbidden';
+            return null;
+        }
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            http_response_code(419);
+            echo 'CSRF mismatch';
+            return null;
+        }
+        $rep = Report::find($id);
+        return ($rep && $rep['status'] === 'open') ? $rep : null;
+    }
+
+    /** Delete the reported post and resolve the report. */
+    public function deletePost(int $id): void
+    {
+        $rep = $this->openReport($id);
+        if ($rep === null) {
+            redirect('/mod/reports');
+        }
+        $me = (int) Auth::user()['id'];
+        $post = Post::find((int) $rep['post_id']);
+        $topicId = $post ? Post::delete((int) $rep['post_id']) : null;
+        Report::handle($id, $me, 'resolved', 'reported post deleted');
+        Modlog::log($me, 'delete', 'post', (int) $rep['post_id'], 'via report #' . $id);
+        $_SESSION['flash_ok'] = 'Reported post deleted.';
+        if ($topicId !== null) {
+            $topic = \RetroBB\Models\Topic::find($topicId);
+            redirect($topic ? Slug::topicUrl($topic) : '/');
+        }
+        redirect('/mod/reports');
+    }
+
+    /** Warn the reported post's author and resolve the report. */
+    public function warnAuthor(int $id): void
+    {
+        $rep = $this->openReport($id);
+        if ($rep === null) {
+            redirect('/mod/reports');
+        }
+        $me = (int) Auth::user()['id'];
+        $post = Post::find((int) $rep['post_id']);
+        if ($post) {
+            \RetroBB\Models\Moderation::warn((int) $post['user_id'], $me, 'Reported post: ' . $rep['reason']);
+        }
+        Report::handle($id, $me, 'resolved', 'author warned');
+        Modlog::log($me, 'report_resolved', 'report', $id, 'author warned');
+        $_SESSION['flash_ok'] = 'Author warned.';
+        redirect('/mod/reports');
+    }
 }

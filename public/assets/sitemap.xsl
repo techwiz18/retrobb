@@ -13,6 +13,12 @@
           h1{background:linear-gradient(180deg,#7db3e8,#3A6EA5);color:#fff;padding:8px 12px;margin:0 0 12px;font-size:16px}
           li{margin:4px 0} a{color:#1a3f7a}
           .note{color:#667;font-size:12px}
+          @media (prefers-color-scheme: dark){
+            body{background:#14161b;color:#d7dbe2}
+            .wrap{background:#1f232b;border-color:#3a4354}
+            h1{background:linear-gradient(180deg,#3d6a99,#2b4a6e)}
+            a{color:#8fb4ff} .note{color:#9aa1b0}
+          }
         </style>
       </head>
       <body><div class="wrap">

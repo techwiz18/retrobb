@@ -14,7 +14,7 @@
     <div class="forum-last">
       <?php if (!empty($f['last_topic_id'])): ?>
         <a href="/topic/<?= e($f['last_slug'] ?: 'topic') ?>.t<?= (int) $f['last_topic_id'] ?>"><?= e($f['last_title'] ?? 'View') ?></a><br>
-        <small>by <?= e($f['last_user'] ?? '?') ?></small>
+        <small>by <?php if (!empty($f['last_user_id'])): ?><a href="<?= e(\RetroBB\Core\Slug::memberUrl(['id' => $f['last_user_id'], 'username' => $f['last_user'] ?? 'user'])) ?>"><?= e($f['last_user'] ?? '?') ?></a><?php else: ?><?= e($f['last_user'] ?? '?') ?><?php endif; ?></small>
       <?php else: ?><small>No posts yet</small><?php endif; ?>
     </div>
   </div>

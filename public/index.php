@@ -68,6 +68,7 @@ $r->post('#^/topic/(\d+)/(pinned|locked)$#', [\RetroBB\Controllers\TopicControll
   $r->post('#^/topic/(\d+)/move$#', [\RetroBB\Controllers\TopicController::class, 'moveSubmit']);
   $r->get('#^/topic/(\d+)/split$#', [\RetroBB\Controllers\TopicController::class, 'splitForm']);
   $r->post('#^/topic/(\d+)/split$#', [\RetroBB\Controllers\TopicController::class, 'splitSubmit']);
+  $r->get('#^/topic/(\d+)/merge$#', [\RetroBB\Controllers\TopicController::class, 'mergeForm']);
   $r->post('#^/topic/(\d+)/merge$#', [\RetroBB\Controllers\TopicController::class, 'mergeSubmit']);
   $r->get('#^/post/(\d+)/edit$#', [\RetroBB\Controllers\TopicController::class, 'editPostForm']);
   $r->post('#^/post/(\d+)/edit$#', [\RetroBB\Controllers\TopicController::class, 'editPostSubmit']);
@@ -75,6 +76,8 @@ $r->post('#^/topic/(\d+)/(pinned|locked)$#', [\RetroBB\Controllers\TopicControll
   $r->post('#^/post/(\d+)/report$#', [\RetroBB\Controllers\ReportController::class, 'reportSubmit']);
   $r->get('#^/mod/reports$#', [\RetroBB\Controllers\ReportController::class, 'queue']);
   $r->post('#^/mod/report/(\d+)/handle$#', [\RetroBB\Controllers\ReportController::class, 'handle']);
+  $r->post('#^/mod/report/(\d+)/delete-post$#', [\RetroBB\Controllers\ReportController::class, 'deletePost']);
+  $r->post('#^/mod/report/(\d+)/warn-author$#', [\RetroBB\Controllers\ReportController::class, 'warnAuthor']);
 $r->get('#^/register$#', [\RetroBB\Controllers\AuthController::class, 'registerForm']);
 $r->post('#^/register$#', [\RetroBB\Controllers\AuthController::class, 'registerSubmit']);
 $r->get('#^/login$#', [\RetroBB\Controllers\AuthController::class, 'loginForm']);

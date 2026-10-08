@@ -18,7 +18,8 @@ class User
 
     public static function findByLogin(string $login): ?array
     {
-        $st = Db::pdo()->prepare('SELECT * FROM users WHERE username=? OR email=? LIMIT 1');
+        // Case-insensitive so "Admin" and "admin" are the same account.
+        $st = Db::pdo()->prepare('SELECT * FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?) LIMIT 1');
         $st->execute([$login, $login]);
         $r = $st->fetch();
         return $r ?: null;
@@ -46,6 +47,12 @@ class User
         }
         if ($errors) {
             return ['ok' => false, 'errors' => $errors];
+        }
+        // Case-insensitive uniqueness (SQLite UNIQUE is case-sensitive).
+        $chk = Db::pdo()->prepare('SELECT id FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?) LIMIT 1');
+        $chk->execute([$username, $email]);
+        if ($chk->fetch()) {
+            return ['ok' => false, 'errors' => ['Username or email already taken.']];
         }
         $hash = password_hash_safe($password);
         try {

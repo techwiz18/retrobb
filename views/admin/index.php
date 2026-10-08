@@ -2,9 +2,12 @@
 <div class="maintitle">AdminCP</div>
 <?php if (isset($_GET['saved'])): ?><div class="flash-ok">Settings saved.</div><?php endif; ?>
 <?php if ($openReports > 0): ?><div class="flash-error"><a href="/mod/reports"><b><?= $openReports ?> open report<?= $openReports === 1 ? '' : 's' ?></b> in the mod queue</a></div><?php endif; ?>
+<div class="actionrow" style="padding-top:10px">
+  <small class="muted">Jump to: <a href="#settings">Settings</a> · <a href="#spam">Spam protection</a> · <a href="#structure">Structure</a> · <a href="#bans">Bans</a> · <a href="#users">Users</a> · <a href="#modlog">Mod log</a></small>
+</div>
 <div class="admin-grid">
 <div>
-<div class="cat-row">Settings</div>
+<div class="cat-row" id="settings">Settings</div>
 <form method="post" action="/admin/settings" class="form">
 <?= \RetroBB\Core\Csrf::field() ?>
 <?php $map = []; foreach ($settings as $s) $map[$s['key']] = $s['value']; ?>
@@ -15,7 +18,7 @@
 <label>Edit window (minutes, 0 = no limit)<br><input type="number" name="edit_window_mins" min="0" max="3600" value="<?= e($map['edit_window_mins'] ?? '30') ?>" style="width:100px"></label><br><br>
 <button class="btn" type="submit">Save</button>
 </form>
-<div class="cat-row">Spam protection</div>
+<div class="cat-row" id="spam">Spam protection</div>
 <form method="post" action="/admin/settings" class="form">
 <?= \RetroBB\Core\Csrf::field() ?>
 <?php $cp = $map['captcha_provider'] ?? 'honeypot'; ?>
@@ -67,7 +70,7 @@
 <?php endforeach; ?>
 <?php if (!$bans): ?><div class="empty">No bans on record.</div><?php endif; ?>
 </div>
-<div class="cat-row">Users (latest 50)</div>
+<div class="cat-row" id="users">Users (latest 50)</div>
 <div class="recent-list">
 <?php foreach ($users as $u): ?>
 <div class="recent-row"><span><?= e($u['username']) ?> <span class="group group-<?= e($u['user_group']) ?>"><?= e($u['user_group']) ?></span></span>
@@ -76,7 +79,7 @@
 <button class="smallbtn">Set</button></form></span></div>
 <?php endforeach; ?>
 </div>
-<div class="cat-row">Mod log (<?= $modtotal ?>)</div>
+<div class="cat-row" id="modlog">Mod log (<?= $modtotal ?>)</div>
 <div class="recent-list">
 <?php foreach ($modlog as $m): ?>
 <div class="recent-row"><span><b><?= e($m['actor']) ?></b> <span class="group"><?= e($m['action']) ?></span> <?= e($m['target_type']) ?>#<?= (int) $m['target_id'] ?> <small class="muted"><?= e($m['detail']) ?></small></span><span class="recent-date"><?= e(time_ago($m['created_at'])) ?></span></div>

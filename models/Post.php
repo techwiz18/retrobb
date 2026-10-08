@@ -26,6 +26,26 @@ class Post
         ]);
     }
 
+    /** Delete a post; if it was the topic's last post, the whole topic goes. */
+    public static function delete(int $id): ?int
+    {
+        $post = self::find($id);
+        if (!$post) {
+            return null;
+        }
+        $pdo = Db::pdo();
+        $topicId = (int) $post['topic_id'];
+        $n = (int) $pdo->query('SELECT COUNT(*) c FROM posts WHERE topic_id=' . $topicId)->fetch()['c'];
+        if ($n <= 1) {
+            Topic::delete($topicId);
+            return null;
+        }
+        $pdo->prepare('DELETE FROM posts WHERE id=?')->execute([$id]);
+        Topic::recountTopic($topicId);
+        Topic::recountForum((int) $post['forum_id']);
+        return $topicId;
+    }
+
     /** Seconds since this user last posted (anywhere), or null if never. */
     public static function secondsSinceLastPost(int $userId): ?int
     {

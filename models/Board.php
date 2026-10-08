@@ -16,6 +16,7 @@ class Board
         foreach ($cats as &$c) {
             $st = $pdo->prepare(
                 'SELECT f.*, (SELECT u.username FROM posts p JOIN users u ON u.id=p.user_id WHERE p.topic_id=f.last_topic_id ORDER BY p.id DESC LIMIT 1) AS last_user,
+                 (SELECT p.user_id FROM posts p WHERE p.topic_id=f.last_topic_id ORDER BY p.id DESC LIMIT 1) AS last_user_id,
                  (SELECT t.title FROM topics t WHERE t.id=f.last_topic_id) AS last_title,
                  (SELECT t.slug FROM topics t WHERE t.id=f.last_topic_id) AS last_slug
                  FROM forums f WHERE f.category_id=? ORDER BY sort, id'
@@ -42,7 +43,7 @@ class Board
         $total = (int) $cnt->fetch()['c'];
         $offset = max(0, ($page - 1) * $perPage);
         $st = $pdo->prepare(
-            'SELECT t.*, u.username AS author, lu.username AS last_user
+            'SELECT t.*, u.username AS author, lu.username AS last_user, lu.id AS last_user_id
              FROM topics t JOIN users u ON u.id=t.user_id
              LEFT JOIN users lu ON lu.id=t.last_post_user_id
              WHERE t.forum_id=? ORDER BY t.pinned DESC, t.last_post_at DESC LIMIT ? OFFSET ?'

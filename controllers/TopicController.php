@@ -27,6 +27,13 @@ class TopicController
             View::render('errors/404', ['path' => '/topic/' . $segment]);
             return;
         }
+        // "Moved" ghosts redirect straight to the topic's new home.
+        if (!empty($topic['moved_to_id'])) {
+            $target = Topic::find((int) $topic['moved_to_id']);
+            if ($target) {
+                redirect(Slug::topicUrl($target), 301);
+            }
+        }
         $canonical = Slug::topicUrl($topic);
         $path = \RetroBB\Core\Router::currentPath();
         $base = explode('?', $path)[0];
@@ -262,6 +269,25 @@ class TopicController
         redirect(Slug::topicUrl(['id' => $res['new_id'], 'title' => (string) ($_POST['title'] ?? 'topic')]));
     }
 
+    public function mergeForm(int $id): void
+    {
+        if (!$this->needMod()) {
+            return;
+        }
+        $topic = Topic::find($id);
+        if (!$topic) {
+            http_response_code(404);
+            View::render('errors/404', ['path' => '/topic/' . $id . '/merge']);
+            return;
+        }
+        View::render('topic/merge', [
+            'topic' => $topic,
+            'q' => trim((string) ($_GET['q'] ?? '')),
+            'candidates' => Topic::search(trim((string) ($_GET['q'] ?? '')), $id),
+            'pageTitle' => 'Merge topic — ' . board_name(),
+        ]);
+    }
+
     public function mergeSubmit(int $id): void
     {
         if (!$this->needMod()) {
@@ -285,8 +311,8 @@ class TopicController
             $targetId = (int) trim($raw);
         }
         if ($targetId <= 0) {
-            $_SESSION['flash_error'] = 'Enter a target topic id or URL.';
-            redirect(Slug::topicUrl($topic));
+            $_SESSION['flash_error'] = 'Pick a target topic below.';
+            redirect('/topic/' . $id . '/merge');
         }
         $res = Topic::merge($id, $targetId, (int) Auth::user()['id']);
         if (!$res['ok']) {

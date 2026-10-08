@@ -33,7 +33,7 @@ class Report
         $total = (int) $pdo->query("SELECT COUNT(*) c FROM reports WHERE status='open'")->fetch()['c'];
         $offset = max(0, ($page - 1) * $perPage);
         $st = $pdo->prepare(
-            "SELECT r.*, ru.username AS reporter, pu.username AS post_author, t.title AS topic_title, t.slug AS topic_slug
+            "SELECT r.*, ru.username AS reporter, ru.id AS reporter_id, pu.username AS post_author, pu.id AS author_id, t.title AS topic_title, t.slug AS topic_slug
              FROM reports r
              JOIN users ru ON ru.id=r.reporter_id
              JOIN posts p ON p.id=r.post_id

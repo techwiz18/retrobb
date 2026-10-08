@@ -35,6 +35,9 @@ main { padding:12px; }
 .btn:hover { filter:brightness(1.05); }
 .smallbtn { background:var(--bar-bg); color:var(--text); border:1px solid var(--border); border-radius:3px; padding:2px 8px; cursor:pointer; font-size:11px; }
 a.smallbtn { display:inline-block; text-decoration:none; color:inherit; }
+.modbar { border:1px dashed var(--border); background:var(--bar-bg); padding:6px 10px; margin-top:8px; font-size:12px; }
+.modbar .modlabel { font-weight:bold; margin-right:6px; }
+.modbar form, .modbar a { margin-right:4px; }
 .editedmark { margin-top:8px; font-size:11px; color:var(--muted); font-style:italic; }
 .smallbtn.danger { color:#a00; border-color:#a00; }
 .postbit { border:1px solid var(--border); margin-top:10px; scroll-margin-top:10px; box-shadow:1px 1px 0 rgba(0,0,0,.08); }
@@ -43,12 +46,13 @@ a.smallbtn { display:inline-block; text-decoration:none; color:inherit; }
 .postnum { font-weight:bold; text-decoration:none; }
 .postdate { color:#667; font-size:11px; }
 .postactions { margin-left:auto; }
+.postfoot { display:flex; gap:6px; justify-content:flex-end; padding:5px 10px; background:var(--bar-bg); border-top:1px solid var(--border); }
 .postbody { display:grid; grid-template-columns:170px 1fr; }
 .postleft { background:var(--row2); padding:10px; border-right:1px solid var(--border); font-size:12px; text-align:center; }
 .avatar { display:inline-flex; align-items:center; justify-content:center; width:52px; height:52px; border-radius:6px; color:#fff; font-size:24px; font-weight:bold; text-shadow:0 1px 2px rgba(0,0,0,.4); border:1px solid rgba(0,0,0,.3); box-shadow:1px 1px 0 #fff inset; margin-bottom:6px; }
 .postuser { display:block; font-size:13px; overflow-wrap:anywhere; }
 /* ---- Member profile ---- */
-.profile-card { display:flex; gap:20px; align-items:center; margin-top:12px; padding:22px; border:1px solid var(--border); background:linear-gradient(180deg, #fff, var(--row)); box-shadow:1px 1px 0 rgba(0,0,0,.08); }
+.profile-card { display:flex; gap:20px; align-items:center; margin-top:12px; padding:22px; border:1px solid var(--border); background:linear-gradient(180deg, var(--panel), var(--row)); box-shadow:1px 1px 0 rgba(0,0,0,.08); }
 .avatar-lg { width:76px; height:76px; font-size:38px; border-radius:8px; flex:none; }
 .profile-name { font-size:22px; font-weight:bold; margin-bottom:6px; overflow-wrap:anywhere; }
 .profile-stats { display:flex; gap:36px; margin-top:14px; flex-wrap:wrap; }
@@ -78,7 +82,7 @@ a.smallbtn { display:inline-block; text-decoration:none; color:inherit; }
 .flash-error { background:#fdd; border:1px solid #a00; color:#700; padding:8px 10px; margin-top:10px; }
 .flash-ok { background:#dfd; border:1px solid #0a0; color:#060; padding:8px 10px; margin-top:10px; }
 .locked { padding:10px; background:#ffe; border:1px solid #aa0; }
-.group { font-size:10px; padding:1px 6px; border-radius:8px; background:#ddd; }
+.group { font-size:10px; padding:1px 6px; border-radius:8px; background:#ddd; color:#333; }
 .group-admin { background:#c00; color:#fff; } .group-mod { background:#080; color:#fff; }
 .pagination { padding:8px 0; } .pagination a, .pagination b { border:1px solid var(--border); padding:2px 8px; margin-right:4px; background:var(--input-bg); text-decoration:none; }
 .admin-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }

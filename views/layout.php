@@ -43,6 +43,7 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
 
   <?php if (!empty($_SESSION['flash_error'])): ?><div class="flash-error"><?= e($_SESSION['flash_error']); unset($_SESSION['flash_error']); ?></div><?php endif; ?>
   <?php if (!empty($_SESSION['flash_ok'])): ?><div class="flash-ok"><?= e($_SESSION['flash_ok']); unset($_SESSION['flash_ok']); ?></div><?php endif; ?>
+  <?php if ($user && ($wc = \RetroBB\Models\Moderation::warningCount((int) $user['id'])) > 0): ?><div class="flash-error">⚠ You have <?= $wc ?> warning<?= $wc === 1 ? '' : 's' ?> on record. <a href="<?= e(\RetroBB\Core\Slug::memberUrl($user)) ?>">View your profile</a> for details.</div><?php endif; ?>
 
   <main><?= $content ?></main>
 

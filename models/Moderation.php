@@ -28,9 +28,13 @@ class Moderation
 
     public static function warningCount(int $userId): int
     {
-        $st = Db::pdo()->prepare('SELECT COUNT(*) c FROM warnings WHERE user_id=?');
-        $st->execute([$userId]);
-        return (int) $st->fetch()['c'];
+        try {
+            $st = Db::pdo()->prepare('SELECT COUNT(*) c FROM warnings WHERE user_id=?');
+            $st->execute([$userId]);
+            return (int) $st->fetch()['c'];
+        } catch (\Throwable) {
+            return 0;
+        }
     }
 
     /** $days null = permanent. Returns ban id. */

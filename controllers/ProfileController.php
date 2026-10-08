@@ -38,11 +38,13 @@ class ProfileController
         $st = $pdo->prepare('SELECT t.id, t.title, t.slug, p.created_at FROM posts p JOIN topics t ON t.id=p.topic_id WHERE p.user_id=? ORDER BY p.id DESC LIMIT 10');
         $st->execute([$id]);
         $isMod = \RetroBB\Core\Auth::isMod();
+        $me = \RetroBB\Core\Auth::user();
+        $isSelf = $me !== null && (int) $me['id'] === $id;
         View::render('profile/show', [
             'profile' => $user,
             'recent' => $st->fetchAll(),
-            'warnings' => $isMod ? \RetroBB\Models\Moderation::warningsFor($id) : [],
-            'activeBan' => $isMod ? \RetroBB\Models\Moderation::activeBan($id) : null,
+            'warnings' => ($isMod || $isSelf) ? \RetroBB\Models\Moderation::warningsFor($id) : [],
+            'activeBan' => ($isMod || $isSelf) ? \RetroBB\Models\Moderation::activeBan($id) : null,
             'pageTitle' => $user['username'] . ' — ' . board_name(),
             'canonical' => canonical_url($canonical),
         ]);

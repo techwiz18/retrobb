@@ -42,8 +42,8 @@ foreach ($migrations as $file) {
         try {
             $pdo->exec($stmt);
         } catch (Throwable $t) {
-            // Ignore "already exists" so re-runs are idempotent.
-            if (!str_contains($t->getMessage(), 'already exists')) {
+            // Ignore "already exists" / "duplicate column" so re-runs are idempotent.
+            if (!str_contains($t->getMessage(), 'already exists') && !str_contains($t->getMessage(), 'duplicate column')) {
                 throw $t;
             }
         }

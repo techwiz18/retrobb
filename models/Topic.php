@@ -155,6 +155,30 @@ class Topic
         return max(0, $secs - $since);
     }
 
+    /** Search topics by title for the merge picker. */
+    public static function search(string $q, int $excludeId = 0, int $limit = 20): array
+    {
+        $pdo = Db::pdo();
+        $q = trim(mb_substr($q, 0, 100));
+        if ($q === '') {
+            $st = $pdo->prepare(
+                'SELECT t.id, t.title, t.slug, f.name AS forum_name FROM topics t JOIN forums f ON f.id=t.forum_id WHERE t.id != ? ORDER BY t.last_post_at DESC LIMIT ?'
+            );
+            $st->bindValue(1, $excludeId, \PDO::PARAM_INT);
+            $st->bindValue(2, $limit, \PDO::PARAM_INT);
+            $st->execute();
+            return $st->fetchAll();
+        }
+        $st = $pdo->prepare(
+            'SELECT t.id, t.title, t.slug, f.name AS forum_name FROM topics t JOIN forums f ON f.id=t.forum_id WHERE t.id != ? AND t.title LIKE ? ORDER BY t.last_post_at DESC LIMIT ?'
+        );
+        $st->bindValue(1, $excludeId, \PDO::PARAM_INT);
+        $st->bindValue(2, '%' . $q . '%', \PDO::PARAM_STR);
+        $st->bindValue(3, $limit, \PDO::PARAM_INT);
+        $st->execute();
+        return $st->fetchAll();
+    }
+
     public static function move(int $id, int $destForumId, bool $ghost, int $modId): array
     {
         $topic = self::find($id);
@@ -171,8 +195,8 @@ class Topic
         if ($ghost) {
             $now = date('Y-m-d H:i:s');
             $newUrl = Slug::topicUrl(array_merge($topic, ['id' => $id]));
-            $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, pinned, locked, views, posts_count, created_at, last_post_at, last_post_user_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
-                ->execute([$srcForumId, $modId, 'Moved: ' . $topic['title'], Slug::make('moved-' . $topic['title']), 0, 1, 0, 1, $now, $now, $modId]);
+            $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, pinned, locked, views, posts_count, created_at, last_post_at, last_post_user_id, moved_to_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+                ->execute([$srcForumId, $modId, 'Moved: ' . $topic['title'], Slug::make('moved-' . $topic['title']), 0, 1, 0, 1, $now, $now, $modId, $id]);
             $gid = (int) $pdo->lastInsertId();
             $html = BBCode::toHtml('This topic has moved here: [url=' . $newUrl . ']' . $topic['title'] . '[/url]');
             $pdo->prepare('INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)')
