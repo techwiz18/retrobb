@@ -81,9 +81,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
                     $values['mysql_pass'],
                     [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
                 );
-                $mysql->exec('CREATE DATABASE IF NOT EXISTS `' . $values['mysql_db'] . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
             } catch (Throwable $t) {
-                $errors[] = 'Could not connect to MySQL: ' . $t->getMessage();
+                $errors[] = 'Could not connect to MySQL with those details — check host, port, username and password. (' . $t->getMessage() . ')';
+            }
+            if (!$errors) {
+                try {
+                    $mysql->exec('CREATE DATABASE IF NOT EXISTS `' . $values['mysql_db'] . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+                } catch (Throwable $t) {
+                    $errors[] = 'Connected, but your MySQL user is not allowed to create databases — create "' . $values['mysql_db'] . '" in your hosting panel, then try again.';
+                }
             }
         }
     } else {
@@ -219,7 +225,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
   <form method="post" class="form">
     <div class="cat-row">Database</div>
     <label><input type="radio" name="driver" value="sqlite" <?= $values['driver'] === 'sqlite' ? 'checked' : '' ?>> SQLite — zero setup, file lives in <code>storage/</code> (great for small boards)</label><br>
-    <label><input type="radio" name="driver" value="mysql" <?= $values['driver'] === 'mysql' ? 'checked' : '' ?>> MySQL 8 — for bigger boards (we create the database if we can)</label><br><br>
+    <label><input type="radio" name="driver" value="mysql" <?= $values['driver'] === 'mysql' ? 'checked' : '' ?>> MySQL 8 — for bigger boards</label><br><br>
     <div class="admin-grid">
       <label>Host<br><input name="mysql_host" value="<?= e($values['mysql_host']) ?>"></label>
       <label>Port<br><input name="mysql_port" value="<?= e($values['mysql_port']) ?>" size="6"></label>
@@ -227,6 +233,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
       <label>Username<br><input name="mysql_user" value="<?= e($values['mysql_user']) ?>"></label>
       <label>Password<br><input type="password" name="mysql_pass" value="<?= e($values['mysql_pass']) ?>"></label>
     </div>
+    <small class="muted">No database yet? Just pick a name — we'll create it for you. If your host doesn't allow that, create it in your hosting panel first, then come back.</small><br><br>
     <div class="cat-row">Board</div>
     <label>Board name<br><input name="board_name" value="<?= e($values['board_name']) ?>" required style="width:100%"></label><br><br>
     <label>Tagline<br><input name="board_tagline" value="<?= e($values['board_tagline']) ?>" style="width:100%"></label><br><br>
