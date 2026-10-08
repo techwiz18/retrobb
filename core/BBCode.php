@@ -27,9 +27,14 @@ class BBCode
             $html = (string) preg_replace($re, $rep, $html);
         }
 
-        // [url]http://...[/url] and [url=http://...]label[/url]
+        // [url]http://...[/url] and [url=http://...]label[/url] (quoted or bare)
         $html = (string) preg_replace_callback(
             '/\[url=&quot;(.*?)&quot;\](.*?)\[\/url\]/is',
+            fn($m) => self::linkTag(html_entity_decode($m[1]), $m[2]),
+            $html
+        );
+        $html = (string) preg_replace_callback(
+            '/\[url=([^\]]+)\](.*?)\[\/url\]/is',
             fn($m) => self::linkTag(html_entity_decode($m[1]), $m[2]),
             $html
         );

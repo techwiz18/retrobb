@@ -33,6 +33,12 @@ use RetroBB\Core\Auth;
 use RetroBB\Core\Plugins;
 use RetroBB\Core\Router;
 
+// Baseline security headers (CSP deliberately left to site owners: external
+// CAPTCHA providers need their own script allowlists).
+header('X-Frame-Options: SAMEORIGIN');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: same-origin');
+
 Auth::startSession();
 
 // DB must exist — else send to installer

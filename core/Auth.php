@@ -8,6 +8,13 @@ class Auth
     public static function startSession(): void
     {
         if (session_status() === PHP_SESSION_NONE) {
+            // Harden the session cookie (no JS access, same-site only).
+            session_set_cookie_params([
+                'lifetime' => 0,
+                'path' => '/',
+                'httponly' => true,
+                'samesite' => 'Lax',
+            ]);
             session_start();
         }
     }
