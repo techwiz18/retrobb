@@ -75,6 +75,7 @@ class Moderation
     /** @return array active + recent bans */
     public static function banList(int $limit = 100): array
     {
+        $limit = max(1, min(1000, $limit));
         return Db::pdo()->query(
             'SELECT b.*, u.username, a.username AS banned_by_name FROM bans b JOIN users u ON u.id=b.user_id JOIN users a ON a.id=b.banned_by ORDER BY b.id DESC LIMIT ' . $limit
         )->fetchAll();

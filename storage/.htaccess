@@ -1,0 +1,4 @@
+# Block direct web access if the board is ever deployed with the
+# repository root (rather than public/) as the document root.
+Require all denied
+Deny from all

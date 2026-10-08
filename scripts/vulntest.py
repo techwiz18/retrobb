@@ -43,7 +43,21 @@ tokA = csrf(html)
 raw(admin, 'POST', '/admin/settings', {'csrf': tokA, 'flood_seconds': '0', 'return': 'settings'})
 
 mem = session()
-login(mem, 'dialup_dan', 'password123')
+_, _, html, _ = get(mem, '/register')
+import random as _rnd
+suffix = str(_rnd.randint(1000, 9999))
+fields = {'csrf': csrf(html), 'username': 'vulnmember' + suffix, 'email': 'vuln%s@example.com' % suffix,
+          'password': 'password123', 'website': ''}
+qm = re.search(r'what is (\d+) \+ (\d+)', html)
+if qm:
+    fields['captcha_answer'] = str(int(qm.group(1)) + int(qm.group(2)))
+_, _, html, _ = get(mem, '/register')
+# refetch csrf (fresh page) then register
+code, body, _ = raw(mem, 'POST', '/register', dict(fields, csrf=csrf(html)))
+check('test member registered', 'Log out' in body, '')
+vm = re.search(r'/members/([a-z0-9\-]+)\.u(\d+)', body)
+vslug, vid = vm.group(1), vm.group(2)
+vemail = 'vuln%s@example.com' % suffix
 _, _, html, _ = get(mem, '/topic/what-was-your-first-forum.t2')
 tokM = csrf(html)
 
@@ -108,8 +122,8 @@ else:
     check('xss topic created+found', False)
 # bio XSS
 _, _, html, _ = get(mem, '/settings/profile')
-_ = raw(mem, 'POST', '/settings/profile', {'csrf': csrf(html), 'form': 'profile', 'email': 'dan@example.com', 'bio': '</div><script>alert(9)</script>'})
-_, _, phtml, _ = get(mem, '/members/dialup-dan.u3')
+_ = raw(mem, 'POST', '/settings/profile', {'csrf': csrf(html), 'form': 'profile', 'email': vemail, 'bio': '</div><script>alert(9)</script>'})
+_, _, phtml, _ = get(mem, '/members/%s.u%s' % (vslug, vid))
 check('bio escaped', '<script>' not in phtml and '&lt;/div&gt;' in phtml)
 
 print('--- C. SQLi probes ---')
@@ -128,7 +142,7 @@ print('--- D. CSRF / redirects / session ---')
 code, body, _ = raw(mem, 'GET', '/logout', {})
 check('logout via GET does not log out', True)
 _, _, html, _ = get(mem, '/')
-check('still logged in after GET logout', 'dialup_dan' in html)
+check('still logged in after GET logout', 'Log out' in html)
 class NoRedir(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, hdrs, newurl):
         return None

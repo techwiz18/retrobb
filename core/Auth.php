@@ -69,4 +69,40 @@ class Auth
             $_SESSION['user']['username'] = $freshUser['username'];
         }
     }
+
+    /**
+     * Re-validate the session against the DB on every request: a demoted
+     * staffer loses powers immediately, a banned user is logged out at once.
+     * Safe to call pre-install (tables may not exist yet).
+     */
+    public static function validateSession(): void
+    {
+        self::startSession();
+        if (empty($_SESSION['user'])) {
+            return;
+        }
+        $id = (int) $_SESSION['user']['id'];
+        try {
+            $fresh = \RetroBB\Models\User::find($id);
+        } catch (\Throwable) {
+            return;
+        }
+        if (!$fresh) {
+            self::logout();
+            return;
+        }
+        $_SESSION['user']['username'] = $fresh['username'];
+        $_SESSION['user']['user_group'] = $fresh['user_group'];
+        try {
+            $ban = \RetroBB\Models\Moderation::activeBan($id);
+        } catch (\Throwable) {
+            $ban = null;
+        }
+        if ($ban) {
+            self::logout();
+            $_SESSION['flash_error'] = 'Your account has been banned'
+                . (!empty($ban['expires_at']) ? ' until ' . $ban['expires_at'] : ' permanently')
+                . '. Reason: ' . $ban['reason'];
+        }
+    }
 }

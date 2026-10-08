@@ -66,6 +66,7 @@ class User
 
     public static function all(int $limit = 100): array
     {
+        $limit = max(1, min(1000, $limit));
         return Db::pdo()->query('SELECT id, username, user_group, posts_count, created_at FROM users ORDER BY created_at ASC LIMIT ' . $limit)->fetchAll();
     }
 

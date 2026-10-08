@@ -177,6 +177,7 @@ class AdminController
             redirect('/admin');
         }
         User::setGroup($id, (string) ($_POST['group'] ?? 'member'));
+        \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'setgroup', 'user', $id, '-> ' . (string) ($_POST['group'] ?? 'member'));
         redirect('/admin/users');
     }
 
