@@ -55,6 +55,12 @@ function skin(): string
     return in_array($s, ['classic', 'midnight', 'silver'], true) ? $s : 'classic';
 }
 
+function theme(): string
+{
+    $t = $_COOKIE['retrobb_theme'] ?? 'auto';
+    return in_array($t, ['light', 'dark', 'auto'], true) ? $t : 'auto';
+}
+
 function canonical_url(string $path): string
 {
     // Note: HTTP_HOST is client-controlled; fine for 0.1 (no shared cache to

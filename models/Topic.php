@@ -46,6 +46,10 @@ class Topic
         if (mb_strlen($bbcode) < 2 || mb_strlen($bbcode) > 20000) {
             return ['ok' => false, 'error' => 'Post body is too short or too long.'];
         }
+        $wait = self::floodWait($userId, \RetroBB\Core\Auth::isMod());
+        if ($wait > 0) {
+            return ['ok' => false, 'error' => "Slow down — please wait $wait more second(s)."];
+        }
         $pdo = Db::pdo();
         $now = date('Y-m-d H:i:s');
         $st = $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, created_at, last_post_at, last_post_user_id, posts_count) VALUES (?,?,?,?,?,?,?,1)');
@@ -72,6 +76,10 @@ class Topic
         $bbcode = trim($bbcode);
         if (mb_strlen($bbcode) < 2 || mb_strlen($bbcode) > 20000) {
             return ['ok' => false, 'error' => 'Reply is too short or too long.'];
+        }
+        $wait = self::floodWait($userId, \RetroBB\Core\Auth::isMod());
+        if ($wait > 0) {
+            return ['ok' => false, 'error' => "Slow down — please wait $wait more second(s)."];
         }
         $pdo = Db::pdo();
         $now = date('Y-m-d H:i:s');
@@ -105,11 +113,132 @@ class Topic
         }
         $pdo = Db::pdo();
         $pdo->prepare('DELETE FROM topics WHERE id=?')->execute([$id]);
-        // recount forum (simple)
-        $fid = (int) $t['forum_id'];
-        $tc = (int) $pdo->query("SELECT COUNT(*) c FROM topics WHERE forum_id=$fid")->fetch()['c'];
-        $pc = (int) $pdo->query("SELECT COUNT(*) c FROM posts p JOIN topics t ON t.id=p.topic_id WHERE t.forum_id=$fid")->fetch()['c'];
-        $last = $pdo->query("SELECT id FROM topics WHERE forum_id=$fid ORDER BY last_post_at DESC LIMIT 1")->fetch();
-        $pdo->prepare('UPDATE forums SET topics_count=?, posts_count=?, last_topic_id=? WHERE id=?')->execute([$tc, $pc, $last['id'] ?? null, $fid]);
+        self::recountForum((int) $t['forum_id']);
+    }
+
+    public static function recountTopic(int $topicId): void
+    {
+        $pdo = Db::pdo();
+        $n = (int) $pdo->query('SELECT COUNT(*) c FROM posts WHERE topic_id=' . $topicId)->fetch()['c'];
+        $last = $pdo->query('SELECT user_id, created_at FROM posts WHERE topic_id=' . $topicId . ' ORDER BY id DESC LIMIT 1')->fetch();
+        if ($last) {
+            $pdo->prepare('UPDATE topics SET posts_count=?, last_post_at=?, last_post_user_id=? WHERE id=?')
+                ->execute([$n, $last['created_at'], $last['user_id'], $topicId]);
+        } else {
+            $pdo->prepare('UPDATE topics SET posts_count=0 WHERE id=?')->execute([$topicId]);
+        }
+    }
+
+    public static function recountForum(int $forumId): void
+    {
+        $pdo = Db::pdo();
+        $tc = (int) $pdo->query("SELECT COUNT(*) c FROM topics WHERE forum_id=$forumId")->fetch()['c'];
+        $pc = (int) $pdo->query("SELECT COUNT(*) c FROM posts p JOIN topics t ON t.id=p.topic_id WHERE t.forum_id=$forumId")->fetch()['c'];
+        $last = $pdo->query("SELECT id FROM topics WHERE forum_id=$forumId ORDER BY last_post_at DESC LIMIT 1")->fetch();
+        $pdo->prepare('UPDATE forums SET topics_count=?, posts_count=?, last_topic_id=? WHERE id=?')->execute([$tc, $pc, $last['id'] ?? null, $forumId]);
+    }
+
+    /** Seconds a member must still wait before posting (0 = ok). Mods bypass. */
+    public static function floodWait(int $userId, bool $isMod): int
+    {
+        if ($isMod) {
+            return 0;
+        }
+        $secs = max(0, (int) setting('flood_seconds', '30'));
+        if ($secs === 0) {
+            return 0;
+        }
+        $since = \RetroBB\Models\Post::secondsSinceLastPost($userId);
+        if ($since === null) {
+            return 0;
+        }
+        return max(0, $secs - $since);
+    }
+
+    public static function move(int $id, int $destForumId, bool $ghost, int $modId): array
+    {
+        $topic = self::find($id);
+        $dest = Board::forum($destForumId);
+        if (!$topic || !$dest) {
+            return ['ok' => false, 'error' => 'Topic or forum not found.'];
+        }
+        if ((int) $topic['forum_id'] === $destForumId) {
+            return ['ok' => false, 'error' => 'Already in that forum.'];
+        }
+        $pdo = Db::pdo();
+        $srcForumId = (int) $topic['forum_id'];
+        $pdo->prepare('UPDATE topics SET forum_id=? WHERE id=?')->execute([$destForumId, $id]);
+        if ($ghost) {
+            $now = date('Y-m-d H:i:s');
+            $newUrl = Slug::topicUrl(array_merge($topic, ['id' => $id]));
+            $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, pinned, locked, views, posts_count, created_at, last_post_at, last_post_user_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+                ->execute([$srcForumId, $modId, 'Moved: ' . $topic['title'], Slug::make('moved-' . $topic['title']), 0, 1, 0, 1, $now, $now, $modId]);
+            $gid = (int) $pdo->lastInsertId();
+            $html = BBCode::toHtml('This topic has moved here: [url=' . $newUrl . ']' . $topic['title'] . '[/url]');
+            $pdo->prepare('INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)')
+                ->execute([$gid, $modId, 'moved-stub', $html, $now]);
+        }
+        self::recountForum($srcForumId);
+        self::recountForum($destForumId);
+        \RetroBB\Core\Modlog::log($modId, 'move', 'topic', $id, "forum $srcForumId -> $destForumId" . ($ghost ? ' (ghost)' : ''));
+        return ['ok' => true];
+    }
+
+    public static function split(int $id, array $postIds, string $title, int $modId): array
+    {
+        $topic = self::find($id);
+        $title = trim($title);
+        $postIds = array_values(array_unique(array_map('intval', $postIds)));
+        if (!$topic) {
+            return ['ok' => false, 'error' => 'Topic not found.'];
+        }
+        if (mb_strlen($title) < 3 || mb_strlen($title) > 120) {
+            return ['ok' => false, 'error' => 'New title must be 3–120 characters.'];
+        }
+        if (count($postIds) < 1) {
+            return ['ok' => false, 'error' => 'Select at least one post to split.'];
+        }
+        $pdo = Db::pdo();
+        // Only posts actually in this topic, never ALL of them.
+        $all = $pdo->query('SELECT id FROM posts WHERE topic_id=' . (int) $id . ' ORDER BY id')->fetchAll();
+        $allIds = array_map(fn($r) => (int) $r['id'], $all);
+        $postIds = array_values(array_intersect($postIds, $allIds));
+        if (count($postIds) < 1 || count($postIds) >= count($allIds)) {
+            return ['ok' => false, 'error' => 'Cannot split zero or all posts.'];
+        }
+        $now = date('Y-m-d H:i:s');
+        $firstMover = $pdo->query('SELECT user_id, created_at FROM posts WHERE id=' . $postIds[0])->fetch();
+        $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, created_at, last_post_at, last_post_user_id, posts_count) VALUES (?,?,?,?,?,?,?,0)')
+            ->execute([(int) $topic['forum_id'], (int) $firstMover['user_id'], $title, Slug::make($title), $firstMover['created_at'], $now, $modId]);
+        $newId = (int) $pdo->lastInsertId();
+        $in = implode(',', $postIds);
+        $pdo->exec("UPDATE posts SET topic_id=$newId WHERE id IN ($in)");
+        self::recountTopic($id);
+        self::recountTopic($newId);
+        self::recountForum((int) $topic['forum_id']);
+        \RetroBB\Core\Modlog::log($modId, 'split', 'topic', $id, count($postIds) . " posts -> t$newId");
+        return ['ok' => true, 'new_id' => $newId];
+    }
+
+    public static function merge(int $sourceId, int $targetId, int $modId): array
+    {
+        if ($sourceId === $targetId) {
+            return ['ok' => false, 'error' => 'Cannot merge a topic into itself.'];
+        }
+        $src = self::find($sourceId);
+        $dst = self::find($targetId);
+        if (!$src || !$dst) {
+            return ['ok' => false, 'error' => 'Topic not found.'];
+        }
+        $pdo = Db::pdo();
+        $pdo->exec("UPDATE posts SET topic_id=$targetId WHERE topic_id=$sourceId");
+        $pdo->prepare('DELETE FROM topics WHERE id=?')->execute([$sourceId]);
+        self::recountTopic($targetId);
+        self::recountForum((int) $src['forum_id']);
+        if ((int) $dst['forum_id'] !== (int) $src['forum_id']) {
+            self::recountForum((int) $dst['forum_id']);
+        }
+        \RetroBB\Core\Modlog::log($modId, 'merge', 'topic', $sourceId, "merged into t$targetId");
+        return ['ok' => true];
     }
 }

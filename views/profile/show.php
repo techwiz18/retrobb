@@ -1,4 +1,4 @@
-<?php /** @var array $profile */ /** @var array $recent */ ?>
+<?php /** @var array $profile */ /** @var array $recent */ /** @var array $warnings */ /** @var array|null $activeBan */ ?>
 <?php $hue = abs(crc32($profile['username'])) % 360; $initial = mb_strtoupper(mb_substr($profile['username'], 0, 1)); ?>
 <div class="breadcrumb"><a href="/">Index</a> &raquo; <a href="/members">Members</a> &raquo; <?= e($profile['username']) ?></div>
 <div class="profile-card">
@@ -23,3 +23,30 @@
 <?php endforeach; ?>
 <?php if (!$recent): ?><div class="empty">No posts yet.</div><?php endif; ?>
 </div>
+<?php if (!empty($warnings)): ?>
+<div class="maintitle">Warnings (<?= count($warnings) ?>)</div>
+<div class="recent-list">
+<?php foreach ($warnings as $w): ?>
+  <div class="recent-row"><span><?= e($w['reason']) ?><br><small class="muted">by <?= e($w['warned_by_name']) ?></small></span><span class="recent-date"><?= e(time_ago($w['created_at'])) ?></span></div>
+<?php endforeach; ?>
+</div>
+<?php endif; ?>
+<?php if (!empty($activeBan)): ?>
+<div class="flash-error">⛔ Banned <?= $activeBan['expires_at'] ? 'until ' . e($activeBan['expires_at']) : 'permanently' ?> — <?= e($activeBan['reason']) ?></div>
+<?php endif; ?>
+<?php if (\RetroBB\Core\Auth::isMod() && \RetroBB\Core\Auth::user()['id'] !== (int) $profile['id']): ?>
+<div class="maintitle">Moderate <?= e($profile['username']) ?></div>
+<div class="admin-grid">
+<form method="post" action="/members/<?= (int) $profile['id'] ?>/warn" class="form">
+  <?= \RetroBB\Core\Csrf::field() ?>
+  <label>Warn reason<br><input type="text" name="reason" maxlength="500" required style="width:100%"></label><br><br>
+  <button class="smallbtn" type="submit">Issue warning</button>
+</form>
+<form method="post" action="/members/<?= (int) $profile['id'] ?>/ban" class="form" onsubmit="return confirm('Ban this user?')">
+  <?= \RetroBB\Core\Csrf::field() ?>
+  <label>Ban reason<br><input type="text" name="reason" maxlength="500" required style="width:100%"></label><br><br>
+  <label>Days (blank = permanent)<br><input type="number" name="days" min="1" max="3650" style="width:120px"></label><br><br>
+  <button class="smallbtn danger" type="submit">Ban user</button>
+</form>
+</div>
+<?php endif; ?>

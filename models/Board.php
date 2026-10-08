@@ -68,4 +68,54 @@ class Board
             return ['users' => 0, 'posts' => 0, 'topics' => 0, 'newest' => '—'];
         }
     }
+
+    /** Move a category up/down by swapping sort with its neighbour. $dir = -1|+1. */
+    public static function moveCategory(int $id, int $dir): void
+    {
+        $pdo = Db::pdo();
+        $cats = $pdo->query('SELECT id, sort FROM categories ORDER BY sort, id')->fetchAll();
+        self::swapSort($pdo, 'categories', $cats, $id, $dir);
+    }
+
+    /** Move a forum up/down within its category. $dir = -1|+1. */
+    public static function moveForum(int $id, int $dir): void
+    {
+        $pdo = Db::pdo();
+        $st = $pdo->prepare('SELECT category_id FROM forums WHERE id=?');
+        $st->execute([$id]);
+        $row = $st->fetch();
+        if (!$row) {
+            return;
+        }
+        $st = $pdo->prepare('SELECT id, sort FROM forums WHERE category_id=? ORDER BY sort, id');
+        $st->execute([$row['category_id']]);
+        self::swapSort($pdo, 'forums', $st->fetchAll(), $id, $dir);
+    }
+
+    private static function swapSort(\PDO $pdo, string $table, array $rows, int $id, int $dir): void
+    {
+        $i = null;
+        foreach ($rows as $k => $r) {
+            if ((int) $r['id'] === $id) {
+                $i = $k;
+                break;
+            }
+        }
+        if ($i === null) {
+            return;
+        }
+        $j = $i + ($dir < 0 ? -1 : 1);
+        if (!isset($rows[$j])) {
+            return;
+        }
+        $a = $rows[$i];
+        $b = $rows[$j];
+        $upd = $pdo->prepare("UPDATE $table SET sort=? WHERE id=?");
+        $upd->execute([$b['sort'], $a['id']]);
+        $upd->execute([$a['sort'], $b['id']]);
+        // Identical sorts would no-op the swap; nudge instead.
+        if ((int) $a['sort'] === (int) $b['sort']) {
+            $upd->execute([(int) $a['sort'] + ($dir < 0 ? -1 : 1), $a['id']]);
+        }
+    }
 }

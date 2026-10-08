@@ -6,5 +6,6 @@
   <label>Username<br><input type="text" name="username" required></label><br><br>
   <label>Email<br><input type="email" name="email" required></label><br><br>
   <label>Password (8+ chars)<br><input type="password" name="password" required></label><br><br>
+  <?= \RetroBB\Core\Captcha::widget() ?>
   <button class="btn" type="submit">Create account</button>
 </form>

@@ -57,6 +57,11 @@ $defaults = [
     'default_skin' => 'classic',
     'posts_per_page' => '15',
     'topics_per_page' => '25',
+    'flood_seconds' => '30',
+    'edit_window_mins' => '30',
+    'captcha_provider' => 'honeypot',
+    'captcha_sitekey' => '',
+    'captcha_secret' => '',
 ];
 $upd = $pdo->prepare('UPDATE settings SET `value`=? WHERE `key`=?');
 $ins = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?)');

@@ -24,6 +24,11 @@ class AuthController
             View::render('auth/register', ['pageTitle' => 'Register', 'errors' => ['Session expired.']]);
             return;
         }
+        $cap = \RetroBB\Core\Captcha::verify($_POST);
+        if (!$cap['ok']) {
+            View::render('auth/register', ['pageTitle' => 'Register', 'errors' => [$cap['error'] ?? 'CAPTCHA failed.']]);
+            return;
+        }
         $res = User::create(trim((string) ($_POST['username'] ?? '')), trim((string) ($_POST['email'] ?? '')), (string) ($_POST['password'] ?? ''));
         if (!$res['ok']) {
             View::render('auth/register', ['pageTitle' => 'Register', 'errors' => $res['errors']]);
@@ -31,7 +36,11 @@ class AuthController
         }
         $user = User::find($res['id']);
         Auth::login($user);
-        redirect($_GET['next'] ?? '/');
+        $next = (string) ($_GET['next'] ?? '/');
+        if (!str_starts_with($next, '/') || str_starts_with($next, '//')) {
+            $next = '/';
+        }
+        redirect($next);
     }
 
     public function loginForm(): void
@@ -60,6 +69,12 @@ class AuthController
         $user = User::findByLogin($login);
         if (!$user || !password_verify($pass, $user['password_hash'])) {
             View::render('auth/login', ['pageTitle' => 'Log in', 'error' => 'Invalid login.']);
+            return;
+        }
+        $ban = \RetroBB\Models\Moderation::activeBan((int) $user['id']);
+        if ($ban) {
+            $msg = 'This account is banned' . ($ban['expires_at'] ? ' until ' . $ban['expires_at'] : ' permanently') . '. Reason: ' . $ban['reason'];
+            View::render('auth/login', ['pageTitle' => 'Log in', 'error' => $msg]);
             return;
         }
         $_SESSION[$key] = 0;

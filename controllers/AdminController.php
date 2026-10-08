@@ -33,8 +33,15 @@ class AdminController
         }
         $users = User::all(50);
         $settings = $pdo->query('SELECT * FROM settings')->fetchAll();
+        $modpage = max(1, (int) ($_GET['modpage'] ?? 1));
+        $modlog = \RetroBB\Core\Modlog::latest($modpage, 50);
+        $modpages = max(1, (int) ceil($modlog['total'] / 50));
         View::render('admin/index', [
             'cats' => $cats, 'users' => $users, 'settings' => $settings,
+            'bans' => \RetroBB\Models\Moderation::banList(50),
+            'modlog' => $modlog['entries'], 'modtotal' => $modlog['total'],
+            'modpage' => $modpage, 'modpages' => $modpages,
+            'openReports' => \RetroBB\Models\Report::openCount(),
             'pageTitle' => 'AdminCP — ' . board_name(),
         ]);
     }
@@ -45,11 +52,21 @@ class AdminController
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             redirect('/admin');
         }
-        $allowed = ['board_name', 'board_tagline', 'default_skin', 'posts_per_page', 'topics_per_page'];
+        $allowed = ['board_name', 'board_tagline', 'default_skin', 'posts_per_page', 'topics_per_page',
+            'flood_seconds', 'edit_window_mins', 'captcha_provider', 'captcha_sitekey', 'captcha_secret'];
         $pdo = Db::pdo();
         foreach ($allowed as $k) {
             if (isset($_POST[$k])) {
                 $v = substr(trim((string) $_POST[$k]), 0, 500);
+                if (in_array($k, ['posts_per_page', 'topics_per_page'], true)) {
+                    $v = (string) max(5, min(50, (int) $v));
+                }
+                if (in_array($k, ['flood_seconds', 'edit_window_mins'], true)) {
+                    $v = (string) max(0, min(3600, (int) $v));
+                }
+                if ($k === 'captcha_provider' && !in_array($v, ['honeypot', 'builtin', 'turnstile', 'hcaptcha', 'recaptcha'], true)) {
+                    continue;
+                }
                 // Portable upsert (works on SQLite and MySQL alike).
                 $upd = $pdo->prepare('UPDATE settings SET `value`=? WHERE `key`=?');
                 $upd->execute([$v, $k]);
@@ -102,5 +119,35 @@ class AdminController
         }
         User::setGroup($id, (string) ($_POST['group'] ?? 'member'));
         redirect('/admin');
+    }
+
+    public function moveCategory(int $id, string $dir): void
+    {
+        $this->guard();
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin');
+        }
+        \RetroBB\Models\Board::moveCategory($id, $dir === 'up' ? -1 : 1);
+        redirect('/admin#structure');
+    }
+
+    public function moveForum(int $id, string $dir): void
+    {
+        $this->guard();
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin');
+        }
+        \RetroBB\Models\Board::moveForum($id, $dir === 'up' ? -1 : 1);
+        redirect('/admin#structure');
+    }
+
+    public function unban(int $banId): void
+    {
+        $this->guard();
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin');
+        }
+        \RetroBB\Models\Moderation::unban($banId, (int) Auth::user()['id']);
+        redirect('/admin#bans');
     }
 }

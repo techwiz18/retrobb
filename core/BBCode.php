@@ -79,7 +79,9 @@ class BBCode
     private static function linkTag(string $url, ?string $label): string
     {
         $url = trim($url);
-        if (!preg_match('#^https?://#i', $url)) {
+        // Absolute http(s) links, plus local "/..." links (used by move-ghosts).
+        // Reject "//host" protocol-relative URLs.
+        if (str_starts_with($url, '//') || !preg_match('#^(https?://|/)#i', $url)) {
             return htmlspecialchars($label ?? $url, ENT_QUOTES, 'UTF-8');
         }
         $safe = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');

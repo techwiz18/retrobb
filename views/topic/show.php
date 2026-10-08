@@ -6,9 +6,21 @@
   <?php if (\RetroBB\Core\Auth::isMod()): ?>
   <form method="post" action="/topic/<?= (int) $topic['id'] ?>/pinned" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn"><?= ((int) $topic['pinned'] === 1) ? 'Unpin' : 'Pin' ?></button></form>
   <form method="post" action="/topic/<?= (int) $topic['id'] ?>/locked" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn"><?= ((int) $topic['locked'] === 1) ? 'Unlock' : 'Lock' ?></button></form>
+  <a class="smallbtn" href="/topic/<?= (int) $topic['id'] ?>/move" style="text-decoration:none">Move</a>
+  <a class="smallbtn" href="/topic/<?= (int) $topic['id'] ?>/split" style="text-decoration:none">Split</a>
   <form method="post" action="/topic/<?= (int) $topic['id'] ?>/delete" style="display:inline" onsubmit="return confirm('Delete topic?')"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn danger">Delete</button></form>
   <?php endif; ?>
 </div>
+<?php if (\RetroBB\Core\Auth::isMod()): ?>
+<div class="actionrow">
+  <form method="post" action="/topic/<?= (int) $topic['id'] ?>/merge" onsubmit="return confirm('Merge this topic into the target? This topic will be removed.')">
+    <?= \RetroBB\Core\Csrf::field() ?>
+    <small class="muted">Merge into topic:</small>
+    <input type="text" name="target" placeholder="id or URL, e.g. .t12" size="18" required>
+    <button class="smallbtn">Merge</button>
+  </form>
+</div>
+<?php endif; ?>
 <?php foreach ($posts as $i => $p): ?>
 <?php $hue = abs(crc32($p['username'])) % 360; $initial = mb_strtoupper(mb_substr($p['username'], 0, 1)); ?>
 <div class="postbit" id="p<?= (int) $p['id'] ?>" data-username="<?= e($p['username']) ?>">
@@ -17,6 +29,13 @@
     <span class="postdate"><?= e($p['created_at']) ?> (<?= e(time_ago($p['created_at'])) ?>)</span>
     <span class="postactions">
       <button type="button" class="smallbtn quotebtn" data-post="<?= (int) $p['id'] ?>">Quote</button>
+      <?php $me = \RetroBB\Core\Auth::user(); ?>
+      <?php if ($me && ((int) $p['user_id'] === (int) $me['id'] || \RetroBB\Core\Auth::isMod())): ?>
+        <a class="smallbtn" href="/post/<?= (int) $p['id'] ?>/edit" style="text-decoration:none">Edit</a>
+      <?php endif; ?>
+      <?php if ($me && (int) $p['user_id'] !== (int) $me['id']): ?>
+        <a class="smallbtn" href="/post/<?= (int) $p['id'] ?>/report" style="text-decoration:none">Report</a>
+      <?php endif; ?>
     </span>
   </div>
   <div class="postbody">
@@ -26,7 +45,7 @@
       <span class="group group-<?= e($p['user_group']) ?>"><?= e($p['user_group']) ?></span>
       <small class="postmeta"><?= (int) $p['user_posts'] ?> posts<br>Joined <?= e(substr($p['user_since'], 0, 10)) ?></small>
     </div>
-    <div class="postright"><?= $p['body_html'] ?></div>
+    <div class="postright"><?= $p['body_html'] ?><?php if (!empty($p['edited_at'])): ?><div class="editedmark">Edited <?= e(time_ago($p['edited_at'])) ?></div><?php endif; ?></div>
   </div>
 </div>
 <?php \RetroBB\Core\Hooks::render_template_hook('postbit_after', ['post' => $p]); ?>

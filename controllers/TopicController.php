@@ -141,6 +141,7 @@ class TopicController
             redirect('/');
         }
         Topic::setFlags($id, $flag, ((int) $topic[$flag] === 1) ? 0 : 1);
+        \RetroBB\Core\Modlog::log((int) Auth::user()['id'], (((int) $topic[$flag] === 1) ? 'un' : '') . $flag, 'topic', $id, mb_substr($topic['title'], 0, 150));
         redirect(Slug::topicUrl($topic));
     }
 
@@ -158,6 +159,203 @@ class TopicController
         }
         $topic = Topic::find($id);
         Topic::delete($id);
+        \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'delete', 'topic', $id, $topic ? mb_substr($topic['title'], 0, 150) : '');
         redirect($topic ? Slug::forumUrl(['id' => $topic['forum_id'], 'name' => $topic['forum_name']]) : '/');
+    }
+
+    private function needMod(): bool
+    {
+        if (!Auth::isMod()) {
+            http_response_code(403);
+            View::render('errors/403', ['pageTitle' => 'Forbidden']);
+            return false;
+        }
+        return true;
+    }
+
+    public function moveForm(int $id): void
+    {
+        if (!$this->needMod()) {
+            return;
+        }
+        $topic = Topic::find($id);
+        if (!$topic) {
+            http_response_code(404);
+            View::render('errors/404', ['path' => '/topic/' . $id . '/move']);
+            return;
+        }
+        View::render('topic/move', [
+            'topic' => $topic, 'cats' => Board::index(),
+            'pageTitle' => 'Move topic — ' . board_name(), 'error' => null,
+        ]);
+    }
+
+    public function moveSubmit(int $id): void
+    {
+        if (!$this->needMod()) {
+            return;
+        }
+        $topic = Topic::find($id);
+        if (!$topic) {
+            redirect('/');
+        }
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            http_response_code(419);
+            echo 'CSRF mismatch';
+            return;
+        }
+        $res = Topic::move($id, (int) ($_POST['forum_id'] ?? 0), isset($_POST['ghost']), (int) Auth::user()['id']);
+        if (!$res['ok']) {
+            View::render('topic/move', [
+                'topic' => $topic, 'cats' => Board::index(),
+                'pageTitle' => 'Move topic', 'error' => $res['error'],
+            ]);
+            return;
+        }
+        $_SESSION['flash_ok'] = 'Topic moved.';
+        redirect(Slug::topicUrl($topic));
+    }
+
+    public function splitForm(int $id): void
+    {
+        if (!$this->needMod()) {
+            return;
+        }
+        $topic = Topic::find($id);
+        if (!$topic) {
+            http_response_code(404);
+            View::render('errors/404', ['path' => '/topic/' . $id . '/split']);
+            return;
+        }
+        $all = Topic::posts($id, 1, 10000);
+        View::render('topic/split', [
+            'topic' => $topic, 'posts' => $all['posts'],
+            'pageTitle' => 'Split topic — ' . board_name(), 'error' => null,
+        ]);
+    }
+
+    public function splitSubmit(int $id): void
+    {
+        if (!$this->needMod()) {
+            return;
+        }
+        $topic = Topic::find($id);
+        if (!$topic) {
+            redirect('/');
+        }
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            http_response_code(419);
+            echo 'CSRF mismatch';
+            return;
+        }
+        $ids = array_map('intval', (array) ($_POST['post_ids'] ?? []));
+        $res = Topic::split($id, $ids, (string) ($_POST['title'] ?? ''), (int) Auth::user()['id']);
+        if (!$res['ok']) {
+            $all = Topic::posts($id, 1, 10000);
+            View::render('topic/split', [
+                'topic' => $topic, 'posts' => $all['posts'],
+                'pageTitle' => 'Split topic', 'error' => $res['error'],
+            ]);
+            return;
+        }
+        $_SESSION['flash_ok'] = 'Posts split into a new topic.';
+        redirect(Slug::topicUrl(['id' => $res['new_id'], 'title' => (string) ($_POST['title'] ?? 'topic')]));
+    }
+
+    public function mergeSubmit(int $id): void
+    {
+        if (!$this->needMod()) {
+            return;
+        }
+        $topic = Topic::find($id);
+        if (!$topic) {
+            redirect('/');
+        }
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            http_response_code(419);
+            echo 'CSRF mismatch';
+            return;
+        }
+        // Accept a topic id or a full/partial URL containing ".t123".
+        $raw = (string) ($_POST['target'] ?? '');
+        $targetId = 0;
+        if (preg_match('/\.t(\d+)/', $raw, $m)) {
+            $targetId = (int) $m[1];
+        } elseif (preg_match('/^\d+$/', trim($raw))) {
+            $targetId = (int) trim($raw);
+        }
+        if ($targetId <= 0) {
+            $_SESSION['flash_error'] = 'Enter a target topic id or URL.';
+            redirect(Slug::topicUrl($topic));
+        }
+        $res = Topic::merge($id, $targetId, (int) Auth::user()['id']);
+        if (!$res['ok']) {
+            $_SESSION['flash_error'] = $res['error'];
+            redirect(Slug::topicUrl($topic));
+        }
+        $_SESSION['flash_ok'] = 'Topics merged.';
+        $dst = Topic::find($targetId);
+        redirect($dst ? Slug::topicUrl($dst) : '/');
+    }
+
+    public function editPostForm(int $postId): void
+    {
+        $post = \RetroBB\Models\Post::find($postId);
+        if (!$post) {
+            http_response_code(404);
+            View::render('errors/404', ['path' => '/post/' . $postId . '/edit']);
+            return;
+        }
+        $allowed = $this->canEditPost($post);
+        if ($allowed !== true) {
+            $_SESSION['flash_error'] = $allowed;
+            redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
+        }
+        View::render('topic/edit', ['post' => $post, 'pageTitle' => 'Edit post — ' . board_name(), 'error' => null]);
+    }
+
+    public function editPostSubmit(int $postId): void
+    {
+        $post = \RetroBB\Models\Post::find($postId);
+        if (!$post) {
+            redirect('/');
+        }
+        $allowed = $this->canEditPost($post);
+        if ($allowed !== true) {
+            $_SESSION['flash_error'] = $allowed;
+            redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
+        }
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            View::render('topic/edit', ['post' => $post, 'pageTitle' => 'Edit post', 'error' => 'Session expired.']);
+            return;
+        }
+        $body = trim((string) ($_POST['body'] ?? ''));
+        if (mb_strlen($body) < 2 || mb_strlen($body) > 20000) {
+            View::render('topic/edit', ['post' => $post, 'pageTitle' => 'Edit post', 'error' => 'Post is too short or too long.']);
+            return;
+        }
+        \RetroBB\Models\Post::updateBody($postId, $body);
+        \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'edit', 'post', $postId, "topic {$post['topic_id']}");
+        redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
+    }
+
+    /** @return true|string true if allowed, else an error message */
+    private function canEditPost(array $post): bool|string
+    {
+        $me = Auth::user();
+        if (!$me) {
+            redirect('/login');
+        }
+        if (Auth::isMod()) {
+            return true;
+        }
+        if ((int) $post['user_id'] !== (int) $me['id']) {
+            return 'You can only edit your own posts.';
+        }
+        $mins = (int) setting('edit_window_mins', '30');
+        if ($mins > 0 && (time() - strtotime($post['created_at'])) > $mins * 60) {
+            return 'The edit window (' . $mins . ' min) has expired.';
+        }
+        return true;
     }
 }

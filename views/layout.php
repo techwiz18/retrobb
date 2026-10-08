@@ -1,6 +1,6 @@
 <?php /** @var string $content */ /** @var string|null $pageTitle */ /** @var string|null $metaDesc */ /** @var string|null $canonical */
 $user = \RetroBB\Core\Auth::user();
-$skinClass = 'skin-' . skin();
+$skinClass = 'skin-' . skin() . ' theme-' . theme();
 $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
 ?>
 <!doctype html>
@@ -32,12 +32,17 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
     </div>
   </div>
   <nav class="navrow"><a href="/">Board Index</a> · <a href="/members">Members</a> · <a href="/sitemap.xml">Sitemap</a>
+    <?php if (\RetroBB\Core\Auth::isMod()): ?>
+      · <a href="/mod/reports"><b>Mod queue<?php $qc = \RetroBB\Models\Report::openCount(); if ($qc > 0): ?> (<?= $qc ?>)<?php endif; ?></b></a>
+    <?php endif; ?>
     <span class="skinswitch">Skin:
       <a href="/skin/classic">Classic</a> <a href="/skin/midnight">Midnight</a> <a href="/skin/silver">Silver</a>
+      · Theme: <a href="/theme/light">Light</a> <a href="/theme/dark">Dark</a> <a href="/theme/auto">Auto</a>
     </span>
   </nav>
 
   <?php if (!empty($_SESSION['flash_error'])): ?><div class="flash-error"><?= e($_SESSION['flash_error']); unset($_SESSION['flash_error']); ?></div><?php endif; ?>
+  <?php if (!empty($_SESSION['flash_ok'])): ?><div class="flash-ok"><?= e($_SESSION['flash_ok']); unset($_SESSION['flash_ok']); ?></div><?php endif; ?>
 
   <main><?= $content ?></main>
 
