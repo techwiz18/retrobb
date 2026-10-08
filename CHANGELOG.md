@@ -1,6 +1,9 @@
 # Changelog — RetroBB by techwiz.dad. Format follows keep-a-changelog loosely.
 
 ## [Unreleased]
+- MySQL 8 / MariaDB 10.6+ is now the only backend (SQLite removed pre-1.0).
+  Beta SQLite boards can be rescued with `php bin/import-sqlite.php`.
+- Settings saves use native upserts (fixes unchanged-value saves failing).
 
 ## [0.2.0-beta.1] — 2026-10-08 (pre-release)
 First public pre-release. Tinkerers welcome; not production-hardened yet.
