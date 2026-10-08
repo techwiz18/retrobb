@@ -8,23 +8,12 @@ require_once $root . '/core/helpers.php';
 
 use RetroBB\Core\Db;
 
-// True when the configured database already holds an owner account.
-// (Any failure — no tables yet, unreachable DB — simply means "not installed".)
-function db_has_users(): bool
-{
-    try {
-        $n = Db::pdo()->query('SELECT COUNT(*) c FROM users')->fetch()['c'] ?? 0;
-        return (int) $n > 0;
-    } catch (Throwable) {
-        return false;
-    }
-}
-
 $lock = $root . '/storage/installed.lock';
 $force = isset($_GET['force']);
-// Installed = lock present OR the configured DB already has an owner —
-// whichever survives. ?force still overrides for disaster recovery.
-$installed = !$force && (is_file($lock) || db_has_users());
+// The lock is the install marker. A populated database alone is NOT a block —
+// admins legitimately install into pre-created (even used) databases — but it
+// requires explicit confirmation below.
+$installed = is_file($lock) && !$force;
 
 $step = isset($_GET['step']) ? (string) $_GET['step'] : 'welcome';
 $errors = [];
@@ -130,6 +119,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
         $errors[] = 'Admin password must be at least 8 characters.';
     } elseif ($adminPass !== $adminPass2) {
         $errors[] = 'Admin passwords do not match.';
+    }
+
+    if (!$errors) {
+        // Existing content? Only proceed with explicit consent — installing
+        // keeps every post and user and just adds the new owner account.
+        // (Checked against the form's database, not the current config.)
+        $dbStats = ['users' => 0, 'topics' => 0];
+        try {
+            $db = '`' . $values['mysql_db'] . '`';
+            $dbStats['users'] = (int) $mysql->query("SELECT COUNT(*) c FROM $db.users")->fetch()['c'];
+            $dbStats['topics'] = (int) $mysql->query("SELECT COUNT(*) c FROM $db.topics")->fetch()['c'];
+        } catch (Throwable) {
+        }
+        if (($dbStats['users'] > 0 || $dbStats['topics'] > 0) && empty($_POST['confirm_existing'])) {
+            $errors[] = 'This database already holds a board (' . $dbStats['users'] . ' users, ' . $dbStats['topics'] . ' topics).'
+                . ' Installing will keep all of it and add your account as an additional admin.'
+                . ' Tick the confirmation box below if that is what you want.';
+            $showConfirm = true;
+        }
     }
 
     if (!$errors) {
@@ -248,7 +256,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
     <label>Password (8+ chars)<br><input type="password" name="admin_pass" required></label><br><br>
     <label>Repeat password<br><input type="password" name="admin_pass2" required></label><br><br>
     <label><input type="checkbox" name="demo" value="1" <?= $values['demo'] === '1' ? 'checked' : '' ?>> Install demo boards and posts so I can try things out</label><br><br>
-    <button class="btn" type="submit">Install RetroBB</button>
+    <?php if (!empty($showConfirm)): ?>
+    <div class="flash-error" style="margin-bottom:10px"><label><input type="checkbox" name="confirm_existing" value="1"> Yes, install into the existing database and keep its content</label></div>
+    <?php endif; ?>
+    <br><button class="btn" type="submit">Install RetroBB</button>
   </form>
 <?php else: ?>
   <div class="steps"><div class="step on">1. Requirements</div><div class="step">2. Details</div><div class="step">3. Done</div></div>
