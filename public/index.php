@@ -55,11 +55,21 @@ header('Referrer-Policy: same-origin');
 
 Auth::validateSession();
 
-// DB must exist — else send to installer
-$config = require $root . '/config.php';
+// DB must exist and have tables — else send to installer. (validateSession
+// runs first but only touches the DB when a session cookie is present, and
+// Db::pdo() refuses to conjure a missing SQLite file.)
+$config = require_once $root . '/config.php';
 $needsInstall = false;
 if (($config['db_driver'] ?? 'sqlite') === 'sqlite') {
     $needsInstall = !is_file($config['sqlite_path']);
+    if (!$needsInstall) {
+        // File without tables (interrupted install) is still "not installed".
+        try {
+            \RetroBB\Core\Db::pdo()->query('SELECT 1 FROM users LIMIT 1');
+        } catch (Throwable) {
+            $needsInstall = true;
+        }
+    }
 } else {
     try {
         \RetroBB\Core\Db::pdo()->query('SELECT 1 FROM settings LIMIT 1');

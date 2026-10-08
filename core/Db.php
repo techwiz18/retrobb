@@ -30,9 +30,11 @@ class Db
             ]);
         } else {
             $path = $cfg['sqlite_path'];
-            $dir = dirname($path);
-            if (!is_dir($dir)) {
-                mkdir($dir, 0775, true);
+            // Never auto-create here: merely connecting would conjure an empty
+            // file and defeat the installer's exists-check. The migrator and
+            // installer create it explicitly.
+            if (!is_file($path)) {
+                throw new \RuntimeException('Database not installed: ' . $path);
             }
             $pdo = new PDO('sqlite:' . $path, null, null, [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,

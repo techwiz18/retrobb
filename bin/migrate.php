@@ -24,6 +24,17 @@ if (($config['db_driver'] ?? 'sqlite') === 'sqlite' && $fresh) {
     }
     Db::reset();
 }
+// The migrator owns file creation (Db::pdo deliberately refuses to conjure it).
+if (($config['db_driver'] ?? 'sqlite') === 'sqlite') {
+    $dir = dirname($config['sqlite_path']);
+    if (!is_dir($dir)) {
+        mkdir($dir, 0775, true);
+    }
+    if (!is_file($config['sqlite_path'])) {
+        touch($config['sqlite_path']);
+        echo 'Created ' . $config['sqlite_path'] . "\n";
+    }
+}
 
 $pdo = Db::pdo();
 $driver = $config['db_driver'] ?? 'sqlite';
