@@ -3,5 +3,8 @@ storage/*.sqlite-wal
 storage/*.sqlite-shm
 storage/*.sqlite-journal
 storage/installed.lock
+# Local stash/backup files (never commit these).
+storage/hold-*
+storage/backup-*
 # Local config (copy config.example.php to config.php and adjust).
 config.php
