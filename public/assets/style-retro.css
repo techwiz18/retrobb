@@ -10,6 +10,7 @@ a { color:var(--link); }
 .topbar { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; background:linear-gradient(180deg, #33415c, #232c40); color:#fff; flex-wrap:wrap; }
 .topbar a { color:#ffe9a8; text-decoration:none; }
 .logo a { font-size:20px; font-weight:bold; letter-spacing:.5px; }
+.floppy { width:22px; height:22px; vertical-align:-4px; }
 .tagline { font-size:11px; color:#bcd; margin-left:8px; }
 .userbox { font-size:12px; }
 .pill { background:#ffe9a8; color:#333 !important; padding:1px 8px; border-radius:10px; font-size:11px; }
