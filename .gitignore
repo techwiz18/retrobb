@@ -1,0 +1,4 @@
+storage/*.sqlite
+storage/installed.lock
+# Local config (copy config.example.php to config.php and adjust).
+config.php

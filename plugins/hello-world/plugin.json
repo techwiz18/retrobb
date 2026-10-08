@@ -1,0 +1,6 @@
+{
+  "name": "hello-world",
+  "version": "0.1.0",
+  "description": "Example RetroBB plugin: footer greeting + post filter.",
+  "author": "techwiz.dad"
+}

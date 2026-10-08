@@ -1,0 +1,83 @@
+<?php
+declare(strict_types=1);
+
+namespace RetroBB\Controllers;
+
+use RetroBB\Core\Auth;
+use RetroBB\Core\Csrf;
+use RetroBB\Core\View;
+use RetroBB\Models\User;
+
+class AuthController
+{
+    public function registerForm(): void
+    {
+        if (Auth::check()) {
+            redirect('/');
+        }
+        View::render('auth/register', ['pageTitle' => 'Register — ' . board_name(), 'errors' => []]);
+    }
+
+    public function registerSubmit(): void
+    {
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            View::render('auth/register', ['pageTitle' => 'Register', 'errors' => ['Session expired.']]);
+            return;
+        }
+        $res = User::create(trim((string) ($_POST['username'] ?? '')), trim((string) ($_POST['email'] ?? '')), (string) ($_POST['password'] ?? ''));
+        if (!$res['ok']) {
+            View::render('auth/register', ['pageTitle' => 'Register', 'errors' => $res['errors']]);
+            return;
+        }
+        $user = User::find($res['id']);
+        Auth::login($user);
+        redirect($_GET['next'] ?? '/');
+    }
+
+    public function loginForm(): void
+    {
+        if (Auth::check()) {
+            redirect('/');
+        }
+        View::render('auth/login', ['pageTitle' => 'Log in — ' . board_name(), 'error' => null]);
+    }
+
+    public function loginSubmit(): void
+    {
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            View::render('auth/login', ['pageTitle' => 'Log in', 'error' => 'Session expired.']);
+            return;
+        }
+        $login = trim((string) ($_POST['login'] ?? ''));
+        $pass = (string) ($_POST['password'] ?? '');
+        // naive throttle
+        $key = 'login_attempts';
+        $_SESSION[$key] = ($_SESSION[$key] ?? 0) + 1;
+        if ($_SESSION[$key] > 20) {
+            View::render('auth/login', ['pageTitle' => 'Log in', 'error' => 'Too many attempts. Wait a bit.']);
+            return;
+        }
+        $user = User::findByLogin($login);
+        if (!$user || !password_verify($pass, $user['password_hash'])) {
+            View::render('auth/login', ['pageTitle' => 'Log in', 'error' => 'Invalid login.']);
+            return;
+        }
+        $_SESSION[$key] = 0;
+        Auth::login($user);
+        $next = (string) ($_POST['next'] ?? $_GET['next'] ?? '/');
+        // Local paths only: block "//evil.com" protocol-relative redirects.
+        if (!str_starts_with($next, '/') || str_starts_with($next, '//')) {
+            $next = '/';
+        }
+        redirect($next);
+    }
+
+    public function logout(): void
+    {
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/');
+        }
+        Auth::logout();
+        redirect('/');
+    }
+}
