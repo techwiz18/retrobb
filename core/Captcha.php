@@ -63,7 +63,10 @@ class Captcha
         }
         $p = self::provider();
         if ($p === 'builtin') {
-            Auth::startSession();
+            // Fail closed without minting sessions for bots.
+            if (!Auth::startSession(false)) {
+                return ['ok' => false, 'error' => 'Wrong answer to the human check.'];
+            }
             $expected = $_SESSION['captcha_answer'] ?? null;
             unset($_SESSION['captcha_answer']);
             if ($expected === null || (int) ($post['captcha_answer'] ?? -1) !== (int) $expected) {

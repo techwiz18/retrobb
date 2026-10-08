@@ -21,7 +21,10 @@ class Csrf
 
     public static function verify(?string $token): bool
     {
-        Auth::startSession();
+        // Fail closed: no session means no token was ever issued.
+        if (!Auth::startSession(false)) {
+            return false;
+        }
         $sess = $_SESSION['csrf'] ?? '';
         return $token !== null && $sess !== '' && hash_equals($sess, $token);
     }

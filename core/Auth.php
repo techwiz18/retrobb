@@ -5,23 +5,35 @@ namespace RetroBB\Core;
 
 class Auth
 {
-    public static function startSession(): void
+    /**
+     * Start the session. With $create=false (lazy mode) no session or cookie
+     * is created for first-time guests — the session only resumes when the
+     * client already sent a session cookie. Returns whether a session is active.
+     */
+    public static function startSession(bool $create = true): bool
     {
-        if (session_status() === PHP_SESSION_NONE) {
-            // Harden the session cookie (no JS access, same-site only).
-            session_set_cookie_params([
-                'lifetime' => 0,
-                'path' => '/',
-                'httponly' => true,
-                'samesite' => 'Lax',
-            ]);
-            session_start();
+        if (session_status() !== PHP_SESSION_NONE) {
+            return true;
         }
+        if (!$create && empty($_COOKIE[session_name()])) {
+            return false;
+        }
+        // Harden the session cookie (no JS access, same-site only).
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path' => '/',
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+        session_start();
+        return true;
     }
 
     public static function user(): ?array
     {
-        self::startSession();
+        if (!self::startSession(false)) {
+            return null;
+        }
         return $_SESSION['user'] ?? null;
     }
 
@@ -77,7 +89,9 @@ class Auth
      */
     public static function validateSession(): void
     {
-        self::startSession();
+        if (!self::startSession(false)) {
+            return;
+        }
         if (empty($_SESSION['user'])) {
             return;
         }

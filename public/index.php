@@ -39,8 +39,6 @@ header('X-Frame-Options: SAMEORIGIN');
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: same-origin');
 
-Auth::startSession();
-// Drop stale privileges now, not at next login: demotions and bans bite immediately.
 Auth::validateSession();
 
 // DB must exist — else send to installer

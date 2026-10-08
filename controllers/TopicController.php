@@ -43,6 +43,9 @@ class TopicController
             redirect($canonical, 301);
         }
         // Views count once per session: refreshes and post-action redirects don't inflate.
+        // NOTE: topic pages deliberately still mint a session for first-time
+        // guests — view-dedup needs somewhere to remember. Everywhere else
+        // stays lazy (see Auth::startSession).
         \RetroBB\Core\Auth::startSession();
         $_SESSION['viewed_topics'] = $_SESSION['viewed_topics'] ?? [];
         if (!in_array($id, $_SESSION['viewed_topics'], true)) {
