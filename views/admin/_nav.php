@@ -7,5 +7,5 @@
   <a href="/admin/bans" class="<?= ($active ?? '') === 'bans' ? 'on' : '' ?>">Bans</a>
   <a href="/admin/users" class="<?= ($active ?? '') === 'users' ? 'on' : '' ?>">Users</a>
   <a href="/admin/modlog" class="<?= ($active ?? '') === 'modlog' ? 'on' : '' ?>">Mod log</a>
-  <a href="/mod/reports">Mod queue</a>
+  <a href="/mod/reports" class="<?= ($active ?? '') === 'queue' ? 'on' : '' ?>">Mod queue</a>
 </nav>
