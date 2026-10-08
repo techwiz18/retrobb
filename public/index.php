@@ -58,7 +58,9 @@ Auth::validateSession();
 // DB must exist and have tables — else send to installer. (validateSession
 // runs first but only touches the DB when a session cookie is present, and
 // Db::pdo() refuses to conjure a missing SQLite file.)
-$config = require_once $root . '/config.php';
+// NOTE: plain require, never require_once — config.php returns a value,
+// and require_once would hand us `true` on second inclusion.
+$config = require $root . '/config.php';
 $needsInstall = false;
 if (($config['db_driver'] ?? 'sqlite') === 'sqlite') {
     $needsInstall = !is_file($config['sqlite_path']);
