@@ -48,7 +48,7 @@ class User
         if ($errors) {
             return ['ok' => false, 'errors' => $errors];
         }
-        // Case-insensitive uniqueness (SQLite UNIQUE is case-sensitive).
+        // Case-insensitive uniqueness on top of the UNIQUE indexes.
         $chk = Db::pdo()->prepare('SELECT id FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?) LIMIT 1');
         $chk->execute([$username, $email]);
         if ($chk->fetch()) {

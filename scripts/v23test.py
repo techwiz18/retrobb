@@ -31,11 +31,10 @@ def views(html):
     return int(m.group(1)) if m else -1
 
 def views_db(tid):
-    import sqlite3
-    con = sqlite3.connect('/media/dan/data/ai/RandomProjects/retrobb/storage/retrobb.sqlite')
-    v = con.execute('SELECT views FROM topics WHERE id=?', (tid,)).fetchone()[0]
-    con.close()
-    return v
+    import subprocess
+    out = subprocess.run(['sh', 'retrobb/scripts/mysql-sql.sh', 'SELECT views FROM topics WHERE id=%d' % tid],
+                         capture_output=True, text=True, cwd='/media/dan/data/ai/RandomProjects')
+    return int(out.stdout.strip())
 
 login(admin, 'admin', 'admin123')
 

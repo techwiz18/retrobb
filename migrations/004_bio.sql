@@ -1,4 +1,5 @@
--- RetroBB 004: member bio for the profile editor.
--- (SQLite has no ADD COLUMN IF NOT EXISTS; the migrate runner ignores
--- "duplicate column name" so re-runs stay idempotent.)
-ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT '';
+-- RetroBB 004: member bio (MySQL 8.0+ dialect).
+-- TEXT columns cannot carry a plain DEFAULT here; keep it nullable and
+-- normalise existing rows. App code treats NULL as ''.
+ALTER TABLE users ADD COLUMN bio TEXT NULL;
+UPDATE users SET bio='' WHERE bio IS NULL;

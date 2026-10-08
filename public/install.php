@@ -26,7 +26,6 @@ if ($installed) {
 $step = isset($_GET['step']) ? (string) $_GET['step'] : 'welcome';
 $errors = [];
 $values = [
-    'driver' => 'sqlite',
     'mysql_host' => '127.0.0.1', 'mysql_port' => '3306', 'mysql_db' => 'retrobb',
     'mysql_user' => 'retrobb', 'mysql_pass' => '',
     'board_name' => 'RetroBB', 'board_tagline' => 'An old-school forum for the modern web',
@@ -41,11 +40,10 @@ function req_row(string $label, bool $ok, string $hint = ''): string
 }
 
 $requirements = [
-    ['PHP 8.1 or newer', version_compare(PHP_VERSION, '8.1.0', '>=') , false, 'running ' . PHP_VERSION],
-    ['PDO SQLite driver', extension_loaded('pdo_sqlite'), false, 'for SQLite boards'],
-    ['PDO MySQL driver', extension_loaded('pdo_mysql'), true, 'only needed for MySQL boards — ignore if using SQLite'],
+    ['PHP 8.1 or newer', version_compare(PHP_VERSION, '8.1.0', '>='), false, 'running ' . PHP_VERSION],
+    ['PDO MySQL driver', extension_loaded('pdo_mysql'), false, 'MySQL 8+ or MariaDB 10.6+ required'],
     ['mbstring', extension_loaded('mbstring'), false, 'for text handling'],
-    ['storage/ writable', is_writable($root . '/storage') || (!is_dir($root . '/storage') && is_writable($root)), false, 'holds the database'],
+    ['storage/ writable', is_writable($root . '/storage') || (!is_dir($root . '/storage') && is_writable($root)), false, 'holds the install lock'],
     ['config.php writable', !is_file($root . '/config.php') || is_writable($root . '/config.php'), false, 'the installer saves your choices here'],
 ];
 $reqOk = true;
@@ -63,44 +61,29 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
     }
     $values['demo'] = isset($_POST['demo']) ? '1' : '';
 
-    // --- validate database choice ---
-    if (!in_array($values['driver'], ['sqlite', 'mysql'], true)) {
-        $errors[] = 'Pick SQLite or MySQL.';
-    }
+    // --- validate database ---
     $mysql = null;
-    if ($values['driver'] === 'mysql') {
-        if (!extension_loaded('pdo_mysql')) {
-            $errors[] = 'The MySQL driver (pdo_mysql) is not installed on this server.';
-        } elseif (!preg_match('/^[A-Za-z0-9_]+$/', $values['mysql_db'])) {
-            $errors[] = 'Database name may only contain letters, numbers and underscores.';
-        } else {
-            try {
-                $mysql = new PDO(
-                    'mysql:host=' . $values['mysql_host'] . ';port=' . ((int) $values['mysql_port'] ?: 3306) . ';charset=utf8mb4',
-                    $values['mysql_user'],
-                    $values['mysql_pass'],
-                    [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-                );
-            } catch (Throwable $t) {
-                $errors[] = 'Could not connect to MySQL with those details — check host, port, username and password. (' . $t->getMessage() . ')';
-            }
-            if (!$errors) {
-                try {
-                    $mysql->exec('CREATE DATABASE IF NOT EXISTS `' . $values['mysql_db'] . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
-                } catch (Throwable $t) {
-                    $errors[] = 'Connected, but your MySQL user is not allowed to create databases — create "' . $values['mysql_db'] . '" in your hosting panel, then try again.';
-                }
-            }
-        }
+    if (!extension_loaded('pdo_mysql')) {
+        $errors[] = 'The MySQL driver (pdo_mysql) is not installed on this server.';
+    } elseif (!preg_match('/^[A-Za-z0-9_]+$/', $values['mysql_db'])) {
+        $errors[] = 'Database name may only contain letters, numbers and underscores.';
     } else {
-        if (!extension_loaded('pdo_sqlite')) {
-            $errors[] = 'The SQLite driver (pdo_sqlite) is not installed on this server.';
+        try {
+            $mysql = new PDO(
+                'mysql:host=' . $values['mysql_host'] . ';port=' . ((int) $values['mysql_port'] ?: 3306) . ';charset=utf8mb4',
+                $values['mysql_user'],
+                $values['mysql_pass'],
+                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+            );
+        } catch (Throwable $t) {
+            $errors[] = 'Could not connect to MySQL with those details — check host, port, username and password. (' . $t->getMessage() . ')';
         }
-        $spath = $root . '/storage/retrobb.sqlite';
-        if (!is_dir($root . '/storage') && !@mkdir($root . '/storage', 0775, true)) {
-            $errors[] = 'Cannot create the storage/ folder — check permissions.';
-        } elseif (is_file($spath) && !is_writable($spath)) {
-            $errors[] = 'storage/retrobb.sqlite is not writable — check permissions.';
+        if (!$errors) {
+            try {
+                $mysql->exec('CREATE DATABASE IF NOT EXISTS `' . $values['mysql_db'] . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+            } catch (Throwable $t) {
+                $errors[] = 'Connected, but your MySQL user is not allowed to create databases — create "' . $values['mysql_db'] . '" in your hosting panel, then try again.';
+            }
         }
     }
 
@@ -136,8 +119,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
     if (!$errors) {
         // --- write config.php (var_export keeps user input injection-safe) ---
         $cfg = [
-            'db_driver' => $values['driver'],
-            'sqlite_path' => $root . '/storage/retrobb.sqlite',
             'mysql_host' => $values['mysql_host'],
             'mysql_port' => (int) $values['mysql_port'] ?: 3306,
             'mysql_db' => $values['mysql_db'],
@@ -162,16 +143,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
             'board_url' => rtrim($values['board_url'], '/'),
             'default_skin' => $values['default_skin'],
         ];
-        $upd = $pdo->prepare('UPDATE settings SET `value`=? WHERE `key`=?');
-        $ins = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?)');
+        $upsert = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
         foreach ($settings as $k => $v) {
-            $upd->execute([$v, $k]);
-            if ($upd->rowCount() === 0) {
-                try {
-                    $ins->execute([$k, $v]);
-                } catch (Throwable) {
-                }
-            }
+            $upsert->execute([$k, $v]);
         }
 
         // --- owner account ---
@@ -223,9 +197,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
   <div class="maintitle">Board details &amp; owner account</div>
   <?php foreach ($errors as $er): ?><div class="flash-error"><?= e($er) ?></div><?php endforeach; ?>
   <form method="post" class="form">
-    <div class="cat-row">Database</div>
-    <label><input type="radio" name="driver" value="sqlite" <?= $values['driver'] === 'sqlite' ? 'checked' : '' ?>> SQLite — zero setup, file lives in <code>storage/</code> (great for small boards)</label><br>
-    <label><input type="radio" name="driver" value="mysql" <?= $values['driver'] === 'mysql' ? 'checked' : '' ?>> MySQL 8 — for bigger boards</label><br><br>
+    <div class="cat-row">Database (MySQL 8+ / MariaDB)</div>
     <div class="admin-grid">
       <label>Host<br><input name="mysql_host" value="<?= e($values['mysql_host']) ?>"></label>
       <label>Port<br><input name="mysql_port" value="<?= e($values['mysql_port']) ?>" size="6"></label>

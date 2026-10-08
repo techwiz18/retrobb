@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace RetroBB\Core;
 
 use PDO;
-use PDOException;
 
 class Db
 {
@@ -15,41 +14,22 @@ class Db
         if (self::$pdo) {
             return self::$pdo;
         }
+        // MySQL 8 (or MariaDB 10.6+) is the only supported backend.
+        // Connection details live in config.php (see config.example.php).
         $cfg = require dirname(__DIR__) . '/config.php';
-        $driver = $cfg['db_driver'] ?? 'sqlite';
-        if ($driver === 'mysql') {
-            $dsn = sprintf(
-                'mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4',
-                $cfg['mysql_host'],
-                $cfg['mysql_port'] ?? 3306,
-                $cfg['mysql_db']
-            );
-            $pdo = new PDO($dsn, $cfg['mysql_user'], $cfg['mysql_pass'], [
+        $dsn = sprintf(
+            'mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4',
+            $cfg['mysql_host'] ?? '127.0.0.1',
+            $cfg['mysql_port'] ?? 3306,
+            $cfg['mysql_db'] ?? 'retrobb'
+        );
+        try {
+            $pdo = new PDO($dsn, $cfg['mysql_user'] ?? 'retrobb', $cfg['mysql_pass'] ?? '', [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             ]);
-        } else {
-            $path = $cfg['sqlite_path'];
-            // Never auto-create here: merely connecting would conjure an empty
-            // file and defeat the installer's exists-check. The migrator and
-            // installer create it explicitly.
-            if (!is_file($path)) {
-                throw new \RuntimeException('Database not installed: ' . $path);
-            }
-            $pdo = new PDO('sqlite:' . $path, null, null, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            ]);
-            $pdo->exec('PRAGMA foreign_keys = ON');
-            // Best-effort durability/concurrency tuning: on read-only storage
-            // (fresh deploy before chown, locked-down hosts) these must never fatal.
-            foreach (['journal_mode = WAL', 'busy_timeout = 5000', 'synchronous = NORMAL'] as $pragma) {
-                try {
-                    $pdo->exec('PRAGMA ' . $pragma);
-                } catch (\Throwable $t) {
-                    error_log('RetroBB PRAGMA failed (' . $pragma . '): ' . $t->getMessage());
-                }
-            }
+        } catch (\PDOException $e) {
+            throw new \RuntimeException('Database connection failed: ' . $e->getMessage());
         }
         self::$pdo = $pdo;
         return $pdo;

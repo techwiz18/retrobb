@@ -30,8 +30,8 @@ MIT licensed. Made with nostalgia by [techwiz.dad](https://techwiz.dad).
 
 ## 🚀 Install it (5 minutes)
 
-**You need:** any shared host or VPS with **PHP 8.1+** and SQLite (already on
-most hosts), or MySQL if you prefer.
+**You need:** any shared host or VPS with **PHP 8.1+** and **MySQL 8+**
+(or MariaDB 10.6+ — most hosts include one of these).
 
 **Option A — shared hosting (e.g. cPanel):**
 1. Download the latest zip from the
@@ -46,7 +46,7 @@ most hosts), or MySQL if you prefer.
    let you pick it per *addon domain* or *subdomain* — use one of those.)
    *Why?* Only `public/` is meant for browsers. Everything else — forum code
    and your database — lives one level above, where visitors can't reach it.
-4. Click through: pick SQLite or MySQL, name your board, and create your
+4. Click through: enter your MySQL details, name your board, and create your
    admin account (plus optional demo content to play with).
 5. Log in with the account you just made, and **delete
    `public/install.php`**. Done — go make some boards!
@@ -60,8 +60,8 @@ php -S localhost:8000 -t public/
 # open http://localhost:8000 — the installer walks you through setup
 ```
 
-**MySQL instead of SQLite?** Copy `config.example.php` to `config.php` and fill
-in your database details (or set the `RETROBB_MYSQL_*` environment variables),
+**Prefer the command line?** Copy `config.example.php` to `config.php` and fill
+in your MySQL details (or set the `RETROBB_MYSQL_*` environment variables),
 then run `php bin/migrate.php --seed`.
 
 ---
@@ -76,8 +76,8 @@ then run `php bin/migrate.php --seed`.
 4. **Turn on spam protection** — AdminCP → Spam protection (start with the
    built-in human check; add Turnstile/hCaptcha keys when you go public).
 5. **Appoint moderators** — AdminCP → Users → set someone to `mod`.
-6. **Back up** — copy the database file regularly (SQLite: the `.sqlite` file
-   in `storage/`; that's the whole forum).
+6. **Back up** — dump your MySQL database regularly (`mysqldump retrobb >
+   backup.sql`), and keep a copy of `config.php` somewhere safe.
 
 ---
 
@@ -115,7 +115,7 @@ retrobb/
   models/      Board, Topic, Post, User, Report, Moderation
   views/       Plain PHP templates, no build step
   public/      Web root (index.php, .htaccess, assets)
-  migrations/  Plain SQL, SQLite + MySQL dialects
+  migrations/  Plain SQL, one dialect (MySQL 8 / MariaDB)
   plugins/     Drop-in extensions
 ```
 

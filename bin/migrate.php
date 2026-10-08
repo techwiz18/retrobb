@@ -1,10 +1,8 @@
 <?php
 declare(strict_types=1);
-// RetroBB migrator + seeder. Usage:
+// RetroBB migrator + seeder (MySQL 8+ / MariaDB 10.6+). Usage:
 //   php bin/migrate.php            (migrate only)
 //   php bin/migrate.php --seed     (migrate + demo seed)
-//   php bin/migrate.php --fresh    (wipe sqlite file, migrate)
-//   php bin/migrate.php --fresh --seed
 
 $root = dirname(__DIR__);
 require_once $root . '/core/Db.php';
@@ -12,40 +10,12 @@ require_once $root . '/core/Db.php';
 use RetroBB\Core\Db;
 
 $args = $argv ?? [];
-$fresh = in_array('--fresh', $args, true);
 $seed = in_array('--seed', $args, true);
 
-$config = require $root . '/config.php';
-if (($config['db_driver'] ?? 'sqlite') === 'sqlite' && $fresh) {
-    $path = $config['sqlite_path'];
-    if (is_file($path)) {
-        unlink($path);
-        echo "Wiped $path\n";
-    }
-    Db::reset();
-}
-// The migrator owns file creation (Db::pdo deliberately refuses to conjure it).
-if (($config['db_driver'] ?? 'sqlite') === 'sqlite') {
-    $dir = dirname($config['sqlite_path']);
-    if (!is_dir($dir)) {
-        mkdir($dir, 0775, true);
-    }
-    if (!is_file($config['sqlite_path'])) {
-        touch($config['sqlite_path']);
-        echo 'Created ' . $config['sqlite_path'] . "\n";
-    }
-}
-
 $pdo = Db::pdo();
-$driver = $config['db_driver'] ?? 'sqlite';
 $migrations = glob($root . '/migrations/*.sql');
 sort($migrations);
 foreach ($migrations as $file) {
-    // Prefer the MySQL dialect variant when one ships for this migration.
-    $variant = $root . '/migrations/mysql/' . basename($file);
-    if ($driver === 'mysql' && is_file($variant)) {
-        $file = $variant;
-    }
     echo 'Applying ' . basename($file) . "...\n";
     // Our migration files are plain DDL with one statement per chunk and no
     // semicolons inside statements: strip full-line comments, split on ";".
@@ -59,7 +29,7 @@ foreach ($migrations as $file) {
         try {
             $pdo->exec($stmt);
         } catch (Throwable $t) {
-            // Ignore idempotent re-run noise across both dialects.
+            // Ignore idempotent re-run noise.
             $msg = $t->getMessage();
             if (!str_contains($msg, 'already exists') && !str_contains($msg, 'duplicate column') && !str_contains($msg, 'Duplicate key name')) {
                 throw $t;
@@ -68,7 +38,7 @@ foreach ($migrations as $file) {
     }
 }
 
-// default settings (portable on SQLite and MySQL)
+// default settings
 $defaults = [
     'board_name' => 'RetroBB',
     'board_tagline' => 'An old-school forum for the modern web',
@@ -82,17 +52,9 @@ $defaults = [
     'captcha_sitekey' => '',
     'captcha_secret' => '',
 ];
-$upd = $pdo->prepare('UPDATE settings SET `value`=? WHERE `key`=?');
-$ins = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?)');
+$upsert = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
 foreach ($defaults as $k => $v) {
-    $upd->execute([$v, $k]);
-    if ($upd->rowCount() === 0) {
-        try {
-            $ins->execute([$k, $v]);
-        } catch (Throwable) {
-            // already present (race) — safe to ignore
-        }
-    }
+    $upsert->execute([$k, $v]);
 }
 
 echo "Migrations done.\n";

@@ -119,12 +119,8 @@ class AdminController
                 if ($k === 'captcha_provider' && !in_array($v, ['honeypot', 'builtin', 'turnstile', 'hcaptcha', 'recaptcha'], true)) {
                     continue;
                 }
-                // Portable upsert (works on SQLite and MySQL alike).
-                $upd = $pdo->prepare('UPDATE settings SET `value`=? WHERE `key`=?');
-                $upd->execute([$v, $k]);
-                if ($upd->rowCount() === 0) {
-                    $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?)')->execute([$k, $v]);
-                }
+                // Native upsert (MySQL reports rows-changed, so UPDATE-then-check misfires).
+                $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)')->execute([$k, $v]);
             }
         }
         redirect($this->settingsReturn());

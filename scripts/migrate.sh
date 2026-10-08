@@ -1,4 +1,4 @@
 #!/bin/sh
+# Run migrations against the dev MySQL database.
 ROOT="$(pwd)/retrobb"
-docker run --rm -v "${ROOT}:/app" -w /app php:8.3-cli php bin/migrate.php --fresh --seed
-ls -la "${ROOT}/storage/"
+sh "${ROOT}/scripts/mysql-php.sh" php bin/migrate.php "$@"
