@@ -19,7 +19,10 @@ MIT licensed. Made with nostalgia by [techwiz.dad](https://techwiz.dad).
 
 **The modern comforts**
 - SEO-friendly URLs (`/topic/welcome-to-retrobb.t1`) that survive renames
-- Alerts-free simplicity: fast pages, no tracking, no ads, mobile-friendly
+- Quiet by default: fast pages, no tracking, no ads, mobile-friendly
+- Alerts, mentions, reactions, and private messages (with drafts, trash,
+  and reply threading) — every one toggleable board-wide in AdminCP → Features
+- Real "new post" markers: per-user read tracking, not just recent activity
 - Registration spam protection: invisible honeypot, built-in human check,
   or plug in Cloudflare Turnstile / hCaptcha / reCAPTCHA
 - Moderation done right: reports + mod queue, warnings, temp/perm bans,
@@ -72,7 +75,7 @@ then run `php bin/migrate.php --seed`.
 2. **Make your boards** — AdminCP → Structure: add categories and forums, then
    order them with the ↑ ↓ buttons.
 3. **Pick your look** — the footer switcher changes skins instantly; set the
-   default in AdminCP → Settings.
+    default in AdminCP → Features.
 4. **Turn on spam protection** — AdminCP → Spam protection (start with the
    built-in human check; add Turnstile/hCaptcha keys when you go public).
 5. **Appoint moderators** — AdminCP → Users → set someone to `mod`.
@@ -136,7 +139,8 @@ need a running board on `http://localhost:8080`. PHP 8.1–8.4 supported.
 
 ## 🗺 What's next
 
-- v0.3: alerts, mentions, reactions, private messages
+- v0.3 (built, in testing): alerts, mentions, reactions, private messages,
+  read tracking, board-wide feature flags
 - v0.4: search, importers (phpBB/SMF)
 - v0.5: plugin directory, API, translations
 - v1.0: the masses-ready release 🎉
