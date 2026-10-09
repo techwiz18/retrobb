@@ -182,12 +182,12 @@ class PmController
         $me = (int) Auth::user()['id'];
         $toName = trim((string) ($_POST['to'] ?? ''));
         $replyTo = max(0, (int) ($_POST['reply_to'] ?? 0));
-        $post = $_POST;
-        $compose = function ($error) use ($toName, $replyTo, $post) {
+        $input = $_POST;
+        $compose = function ($error) use ($toName, $replyTo, $input) {
             return [
                 'to' => $toName,
-                'subject' => (string) ($post['subject'] ?? ''),
-                'body' => (string) ($post['body'] ?? ''),
+                'subject' => (string) ($input['subject'] ?? ''),
+                'body' => (string) ($input['body'] ?? ''),
                 'reply_to' => $replyTo,
                 'error' => $error,
                 'pageTitle' => 'New message',
@@ -271,13 +271,13 @@ class PmController
         $me = (int) Auth::user()['id'];
         $draftId = $id ? (int) $id : 0;
         $draftReplyTo = max(0, (int) ($_POST['reply_to'] ?? 0));
-        $post = $_POST;
+        $input = $_POST;
         $vars = [
             'draft' => [
                 'id' => $draftId,
-                'to_name' => (string) ($post['to'] ?? ''),
-                'subject' => (string) ($post['subject'] ?? ''),
-                'body_bbcode' => (string) ($post['body'] ?? ''),
+                'to_name' => (string) ($input['to'] ?? ''),
+                'subject' => (string) ($input['subject'] ?? ''),
+                'body_bbcode' => (string) ($input['body'] ?? ''),
                 'reply_to_id' => $draftReplyTo,
             ],
             'error' => null,

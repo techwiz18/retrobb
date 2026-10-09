@@ -8,13 +8,23 @@ use RetroBB\Core\Modlog;
 
 class Moderation
 {
-    public static function warn(int $userId, int $modId, string $reason): void
+    public static function warn(int $userId, int $modId, string $reason, int $postId = 0, int $topicId = 0): void
     {
-        Db::pdo()->prepare(
-            'INSERT INTO warnings (user_id, warned_by, reason, created_at) VALUES (?,?,?,?)'
-        )->execute([$userId, $modId, mb_substr(trim($reason), 0, 500), date('Y-m-d H:i:s')]);
-        Modlog::log($modId, 'warn', 'user', $userId, mb_substr(trim($reason), 0, 200));
-        \RetroBB\Models\Notification::create($userId, $modId, 'warning', 0, 0, trim($reason));
+        $reason = mb_substr(trim($reason), 0, 500);
+        try {
+            Db::pdo()->prepare(
+                'INSERT INTO warnings (user_id, warned_by, reason, created_at, post_id, topic_id) VALUES (?,?,?,?,?,?)'
+            )->execute([$userId, $modId, $reason, date('Y-m-d H:i:s'), $postId, $topicId]);
+        } catch (\Throwable) {
+            // Pre-010 tables lack post/topic columns — record it anyway.
+            Db::pdo()->prepare(
+                'INSERT INTO warnings (user_id, warned_by, reason, created_at) VALUES (?,?,?,?)'
+            )->execute([$userId, $modId, $reason, date('Y-m-d H:i:s')]);
+            $postId = 0;
+            $topicId = 0;
+        }
+        Modlog::log($modId, 'warn', 'user', $userId, mb_substr($reason, 0, 200));
+        \RetroBB\Models\Notification::create($userId, $modId, 'warning', $topicId, $postId, $reason);
     }
 
     /** @return array warnings newest first */

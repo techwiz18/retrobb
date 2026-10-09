@@ -17,7 +17,7 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='4' width='26' height='25' rx='2' fill='%233A6EA5'/%3E%3Crect x='9' y='4' width='14' height='9' fill='%23c9d2e4'/%3E%3Crect x='19' y='4' width='4' height='9' fill='%23232c40'/%3E%3Crect x='6' y='17' width='20' height='9' rx='1' fill='%23f4f6fb'/%3E%3Crect x='9' y='20' width='14' height='2' fill='%2398a5b3'/%3E%3C/svg%3E">
 <?php \RetroBB\Core\Hooks::do_action('head'); ?>
 </head>
-<body class="<?= $skinClass ?>">
+<body class="<?= e($skinClass) ?>">
 <div class="page-wrap">
   <div class="topbar">
     <div class="logo"><a href="/"><svg class="floppy" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="4" width="26" height="25" rx="2" fill="#3A6EA5"/><rect x="9" y="4" width="14" height="9" fill="#c9d2e4"/><rect x="19" y="4" width="4" height="9" fill="#232c40"/><rect x="6" y="17" width="20" height="9" rx="1" fill="#f4f6fb"/><rect x="9" y="20" width="14" height="2" fill="#98a5b3"/></svg> <?= e(board_name()) ?></a> <span class="tagline"><?= e(setting('board_tagline', '')) ?></span></div>

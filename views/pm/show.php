@@ -12,5 +12,5 @@
 <?php endforeach; ?>
 </div>
 <?php endif; ?>
-<p><a class="smallbtn" href="/pm/new?to=<?= urlencode($otherName) ?>&reply_to=<?= (int) $pm['id'] ?>">Reply</a> <a class="smallbtn" href="/pm">Back to inbox</a>
+<p><a class="smallbtn" href="/pm/new?to=<?= e(urlencode($otherName)) ?>&reply_to=<?= (int) $pm['id'] ?>">Reply</a> <a class="smallbtn" href="/pm">Back to inbox</a>
 <form method="post" action="/pm/<?= (int) $pm['id'] ?>/delete" style="display:inline" onsubmit="return confirm('Delete this message?')"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn danger" type="submit">Delete</button></form></p>

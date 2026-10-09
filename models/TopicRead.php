@@ -10,6 +10,9 @@ use RetroBB\Core\Db;
  * recent activity. A topic is unread when its newest post id passes both the
  * user's marker for that topic and the join cutoff (posts made before the
  * account existed are never "new").
+ *
+ * The queries below interpolate ids directly, so every public method takes
+ * ints only — callers pass (int) session ids and intval-mapped lists.
  */
 class TopicRead
 {

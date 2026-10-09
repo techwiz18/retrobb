@@ -118,7 +118,8 @@ $r->post('#^/topic/(\d+)/(pinned|locked)$#', [\RetroBB\Controllers\TopicControll
   $r->post('#^/pm/(\d+)/delete$#', [\RetroBB\Controllers\PmController::class, 'delete']);
   $r->get('#^/mod/reports$#', [\RetroBB\Controllers\ReportController::class, 'queue']);
   $r->get('#^/mod/report/(\d+)/resolve$#', [\RetroBB\Controllers\ReportController::class, 'resolveForm']);
-  $r->get('#^/mod/report/(\d+)/warn$#', [\RetroBB\Controllers\ReportController::class, 'warnForm']);  $r->post('#^/mod/report/(\d+)/handle$#', [\RetroBB\Controllers\ReportController::class, 'handle']);
+  $r->get('#^/mod/report/(\d+)/warn$#', [\RetroBB\Controllers\ReportController::class, 'warnForm']);
+  $r->post('#^/mod/report/(\d+)/handle$#', [\RetroBB\Controllers\ReportController::class, 'handle']);
   $r->post('#^/mod/report/(\d+)/delete-post$#', [\RetroBB\Controllers\ReportController::class, 'deletePost']);
   $r->post('#^/mod/report/(\d+)/warn-author$#', [\RetroBB\Controllers\ReportController::class, 'warnAuthor']);
 $r->get('#^/register$#', [\RetroBB\Controllers\AuthController::class, 'registerForm']);

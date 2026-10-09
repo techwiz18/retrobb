@@ -23,6 +23,7 @@ class AlertController
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $data = Notification::list($me, $page);
         $pages = max(1, (int) ceil($data['total'] / 25));
+        // Visiting alerts clears the bell badge.
         Notification::markAllRead($me);
         View::render('alerts/index', [
             'items' => $data['items'], 'total' => $data['total'],

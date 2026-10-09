@@ -43,8 +43,7 @@ class Reaction
         }
     }
 
-    /** @return array<int,array<string,int>> postId => counts (one query for a topic page). */
-    public static function countsForPosts(array $postIds): array
+    /** @return array<int,array<string,int>> postId => counts (one query for a topic page). */    public static function countsForPosts(array $postIds): array
     {
         $postIds = array_values(array_unique(array_map('intval', $postIds)));
         if (!$postIds) {
@@ -61,17 +60,5 @@ class Reaction
             $out[(int) $r['post_id']][$r['reaction']] = (int) $r['c'];
         }
         return $out;
-    }
-
-    public static function mine(int $postId, int $userId): ?string
-    {
-        try {
-            $st = Db::pdo()->prepare('SELECT reaction FROM post_reactions WHERE post_id=? AND user_id=?');
-            $st->execute([$postId, $userId]);
-            $row = $st->fetch();
-            return $row['reaction'] ?? null;
-        } catch (\Throwable) {
-            return null;
-        }
     }
 }

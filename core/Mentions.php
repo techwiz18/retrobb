@@ -8,7 +8,8 @@ class Mentions
     /** Extract @usernames from bbcode (3–30 chars, letters/numbers/space/_/-). */
     public static function extract(string $bbcode): array
     {
-        preg_match_all('/@([A-Za-z0-9_\- ]{3,30})/', $bbcode, $m);
+        // The lookbehind skips email addresses (user@example.com).
+        preg_match_all('/(?<![A-Za-z0-9_.])@([A-Za-z0-9_\- ]{3,30})/', $bbcode, $m);
         $names = array_unique(array_map('trim', $m[1] ?? []));
         return array_values(array_filter($names, fn($n) => $n !== ''));
     }
@@ -18,8 +19,32 @@ class Mentions
     {
         if (!feature('mentions')) {
             return $html;
-        }        return (string) preg_replace_callback(
-            '/@([A-Za-z0-9_\- ]{3,30})/',
+        }
+        // Link text segments only: never inside tags/attributes (<a href="..@..">),
+        // link labels (<a>..@..</a> would nest anchors), or code blocks.
+        $segs = preg_split('/(<[^>]*>)/', $html, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [$html];
+        $skip = 0; // depth inside <pre> or <a>
+        foreach ($segs as &$s) {
+            if (str_starts_with($s, '<')) {
+                if (preg_match('#^<(pre|a)[\s>]#i', $s)) {
+                    $skip++;
+                } elseif (preg_match('#^</(pre|a)[\s>]#i', $s)) {
+                    $skip = max(0, $skip - 1);
+                }
+                continue;
+            }
+            if ($skip === 0) {
+                $s = self::linkNames($s);
+            }
+        }
+        unset($s);
+        return implode('', $segs);
+    }
+
+    private static function linkNames(string $text): string
+    {
+        return (string) preg_replace_callback(
+            '/(?<![A-Za-z0-9_.])@([A-Za-z0-9_\- ]{3,30})/',
             function ($m) {
                 $name = trim($m[1]);
                 $u = self::resolveOne($name);
@@ -32,7 +57,7 @@ class Mentions
                 $url = Slug::memberUrl(['id' => (int) $u['id'], 'username' => $u['username']]);
                 return '@<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">' . htmlspecialchars($u['username'], ENT_QUOTES, 'UTF-8') . '</a>' . $rest;
             },
-            $html
+            $text
         );
     }
 

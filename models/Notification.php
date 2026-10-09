@@ -52,7 +52,6 @@ class Notification
     public static function list(int $userId, int $page = 1, int $perPage = 25): array
     {
         $pdo = Db::pdo();
-        $total = (int) $pdo->prepare('SELECT COUNT(*) c FROM notifications WHERE user_id=?')->execute([$userId]) ?: 0;
         $cnt = $pdo->prepare('SELECT COUNT(*) c FROM notifications WHERE user_id=?');
         $cnt->execute([$userId]);
         $total = (int) $cnt->fetch()['c'];

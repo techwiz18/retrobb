@@ -5,6 +5,7 @@ namespace RetroBB\Models;
 
 use RetroBB\Core\BBCode;
 use RetroBB\Core\Db;
+use RetroBB\Core\Slug;
 
 class Pm
 {
@@ -27,6 +28,22 @@ class Pm
         }
         if ($subject === '') {
             $subject = '(no subject)';
+        }
+        // Same anti-spam flood control as forum posts (mods bypass).
+        $flood = max(0, (int) setting('flood_seconds', '30'));
+        if ($flood > 0 && !\RetroBB\Core\Auth::isMod()) {
+            $st = Db::pdo()->prepare('SELECT created_at FROM pms WHERE sender_id=? ORDER BY id DESC LIMIT 1');
+            $st->execute([$senderId]);
+            if ($last = $st->fetch()) {
+                try {
+                    $wait = $flood - max(0, time() - (new \DateTime($last['created_at']))->getTimestamp());
+                } catch (\Throwable) {
+                    $wait = 0;
+                }
+                if ($wait > 0) {
+                    return ['ok' => false, 'error' => "Slow down — please wait $wait more second(s)."];
+                }
+            }
         }
         // Threading: only link replies the sender is actually allowed to see.
         if ($replyTo > 0 && !self::findFor($replyTo, $senderId)) {
@@ -131,6 +148,7 @@ class Pm
         if ((int) $row['sender_id'] === $userId) {
             $pdo->prepare('UPDATE pms SET sender_deleted=1 WHERE id=?')->execute([$id]);
         } elseif ((int) $row['recipient_id'] === $userId) {
+            // Deleting also clears the unread badge for this message.
             $pdo->prepare('UPDATE pms SET read_at=COALESCE(read_at, ?) WHERE id=?')->execute([date('Y-m-d H:i:s'), $id]);
             $pdo->prepare('UPDATE pms SET recipient_deleted=1 WHERE id=?')->execute([$id]);
         } else {
@@ -169,6 +187,9 @@ class Pm
         $to = trim(mb_substr($to, 0, 50));
         $subject = trim(mb_substr($subject, 0, 120));
         $bbcode = trim($bbcode);
+        if ($to === '' && $subject === '' && $bbcode === '') {
+            return ['ok' => false, 'error' => 'Nothing to save yet.'];
+        }
         if (mb_strlen($bbcode) > 20000) {
             return ['ok' => false, 'error' => 'Draft is too long.'];
         }
@@ -204,7 +225,8 @@ class Pm
     }
 
     public static function findDraft(int $id, int $userId): ?array
-    {        try {
+    {
+        try {
             $st = Db::pdo()->prepare('SELECT * FROM pm_drafts WHERE id=? AND user_id=? LIMIT 1');
             $st->execute([$id, $userId]);
             $r = $st->fetch();
@@ -245,8 +267,14 @@ class Pm
             return null;
         }
         $to = User::findByUsername($toName);
-        if (!$to && preg_match('/\.u(\d+)$/', $toName, $m)) {
-            $to = User::find((int) $m[1]);
+        if (!$to && preg_match('/^(.+)\.u(\d+)$/', $toName, $m)) {
+            $cand = User::find((int) $m[2]);
+            // The name part must match the username or its profile slug,
+            // so "someone.u5" can't silently address a different account.
+            $want = strtolower(trim($m[1]));
+            if ($cand && ($want === strtolower($cand['username']) || $want === Slug::make($cand['username']))) {
+                $to = $cand;
+            }
         }
         if (!$to) {
             $to = User::findByLogin($toName);

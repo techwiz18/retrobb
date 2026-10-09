@@ -7,7 +7,7 @@
     <div class="profile-name"><?= e($profile['username']) ?></div>
     <div><span class="group group-<?= e($profile['user_group']) ?>"><?= e($profile['user_group']) ?></span>
     <?php $me2 = \RetroBB\Core\Auth::user(); ?>
-    <?php if ($me2 && (int) $me2['id'] === (int) $profile['id']): ?> <a class="smallbtn" href="/settings/profile">Edit profile</a><?php elseif ($me2 && feature('pms')): ?> <a class="smallbtn" href="/pm/new?to=<?= urlencode($profile['username']) ?>">Message</a><?php endif; ?></div>
+    <?php if ($me2 && (int) $me2['id'] === (int) $profile['id']): ?> <a class="smallbtn" href="/settings/profile">Edit profile</a><?php elseif ($me2 && feature('pms')): ?> <a class="smallbtn" href="/pm/new?to=<?= e(urlencode($profile['username'])) ?>">Message</a><?php endif; ?></div>
     <?php if (!empty($profile['bio'])): ?><div class="profile-bio"><?= nl2br(e($profile['bio'])) ?></div><?php endif; ?>
     <div class="profile-stats">
       <div class="stat"><span class="num"><?= (int) $profile['posts_count'] ?></span><span class="lbl">Posts</span></div>
@@ -30,7 +30,7 @@
 <div class="maintitle">Warnings (<?= count($warnings) ?>)</div>
 <div class="recent-list">
 <?php foreach ($warnings as $w): ?>
-  <div class="recent-row"><span><?= e($w['reason']) ?><br><small class="muted">by <?= e($w['warned_by_name']) ?></small></span><span class="recent-date"><?= e(time_ago($w['created_at'])) ?></span></div>
+  <div class="recent-row"><span><?= e($w['reason']) ?><?php if (!empty($w['topic_id'])): ?> — <a href="/topic/x.t<?= (int) $w['topic_id'] ?><?= !empty($w['post_id']) ? '#p' . (int) $w['post_id'] : '' ?>">view reported post</a><?php endif; ?><br><small class="muted">by <?= e($w['warned_by_name']) ?></small></span><span class="recent-date"><?= e(time_ago($w['created_at'])) ?></span></div>
 <?php endforeach; ?>
 </div>
 <?php endif; ?>

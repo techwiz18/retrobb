@@ -163,7 +163,8 @@ class Topic
         return max(0, $secs - $since);
     }
 
-    /** Search topics by title for the merge picker. */    public static function search(string $q, int $excludeId = 0, int $limit = 20): array
+    /** Search topics by title for the merge picker. */
+    public static function search(string $q, int $excludeId = 0, int $limit = 20): array
     {
         $pdo = Db::pdo();
         $q = trim(mb_substr($q, 0, 100));
@@ -291,6 +292,7 @@ class Topic
         return ['ok' => true];
     }
 
+    /** Mention alerts for @names in a post (skips the author; no-ops when disabled). */
     private static function notifyMentions(string $bbcode, int $actorId, int $topicId, int $postId): void
     {
         if (!feature('mentions')) {

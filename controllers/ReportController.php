@@ -191,7 +191,7 @@ class ReportController
         $me = (int) Auth::user()['id'];
         $post = Post::find((int) $rep['post_id']);
         if ($post) {
-            \RetroBB\Models\Moderation::warn((int) $post['user_id'], $me, $reason);
+            \RetroBB\Models\Moderation::warn((int) $post['user_id'], $me, $reason, (int) $post['id'], (int) $post['topic_id']);
         }
         Report::handle($id, $me, 'resolved', 'author warned: ' . mb_substr($reason, 0, 200));
         Modlog::log($me, 'report_resolved', 'report', $id, 'author warned');
