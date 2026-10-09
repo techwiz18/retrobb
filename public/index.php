@@ -9,6 +9,7 @@ require_once $root . '/core/Hooks.php';
 require_once $root . '/core/Auth.php';
 require_once $root . '/core/Csrf.php';
 require_once $root . '/core/BBCode.php';
+require_once $root . '/core/Mentions.php';
 require_once $root . '/core/View.php';
 require_once $root . '/core/Router.php';
 require_once $root . '/core/Plugins.php';
@@ -20,6 +21,10 @@ require_once $root . '/models/Topic.php';
 require_once $root . '/models/Post.php';
 require_once $root . '/models/Report.php';
 require_once $root . '/models/Moderation.php';
+require_once $root . '/models/TopicRead.php';
+require_once $root . '/models/Notification.php';
+require_once $root . '/models/Reaction.php';
+require_once $root . '/models/Pm.php';
 require_once $root . '/controllers/HomeController.php';
 require_once $root . '/controllers/ForumController.php';
 require_once $root . '/controllers/TopicController.php';
@@ -28,6 +33,9 @@ require_once $root . '/controllers/AuthController.php';
 require_once $root . '/controllers/ProfileController.php';
 require_once $root . '/controllers/AdminController.php';
 require_once $root . '/controllers/SitemapController.php';
+require_once $root . '/controllers/AlertController.php';
+require_once $root . '/controllers/ReactionController.php';
+require_once $root . '/controllers/PmController.php';
 
 use RetroBB\Core\Auth;
 use RetroBB\Core\Plugins;
@@ -93,8 +101,24 @@ $r->post('#^/topic/(\d+)/(pinned|locked)$#', [\RetroBB\Controllers\TopicControll
   $r->post('#^/post/(\d+)/edit$#', [\RetroBB\Controllers\TopicController::class, 'editPostSubmit']);
   $r->get('#^/post/(\d+)/report$#', [\RetroBB\Controllers\ReportController::class, 'reportForm']);
   $r->post('#^/post/(\d+)/report$#', [\RetroBB\Controllers\ReportController::class, 'reportSubmit']);
+  $r->post('#^/post/(\d+)/react$#', [\RetroBB\Controllers\ReactionController::class, 'toggle']);
+  $r->get('#^/alerts$#', [\RetroBB\Controllers\AlertController::class, 'index']);
+  $r->get('#^/pm$#', [\RetroBB\Controllers\PmController::class, 'inbox']);
+  $r->get('#^/pm/sent$#', [\RetroBB\Controllers\PmController::class, 'sent']);
+  $r->get('#^/pm/trash$#', [\RetroBB\Controllers\PmController::class, 'trash']);
+  $r->get('#^/pm/drafts$#', [\RetroBB\Controllers\PmController::class, 'drafts']);
+  $r->get('#^/pm/draft/new$#', [\RetroBB\Controllers\PmController::class, 'draftForm']);
+  $r->post('#^/pm/draft/new$#', [\RetroBB\Controllers\PmController::class, 'draftSubmit']);
+  $r->get('#^/pm/draft/(\d+)$#', [\RetroBB\Controllers\PmController::class, 'draftForm']);
+  $r->post('#^/pm/draft/(\d+)$#', [\RetroBB\Controllers\PmController::class, 'draftSubmit']);
+  $r->post('#^/pm/draft/(\d+)/discard$#', [\RetroBB\Controllers\PmController::class, 'draftDiscard']);
+  $r->get('#^/pm/new$#', [\RetroBB\Controllers\PmController::class, 'newForm']);
+  $r->post('#^/pm/new$#', [\RetroBB\Controllers\PmController::class, 'newSubmit']);
+  $r->get('#^/pm/(\d+)$#', [\RetroBB\Controllers\PmController::class, 'show']);
+  $r->post('#^/pm/(\d+)/delete$#', [\RetroBB\Controllers\PmController::class, 'delete']);
   $r->get('#^/mod/reports$#', [\RetroBB\Controllers\ReportController::class, 'queue']);
-  $r->post('#^/mod/report/(\d+)/handle$#', [\RetroBB\Controllers\ReportController::class, 'handle']);
+  $r->get('#^/mod/report/(\d+)/resolve$#', [\RetroBB\Controllers\ReportController::class, 'resolveForm']);
+  $r->get('#^/mod/report/(\d+)/warn$#', [\RetroBB\Controllers\ReportController::class, 'warnForm']);  $r->post('#^/mod/report/(\d+)/handle$#', [\RetroBB\Controllers\ReportController::class, 'handle']);
   $r->post('#^/mod/report/(\d+)/delete-post$#', [\RetroBB\Controllers\ReportController::class, 'deletePost']);
   $r->post('#^/mod/report/(\d+)/warn-author$#', [\RetroBB\Controllers\ReportController::class, 'warnAuthor']);
 $r->get('#^/register$#', [\RetroBB\Controllers\AuthController::class, 'registerForm']);
@@ -111,6 +135,8 @@ $r->post('#^/members/(\d+)/ban$#', [\RetroBB\Controllers\ProfileController::clas
 $r->post('#^/members/unban/(\d+)$#', [\RetroBB\Controllers\ProfileController::class, 'unban']);
 $r->get('#^/admin$#', [\RetroBB\Controllers\AdminController::class, 'index']);
 $r->get('#^/admin/settings$#', [\RetroBB\Controllers\AdminController::class, 'settingsPage']);
+$r->get('#^/admin/features$#', [\RetroBB\Controllers\AdminController::class, 'featuresPage']);
+$r->post('#^/admin/features$#', [\RetroBB\Controllers\AdminController::class, 'saveFeatures']);
 $r->get('#^/admin/spam$#', [\RetroBB\Controllers\AdminController::class, 'spamPage']);
 $r->get('#^/admin/structure$#', [\RetroBB\Controllers\AdminController::class, 'structurePage']);
 $r->get('#^/admin/bans$#', [\RetroBB\Controllers\AdminController::class, 'bansPage']);
@@ -127,7 +153,7 @@ $r->get('#^/sitemap\.xml$#', [\RetroBB\Controllers\SitemapController::class, 'xm
 $r->get('#^/sitemap\.xsl$#', [\RetroBB\Controllers\SitemapController::class, 'xsl']);
 // skin switcher + legacy compat
 $r->get('#^/skin/([a-z0-9]+)$#', function (string $s) {
-    if (in_array($s, ['classic', 'midnight', 'silver'], true)) {
+    if (feature('skin_selector') && in_array($s, ['classic', 'midnight', 'silver'], true)) {
         setcookie('retrobb_skin', $s, time() + 86400 * 365, '/');
     }
     // Referer is client-controlled: only follow local paths, never "//host".
@@ -140,7 +166,9 @@ $r->get('#^/skin/([a-z0-9]+)$#', function (string $s) {
 });
 // theme switcher (light / dark / auto-follows-OS)
 $r->get('#^/theme/(light|dark|auto)$#', function (string $t) {
-    setcookie('retrobb_theme', $t, time() + 86400 * 365, '/');
+    if (in_array($t, allowed_themes(), true)) {
+        setcookie('retrobb_theme', $t, time() + 86400 * 365, '/');
+    }
     $back = $_SERVER['HTTP_REFERER'] ?? '/';
     $bp = parse_url($back, PHP_URL_PATH) ?: '/';
     if (!str_starts_with($bp, '/') || str_starts_with($bp, '//')) {

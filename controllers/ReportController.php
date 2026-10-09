@@ -87,10 +87,37 @@ class ReportController
         $rep = Report::find($id);
         if ($rep && $rep['status'] === 'open') {
             $status = ($_POST['status'] ?? '') === 'resolved' ? 'resolved' : 'dismissed';
-            Report::handle($id, (int) Auth::user()['id'], $status, (string) ($_POST['note'] ?? ''));
-            Modlog::log((int) Auth::user()['id'], 'report_' . $status, 'report', $id, "post {$rep['post_id']}");
+            $note = mb_substr(trim((string) ($_POST['note'] ?? '')), 0, 500);
+            // Resolving claims action was taken: a note is required so the
+            // log says what happened. Dismissing stays one click.
+            if ($status === 'resolved' && $note === '') {
+                $this->resolveForm($id, 'Tell us what action you took before resolving.');
+                return;
+            }
+            Report::handle($id, (int) Auth::user()['id'], $status, $note);
+            Modlog::log((int) Auth::user()['id'], 'report_' . $status, 'report', $id, "post {$rep['post_id']}" . ($note !== '' ? ': ' . mb_substr($note, 0, 150) : ''));
         }
         redirect('/mod/reports');
+    }
+
+    /** Resolve form (GET): what did you do about it? Note required on submit. */
+    public function resolveForm(int $id, ?string $error = null): void
+    {
+        if (!Auth::isMod()) {
+            http_response_code(403);
+            View::render('errors/403', ['pageTitle' => 'Forbidden']);
+            return;
+        }
+        $rep = Report::find($id);
+        if (!$rep || $rep['status'] !== 'open') {
+            redirect('/mod/reports');
+        }
+        $post = Post::find((int) $rep['post_id']);
+        $topic = $post ? \RetroBB\Models\Topic::find((int) $post['topic_id']) : null;
+        View::render('report/resolve', [
+            'report' => $rep, 'post' => $post, 'topic' => $topic, 'error' => $error,
+            'pageTitle' => 'Resolve report — ' . board_name(),
+        ]);
     }
 
     private function openReport(int $id): ?array
@@ -129,6 +156,26 @@ class ReportController
         redirect('/mod/reports');
     }
 
+    /** Warn form (GET): the mod writes the actual warning, not the report text. */
+    public function warnForm(int $id, ?string $error = null): void
+    {
+        if (!Auth::isMod()) {
+            http_response_code(403);
+            View::render('errors/403', ['pageTitle' => 'Forbidden']);
+            return;
+        }
+        $rep = Report::find($id);
+        if (!$rep || $rep['status'] !== 'open') {
+            redirect('/mod/reports');
+        }
+        $post = Post::find((int) $rep['post_id']);
+        $topic = $post ? \RetroBB\Models\Topic::find((int) $post['topic_id']) : null;
+        View::render('report/warn', [
+            'report' => $rep, 'post' => $post, 'topic' => $topic, 'error' => $error,
+            'pageTitle' => 'Warn author — ' . board_name(),
+        ]);
+    }
+
     /** Warn the reported post's author and resolve the report. */
     public function warnAuthor(int $id): void
     {
@@ -136,12 +183,17 @@ class ReportController
         if ($rep === null) {
             redirect('/mod/reports');
         }
+        $reason = mb_substr(trim((string) ($_POST['reason'] ?? '')), 0, 500);
+        if (mb_strlen($reason) < 3) {
+            $this->warnForm($id, 'Write the warning reason (3+ chars) — the user sees it.');
+            return;
+        }
         $me = (int) Auth::user()['id'];
         $post = Post::find((int) $rep['post_id']);
         if ($post) {
-            \RetroBB\Models\Moderation::warn((int) $post['user_id'], $me, 'Reported post: ' . $rep['reason']);
+            \RetroBB\Models\Moderation::warn((int) $post['user_id'], $me, $reason);
         }
-        Report::handle($id, $me, 'resolved', 'author warned');
+        Report::handle($id, $me, 'resolved', 'author warned: ' . mb_substr($reason, 0, 200));
         Modlog::log($me, 'report_resolved', 'report', $id, 'author warned');
         $_SESSION['flash_ok'] = 'Author warned.';
         redirect('/mod/reports');

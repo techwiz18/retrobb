@@ -18,7 +18,8 @@ class Board
                 'SELECT f.*, (SELECT u.username FROM posts p JOIN users u ON u.id=p.user_id WHERE p.topic_id=f.last_topic_id ORDER BY p.id DESC LIMIT 1) AS last_user,
                  (SELECT p.user_id FROM posts p WHERE p.topic_id=f.last_topic_id ORDER BY p.id DESC LIMIT 1) AS last_user_id,
                  (SELECT t.title FROM topics t WHERE t.id=f.last_topic_id) AS last_title,
-                 (SELECT t.slug FROM topics t WHERE t.id=f.last_topic_id) AS last_slug
+                 (SELECT t.slug FROM topics t WHERE t.id=f.last_topic_id) AS last_slug,
+                 (SELECT t.last_post_at FROM topics t WHERE t.id=f.last_topic_id) AS last_at
                  FROM forums f WHERE f.category_id=? ORDER BY sort, id'
             );
             $st->execute([$c['id']]);
@@ -64,6 +65,7 @@ class Board
                 'posts' => (int) $pdo->query('SELECT COUNT(*) c FROM posts')->fetch()['c'],
                 'topics' => (int) $pdo->query('SELECT COUNT(*) c FROM topics')->fetch()['c'],
                 'newest' => $pdo->query('SELECT username FROM users ORDER BY id DESC LIMIT 1')->fetch()['username'] ?? '—',
+                'newest_id' => (int) ($pdo->query('SELECT id FROM users ORDER BY id DESC LIMIT 1')->fetch()['id'] ?? 0),
             ];
         } catch (\Throwable) {
             return ['users' => 0, 'posts' => 0, 'topics' => 0, 'newest' => '—'];

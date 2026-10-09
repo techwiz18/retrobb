@@ -23,7 +23,10 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
     <div class="logo"><a href="/"><svg class="floppy" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="4" width="26" height="25" rx="2" fill="#3A6EA5"/><rect x="9" y="4" width="14" height="9" fill="#c9d2e4"/><rect x="19" y="4" width="4" height="9" fill="#232c40"/><rect x="6" y="17" width="20" height="9" rx="1" fill="#f4f6fb"/><rect x="9" y="20" width="14" height="2" fill="#98a5b3"/></svg> <?= e(board_name()) ?></a> <span class="tagline"><?= e(setting('board_tagline', '')) ?></span></div>
     <div class="userbox">
       <?php if ($user): ?>
-        <a href="<?= e(\RetroBB\Core\Slug::memberUrl($user)) ?>"><?= e($user['username']) ?></a>
+        <?php $showAlerts = feature('alerts'); $showPms = feature('pms'); ?>
+        <?php $ac = $showAlerts ? \RetroBB\Models\Notification::unreadCount((int) $user['id']) : 0; ?>
+        <?php $pc = $showPms ? \RetroBB\Models\Pm::unreadCount((int) $user['id']) : 0; ?>
+        <span class="dropwrap"><a href="<?= e(\RetroBB\Core\Slug::memberUrl($user)) ?>"><?= e($user['username']) ?></a> <button type="button" class="dropbtn" id="userdrop-btn" aria-haspopup="true" aria-expanded="false" title="Your account">▾<?php if ($ac + $pc > 0): ?> <span class="pill"><?= $ac + $pc ?></span><?php endif; ?></button><span class="dropmenu" id="userdrop-menu"><a href="/settings/profile">Edit profile</a><?php if ($showAlerts): ?><a href="/alerts">Alerts<?php if ($ac > 0): ?> <span class="pill"><?= $ac ?></span><?php endif; ?></a><?php endif; ?><?php if ($showPms): ?><a href="/pm">Messages<?php if ($pc > 0): ?> <span class="pill"><?= $pc ?></span><?php endif; ?></a><?php endif; ?></span></span>
         <?php if ($user['user_group'] === 'admin'): ?> <a class="pill" href="/admin">AdminCP</a><?php endif; ?>
         <form method="post" action="/logout" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="linkbtn" type="submit">Log out</button></form>
       <?php else: ?>
@@ -35,10 +38,12 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
     <?php if (\RetroBB\Core\Auth::isMod()): ?>
       · <a href="/mod/reports"><b>Mod queue<?php $qc = \RetroBB\Models\Report::openCount(); if ($qc > 0): ?> (<?= $qc ?>)<?php endif; ?></b></a>
     <?php endif; ?>
-    <span class="skinswitch">Skin:
-      <a href="/skin/classic">Classic</a> <a href="/skin/midnight">Midnight</a> <a href="/skin/silver">Silver</a>
-      · Theme: <a href="/theme/light">Light</a> <a href="/theme/dark">Dark</a> <a href="/theme/auto">Auto</a>
+    <?php $allowedThemes = allowed_themes(); ?>
+    <?php if (feature('skin_selector') || count($allowedThemes) > 1): ?>
+    <span class="skinswitch"><?php if (feature('skin_selector')): ?>Skin:
+      <a href="/skin/classic">Classic</a> <a href="/skin/midnight">Midnight</a> <a href="/skin/silver">Silver</a><?php endif; ?><?php if (feature('skin_selector') && count($allowedThemes) > 1): ?> · <?php endif; ?><?php if (count($allowedThemes) > 1): ?>Theme:<?php foreach ($allowedThemes as $i => $tm): ?><?= $i > 0 ? ' ' : ' ' ?><a href="/theme/<?= $tm ?>"><?= ucfirst($tm) ?></a><?php endforeach; ?><?php endif; ?>
     </span>
+    <?php endif; ?>
   </nav>
 
   <?php if (!empty($_SESSION['flash_error'])): ?><div class="flash-error"><?= e($_SESSION['flash_error']); unset($_SESSION['flash_error']); ?></div><?php endif; ?>

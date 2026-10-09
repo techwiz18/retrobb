@@ -14,6 +14,7 @@ class Moderation
             'INSERT INTO warnings (user_id, warned_by, reason, created_at) VALUES (?,?,?,?)'
         )->execute([$userId, $modId, mb_substr(trim($reason), 0, 500), date('Y-m-d H:i:s')]);
         Modlog::log($modId, 'warn', 'user', $userId, mb_substr(trim($reason), 0, 200));
+        \RetroBB\Models\Notification::create($userId, $modId, 'warning', 0, 0, trim($reason));
     }
 
     /** @return array warnings newest first */

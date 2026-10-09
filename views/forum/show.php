@@ -1,4 +1,4 @@
-<?php /** @var array $forum */ /** @var array $topics */ /** @var int $page */ /** @var int $pages */ /** @var int $total */ ?>
+<?php /** @var array $forum */ /** @var array $topics */ /** @var array $unread */ /** @var int $page */ /** @var int $pages */ /** @var int $total */ ?>
 <div class="breadcrumb"><a href="/">Index</a> &raquo; <?= e($forum['name']) ?></div>
 <div class="maintitle"><?= e($forum['name']) ?></div>
 <div class="subtitle"><?= e($forum['description']) ?></div>
@@ -21,7 +21,7 @@
   ?>
   <div class="topic-row">
     <div class="topic-icon" title="<?= $iconTitle ?>"><?= $icon ?></div>
-    <div><a href="<?= e(\RetroBB\Core\Slug::topicUrl($t)) ?>"><?= e($t['title']) ?></a><br><small>by <a href="<?= e(\RetroBB\Core\Slug::memberUrl(['id' => $t['user_id'], 'username' => $t['author']])) ?>"><?= e($t['author']) ?></a> · <?= e(time_ago($t['created_at'])) ?></small></div>
+    <div><a href="<?= e(\RetroBB\Core\Slug::topicUrl($t)) ?>"><?= e($t['title']) ?></a><?php if (!empty($unread[(int) $t['id']])): ?> <span class="pill">New</span><?php endif; ?><br><small>by <a href="<?= e(\RetroBB\Core\Slug::memberUrl(['id' => $t['user_id'], 'username' => $t['author']])) ?>"><?= e($t['author']) ?></a> · <?= e(time_ago($t['created_at'])) ?></small></div>
     <div class="c"><?= max(0, (int) $t['posts_count'] - 1) ?></div>
     <div class="c"><?= (int) $t['views'] ?></div>
     <div class="r"><small><?php if (!empty($t['last_user_id'])): ?><a href="<?= e(\RetroBB\Core\Slug::memberUrl(['id' => $t['last_user_id'], 'username' => $t['last_user'] ?? 'user'])) ?>"><?= e($t['last_user'] ?? $t['author']) ?></a><?php else: ?><?= e($t['last_user'] ?? $t['author']) ?><?php endif; ?><br><?= e(time_ago($t['last_post_at'])) ?></small></div>

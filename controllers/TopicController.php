@@ -68,11 +68,16 @@ class TopicController
         $data = Topic::posts($id, $page, $perPage);
         $pages = max(1, (int) ceil($data['total'] / $perPage));
         $forum = Board::forum((int) $topic['forum_id']);
+        $reactions = \RetroBB\Models\Reaction::countsForPosts(array_map(fn($p) => (int) $p['id'], $data['posts']));
+        if ($me = Auth::user()) {
+            \RetroBB\Models\TopicRead::markRead((int) $me['id'], $id);
+        }
 
         View::render('topic/show', [
             'topic' => $topic,
             'forum' => $forum,
             'posts' => $data['posts'],
+            'reactions' => $reactions,
             'total' => $data['total'],
             'page' => $page,
             'pages' => $pages,

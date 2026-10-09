@@ -10,21 +10,32 @@ class BBCode
         // 1. escape everything, then un-escape our allowed tags
         $html = htmlspecialchars($bbcode, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
+        // Tag contents refuse to span an opener of the same construct
+        // (tempered dot): innermost pairs resolve first, so nesting pairs
+        // correctly no matter how deep it goes.
         $patterns = [
-            '/\[b\](.*?)\[\/b\]/is' => '<strong>$1</strong>',
-            '/\[i\](.*?)\[\/i\]/is' => '<em>$1</em>',
-            '/\[u\](.*?)\[\/u\]/is' => '<u>$1</u>',
-            '/\[s\](.*?)\[\/s\]/is' => '<s>$1</s>',
-            '/\[quote\](.*?)\[\/quote\]/is' => '<blockquote class="bbcode-quote">$1</blockquote>',
-            '/\[quote=&#039;(.*?)&#039;\](.*?)\[\/quote\]/is' => '<blockquote class="bbcode-quote"><cite>$1 wrote:</cite>$2</blockquote>',
-            '/\[quote=&quot;(.*?)&quot;\](.*?)\[\/quote\]/is' => '<blockquote class="bbcode-quote"><cite>$1 wrote:</cite>$2</blockquote>',
-            '/\[quote=([^\]]+)\](.*?)\[\/quote\]/is' => '<blockquote class="bbcode-quote"><cite>$1 wrote:</cite>$2</blockquote>',
-            '/\[code\](.*?)\[\/code\]/is' => '<pre class="bbcode-code">$1</pre>',
-            '/\[list\](.*?)\[\/list\]/is' => '<ul class="bbcode-list">$1</ul>',
+            '/\[b\]((?:(?!\[b\])[\s\S])*?)\[\/b\]/is' => '<strong>$1</strong>',
+            '/\[i\]((?:(?!\[i\])[\s\S])*?)\[\/i\]/is' => '<em>$1</em>',
+            '/\[u\]((?:(?!\[u\])[\s\S])*?)\[\/u\]/is' => '<u>$1</u>',
+            '/\[s\]((?:(?!\[s\])[\s\S])*?)\[\/s\]/is' => '<s>$1</s>',
+            '/\[quote\]((?:(?!\[quote[\s\]])[\s\S])*?)\[\/quote\]/is' => '<blockquote class="bbcode-quote">$1</blockquote>',
+            '/\[quote=&#039;(.*?)&#039;\]((?:(?!\[quote[\s\]])[\s\S])*?)\[\/quote\]/is' => '<blockquote class="bbcode-quote"><cite>$1 wrote:</cite>$2</blockquote>',
+            '/\[quote=&quot;(.*?)&quot;\]((?:(?!\[quote[\s\]])[\s\S])*?)\[\/quote\]/is' => '<blockquote class="bbcode-quote"><cite>$1 wrote:</cite>$2</blockquote>',
+            '/\[quote=([^\]]+)\]((?:(?!\[quote[\s\]])[\s\S])*?)\[\/quote\]/is' => '<blockquote class="bbcode-quote"><cite>$1 wrote:</cite>$2</blockquote>',
+            '/\[code\]((?:(?!\[code\])[\s\S])*?)\[\/code\]/is' => '<pre class="bbcode-code">$1</pre>',
+            '/\[list\]((?:(?!\[list\])[\s\S])*?)\[\/list\]/is' => '<ul class="bbcode-list">$1</ul>',
             '/\[\*\](.*?)(?=\[\*\]|<\/ul>)/is' => '<li>$1</li>',
         ];
-        foreach ($patterns as $re => $rep) {
-            $html = (string) preg_replace($re, $rep, $html);
+        // Loop until stable (max 10): each pass resolves the currently
+        // innermost pairs, working outward.
+        for ($pass = 0; $pass < 10; $pass++) {
+            $before = $html;
+            foreach ($patterns as $re => $rep) {
+                $html = (string) preg_replace($re, $rep, $html);
+            }
+            if ($html === $before) {
+                break;
+            }
         }
 
         // [url]http://...[/url] and [url=http://...]label[/url] (quoted or bare)
@@ -64,19 +75,43 @@ class BBCode
         ];
         $html = str_replace(array_keys($emos), array_values($emos), $html);
 
-        // paragraphs: double newline => <p>, single => <br>
-        $parts = preg_split("/\n\s*\n/", $html) ?: [$html];
+        // paragraphs: double newline => <p>, single => <br>. Never split
+        // inside block elements: blank lines there collapse, so quotes and
+        // code blocks keep valid nesting.
+        $chunks = preg_split('/(\n[ \t]*\n)/', $html, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [$html];
         $out = [];
-        foreach ($parts as $p) {
-            $p = nl2br(trim($p));
+        $buf = '';
+        $depth = 0;
+        $flush = function () use (&$out, &$buf): void {
+            $p = nl2br(trim($buf));
+            $buf = '';
+            if ($p === '') {
+                return;
+            }
             // don't wrap block elements
-            if (preg_match('#^\s*<(blockquote|pre|ul)#i', $p)) {
-                $out[] = $p;
-            } else {
-                $out[] = '<p>' . $p . '</p>';
+            $out[] = preg_match('#^\s*<(blockquote|pre|ul)#i', $p) ? $p : '<p>' . $p . '</p>';
+        };
+        foreach ($chunks as $i => $ch) {
+            if ($i % 2 === 1) {
+                if ($depth > 0) {
+                    $buf .= "\n";
+                } else {
+                    $flush();
+                }
+                continue;
+            }
+            $buf .= $ch;
+            $depth += substr_count($ch, '<blockquote') + substr_count($ch, '<pre') + substr_count($ch, '<ul');
+            $depth -= substr_count($ch, '</blockquote>') + substr_count($ch, '</pre>') + substr_count($ch, '</ul>');
+            if ($depth < 0) {
+                $depth = 0;
             }
         }
+        $flush();
         $html = implode("\n", $out);
+
+        // @mentions link to member profiles (existing users only; safe pre-install).
+        $html = Mentions::renderHtml($html);
 
         return Hooks::apply_filters('post_body_html', $html, $bbcode);
     }
@@ -102,5 +137,27 @@ class BBCode
             $t = mb_substr($t, 0, $len - 1) . '…';
         }
         return $t;
+    }
+
+    /** Stored HTML predates a renderer fix if it has leftover BBCode or a
+        paragraph opened inside a quote (the old splitter broke there). */
+    public static function needsRepair(string $html): bool
+    {
+        if (str_contains($html, '[quote')) {
+            return true;
+        }
+        return (bool) preg_match('/<blockquote[^>]*>((?:(?!<\/?blockquote)[\s\S])*)<p[\s>]/i', $html);
+    }
+
+    /** Collapse nested [quote] blocks (deepest first) so replies quote one level. */    public static function stripQuotes(string $bbcode, string $placeholder = '[…]'): string
+    {
+        for ($i = 0; $i < 10; $i++) {
+            $next = (string) preg_replace('/\[quote[^\]]*\].*?\[\/quote\]/is', $placeholder, $bbcode);
+            if ($next === $bbcode) {
+                break;
+            }
+            $bbcode = $next;
+        }
+        return trim((string) preg_replace('/\s*\[…\]\s*/', ' […] ', $bbcode));
     }
 }

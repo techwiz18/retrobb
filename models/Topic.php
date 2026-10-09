@@ -57,9 +57,11 @@ class Topic
         $tid = (int) $pdo->lastInsertId();
         $html = BBCode::toHtml($bbcode);
         $pdo->prepare('INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)')->execute([$tid, $userId, $bbcode, $html, $now]);
+        $pid = (int) $pdo->lastInsertId();
         $pdo->prepare('UPDATE forums SET topics_count=topics_count+1, posts_count=posts_count+1, last_topic_id=? WHERE id=?')->execute([$tid, $forumId]);
         $pdo->prepare('UPDATE users SET posts_count=posts_count+1 WHERE id=?')->execute([$userId]);
         \RetroBB\Core\Hooks::do_action('topic_created', $tid);
+        self::notifyMentions($bbcode, $userId, $tid, $pid);
         $row = self::find($tid);
         return ['ok' => true, 'topic' => $row];
     }
@@ -85,10 +87,16 @@ class Topic
         $now = date('Y-m-d H:i:s');
         $html = BBCode::toHtml($bbcode);
         $pdo->prepare('INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)')->execute([$topicId, $userId, $bbcode, $html, $now]);
+        $pid = (int) $pdo->lastInsertId();
         $pdo->prepare('UPDATE topics SET posts_count=posts_count+1, last_post_at=?, last_post_user_id=? WHERE id=?')->execute([$now, $userId, $topicId]);
         $pdo->prepare('UPDATE forums SET posts_count=posts_count+1, last_topic_id=? WHERE id=?')->execute([$topicId, $topic['forum_id']]);
         $pdo->prepare('UPDATE users SET posts_count=posts_count+1 WHERE id=?')->execute([$userId]);
         \RetroBB\Core\Hooks::do_action('post_created', $topicId);
+        // Reply alert for the topic starter + mention alerts for @names.
+        if ((int) $topic['user_id'] !== $userId) {
+            \RetroBB\Models\Notification::create((int) $topic['user_id'], $userId, 'reply', $topicId, $pid);
+        }
+        self::notifyMentions($bbcode, $userId, $topicId, $pid);
         return ['ok' => true];
     }
 
@@ -155,8 +163,7 @@ class Topic
         return max(0, $secs - $since);
     }
 
-    /** Search topics by title for the merge picker. */
-    public static function search(string $q, int $excludeId = 0, int $limit = 20): array
+    /** Search topics by title for the merge picker. */    public static function search(string $q, int $excludeId = 0, int $limit = 20): array
     {
         $pdo = Db::pdo();
         $q = trim(mb_substr($q, 0, 100));
@@ -282,5 +289,18 @@ class Topic
         }
         \RetroBB\Core\Modlog::log($modId, 'merge', 'topic', $sourceId, "merged into t$targetId");
         return ['ok' => true];
+    }
+
+    private static function notifyMentions(string $bbcode, int $actorId, int $topicId, int $postId): void
+    {
+        if (!feature('mentions')) {
+            return;
+        }        try {
+            $names = \RetroBB\Core\Mentions::extract($bbcode);
+            foreach (\RetroBB\Core\Mentions::resolveIds($names, $actorId) as $uid) {
+                \RetroBB\Models\Notification::create($uid, $actorId, 'mention', $topicId, $postId);
+            }
+        } catch (\Throwable) {
+        }
     }
 }

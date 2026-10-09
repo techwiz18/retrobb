@@ -5,6 +5,13 @@
   Beta SQLite boards can be rescued with `php bin/import-sqlite.php`.
 - Settings saves use native upserts (fixes unchanged-value saves failing).
 
+### Ideas (noted 2026-10-09, not scheduled)
+- Drag-and-drop forum/category reordering (replaces ↑ ↓ buttons).
+- Permissions on categories and forums by group; general permission system.
+- Plugin management UI (add/edit/remove from AdminCP).
+- Appearance customization beyond the shipped skins.
+- More visual breakup across forum appearance (experiment).
+
 ## [0.2.0-beta.1] — 2026-10-08 (pre-release)
 First public pre-release. Tinkerers welcome; not production-hardened yet.
 

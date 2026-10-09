@@ -5,8 +5,17 @@ declare(strict_types=1);
 $root = dirname(__DIR__);
 require_once $root . '/core/Db.php';
 require_once $root . '/core/helpers.php';
+require_once $root . '/core/Slug.php';
+require_once $root . '/core/Hooks.php';
+require_once $root . '/core/Auth.php';
+require_once $root . '/core/BBCode.php';
+require_once $root . '/core/Mentions.php';
+require_once $root . '/models/Topic.php';
+require_once $root . '/models/Post.php';
+require_once $root . '/models/Notification.php';
 
 use RetroBB\Core\Db;
+use RetroBB\Core\Slug;
 
 $lock = $root . '/storage/installed.lock';
 $force = isset($_GET['force']);
@@ -22,8 +31,10 @@ $values = [
     'mysql_host' => '127.0.0.1', 'mysql_port' => '3306', 'mysql_db' => 'retrobb',
     'mysql_user' => 'retrobb', 'mysql_pass' => '',
     'board_name' => 'RetroBB', 'board_tagline' => 'An old-school forum for the modern web',
-    'board_url' => '', 'default_skin' => 'classic',
+    'board_url' => '', 'default_skin' => 'classic', 'default_theme' => 'auto',
     'admin_user' => '', 'admin_email' => '', 'demo' => '',
+    'feature_alerts' => '1', 'feature_mentions' => '1', 'feature_reactions' => '1', 'feature_pms' => '1',
+    'skin_selector' => '1', 'theme_light' => '1', 'theme_dark' => '1', 'theme_auto' => '1',
 ];
 
 function req_row(string $label, bool $ok, string $hint = ''): string
@@ -53,6 +64,32 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
         }
     }
     $values['demo'] = isset($_POST['demo']) ? '1' : '';
+    // Feature opt-outs: unchecked boxes are absent from POST, so read explicitly.
+    foreach (['feature_alerts', 'feature_mentions', 'feature_reactions', 'feature_pms', 'skin_selector', 'theme_light', 'theme_dark', 'theme_auto'] as $fk) {
+        $values[$fk] = isset($_POST[$fk]) ? '1' : '';
+    }
+    if (!in_array($values['default_theme'], ['light', 'dark', 'auto'], true)) {
+        $values['default_theme'] = 'auto';
+    }
+    // At least one theme mode must stay on.
+    if ($values['theme_light'] === '' && $values['theme_dark'] === '' && $values['theme_auto'] === '') {
+        $values['theme_auto'] = '1';
+    }
+    // The default must be a mode members may actually pick.
+    $enabledThemes = [];
+    foreach (['light', 'dark', 'auto'] as $t) {
+        if ($values['theme_' . $t] === '1') {
+            $enabledThemes[] = $t;
+        }
+    }
+    if (!in_array($values['default_theme'], $enabledThemes, true)) {
+        foreach (['auto', 'light', 'dark'] as $t) {
+            if (in_array($t, $enabledThemes, true)) {
+                $values['default_theme'] = $t;
+                break;
+            }
+        }
+    }
 
     // --- validate database ---
     $mysql = null;
@@ -166,6 +203,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
             'board_tagline' => mb_substr($values['board_tagline'], 0, 200),
             'board_url' => rtrim($values['board_url'], '/'),
             'default_skin' => $values['default_skin'],
+            'default_theme' => $values['default_theme'],
+            'feature_alerts' => $values['feature_alerts'] === '1' ? '1' : '0',
+            'feature_mentions' => $values['feature_mentions'] === '1' ? '1' : '0',
+            'feature_reactions' => $values['feature_reactions'] === '1' ? '1' : '0',
+            'feature_pms' => $values['feature_pms'] === '1' ? '1' : '0',
+            'skin_selector' => $values['skin_selector'] === '1' ? '1' : '0',
+            'theme_light' => $values['theme_light'] === '1' ? '1' : '0',
+            'theme_dark' => $values['theme_dark'] === '1' ? '1' : '0',
+            'theme_auto' => $values['theme_auto'] === '1' ? '1' : '0',
         ];
         $upsert = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
         foreach ($settings as $k => $v) {
@@ -179,6 +225,26 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
             $errors[] = $res['errors'][0];
         } else {
             Db::pdo()->prepare("UPDATE users SET user_group='admin' WHERE id=?")->execute([$res['id']]);
+            // Every fresh board starts with one placeholder category + forum
+            // and a welcome thread (skipped when installing into a used DB).
+            try {
+                $catCount = (int) Db::pdo()->query('SELECT COUNT(*) c FROM categories')->fetch()['c'];
+            } catch (Throwable) {
+                $catCount = 1;
+            }
+            if ($catCount === 0) {
+                Db::pdo()->prepare('INSERT INTO categories (title, sort) VALUES (?,0)')->execute(['Welcome']);
+                $welcomeCat = (int) Db::pdo()->lastInsertId();
+                Db::pdo()->prepare('INSERT INTO forums (category_id, name, slug, description, sort) VALUES (?,?,?,?,0)')
+                    ->execute([$welcomeCat, 'General', Slug::make('General'), 'Say hello and read the ground rules.']);
+                $welcomeForum = (int) Db::pdo()->lastInsertId();
+                \RetroBB\Models\Topic::create(
+                    $welcomeForum,
+                    (int) $res['id'],
+                    'Welcome to ' . mb_substr($values['board_name'], 0, 80) . '!',
+                    "Welcome! This is the first thread on your new board.\n\n[b]First steps:[/b]\n[list]\n[*] Make your boards in AdminCP → Structure\n[*] Pick the look in AdminCP → Settings\n[*] Turn on spam protection before you go public\n[/list]\n\nReply below to test things out. Have fun!"
+                );
+            }
             if ($values['demo'] === '1') {
                 // Demo content only on truly fresh boards — never wipe real posts.
                 $existing = (int) Db::pdo()->query('SELECT COUNT(*) c FROM topics')->fetch()['c'];
@@ -249,7 +315,28 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
       <option value="classic" <?= $values['default_skin'] === 'classic' ? 'selected' : '' ?>>Classic</option>
       <option value="midnight" <?= $values['default_skin'] === 'midnight' ? 'selected' : '' ?>>Midnight</option>
       <option value="silver" <?= $values['default_skin'] === 'silver' ? 'selected' : '' ?>>Silver</option>
+    </select></label><br>
+    <div style="display:flex;gap:8px;margin:8px 0 12px">
+      <div style="flex:1;border:1px solid #888;border-radius:4px;overflow:hidden"><div style="background:linear-gradient(180deg,#5b8fd0,#3A6EA5);color:#fff;font-size:11px;padding:4px 6px"><b>Classic</b></div><div style="background:#f4f6fb;color:#222;font-size:11px;padding:6px">blue title bars · light body</div></div>
+      <div style="flex:1;border:1px solid #888;border-radius:4px;overflow:hidden"><div style="background:linear-gradient(180deg,#3a3f4d,#23262e);color:#fff;font-size:11px;padding:4px 6px"><b>Midnight</b></div><div style="background:#1c1e24;color:#ddd;font-size:11px;padding:6px">dark chrome · dark body</div></div>
+      <div style="flex:1;border:1px solid #888;border-radius:4px;overflow:hidden"><div style="background:linear-gradient(180deg,#e8e8e8,#b9b9b9);color:#222;font-size:11px;padding:4px 6px"><b>Silver</b></div><div style="background:#f0f0f0;color:#222;font-size:11px;padding:6px">grey chrome · light body</div></div>
+    </div>
+    <label>Default theme<br><select name="default_theme">
+      <option value="auto" <?= $values['default_theme'] === 'auto' ? 'selected' : '' ?>>Auto (follows device)</option>
+      <option value="light" <?= $values['default_theme'] === 'light' ? 'selected' : '' ?>>Light</option>
+      <option value="dark" <?= $values['default_theme'] === 'dark' ? 'selected' : '' ?>>Dark</option>
     </select></label><br><br>
+    <label><input type="checkbox" name="skin_selector" value="1" <?= $values['skin_selector'] === '1' ? 'checked' : '' ?>> Let members switch skins</label><br>
+    <label>Theme modes members may pick:</label>
+    <label><input type="checkbox" name="theme_light" value="1" <?= $values['theme_light'] === '1' ? 'checked' : '' ?>> Light</label>
+    <label><input type="checkbox" name="theme_dark" value="1" <?= $values['theme_dark'] === '1' ? 'checked' : '' ?>> Dark</label>
+    <label><input type="checkbox" name="theme_auto" value="1" <?= $values['theme_auto'] === '1' ? 'checked' : '' ?>> Auto</label><br><br>
+    <div class="cat-row">Features (all on — uncheck anything you don't want)</div>
+    <label><input type="checkbox" name="feature_alerts" value="1" <?= $values['feature_alerts'] === '1' ? 'checked' : '' ?>> Alerts (mention / reply / reaction notifications)</label><br>
+    <label><input type="checkbox" name="feature_mentions" value="1" <?= $values['feature_mentions'] === '1' ? 'checked' : '' ?>> @mentions (link @usernames to profiles)</label><br>
+    <label><input type="checkbox" name="feature_reactions" value="1" <?= $values['feature_reactions'] === '1' ? 'checked' : '' ?>> Reactions (👍 🙏 😄 on posts)</label><br>
+    <label><input type="checkbox" name="feature_pms" value="1" <?= $values['feature_pms'] === '1' ? 'checked' : '' ?>> Private messages</label><br>
+    <small class="muted">Core posting, registration and moderation stay on — they would break the board. Anything you disable here can be re-enabled later in AdminCP → Settings. Note: turning off Alerts also stops mention/reply/reaction notifications.</small><br><br>
     <div class="cat-row">Owner account</div>
     <label>Username<br><input name="admin_user" value="<?= e($values['admin_user']) ?>" required></label><br><br>
     <label>Email<br><input type="email" name="admin_email" value="<?= e($values['admin_email']) ?>" required style="width:100%"></label><br><br>

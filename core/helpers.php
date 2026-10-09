@@ -49,16 +49,54 @@ function board_name(): string
     return setting('board_name', 'RetroBB');
 }
 
+/** Board-wide feature flag. Unknown features default ON (opt-out model). */
+function feature(string $name): bool
+{
+    $map = [
+        'alerts' => 'feature_alerts',
+        'pms' => 'feature_pms',
+        'reactions' => 'feature_reactions',
+        'mentions' => 'feature_mentions',
+        'skin_selector' => 'skin_selector',
+    ];
+    $key = $map[$name] ?? ('feature_' . $name);
+    return setting($key, '1') === '1';
+}
+
+/** Which theme modes (light/dark/auto) the owner lets users pick. Never empty. */
+function allowed_themes(): array
+{
+    $out = [];
+    foreach (['light', 'dark', 'auto'] as $t) {
+        if (setting('theme_' . $t, '1') === '1') {
+            $out[] = $t;
+        }
+    }
+    return $out ?: ['auto'];
+}
+
 function skin(): string
 {
+    if (!feature('skin_selector')) {
+        $d = setting('default_skin', 'classic');
+        return in_array($d, ['classic', 'midnight', 'silver'], true) ? $d : 'classic';
+    }
     $s = $_COOKIE['retrobb_skin'] ?? setting('default_skin', 'classic');
     return in_array($s, ['classic', 'midnight', 'silver'], true) ? $s : 'classic';
 }
 
 function theme(): string
 {
-    $t = $_COOKIE['retrobb_theme'] ?? 'auto';
-    return in_array($t, ['light', 'dark', 'auto'], true) ? $t : 'auto';
+    $allowed = allowed_themes();
+    $fallback = setting('default_theme', 'auto');
+    if (!in_array($fallback, $allowed, true)) {
+        $fallback = in_array('auto', $allowed, true) ? 'auto' : $allowed[0];
+    }
+    $t = $_COOKIE['retrobb_theme'] ?? $fallback;
+    if (!in_array($t, ['light', 'dark', 'auto'], true) || !in_array($t, $allowed, true)) {
+        $t = $fallback;
+    }
+    return $t;
 }
 
 function canonical_url(string $path): string

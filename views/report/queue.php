@@ -12,12 +12,11 @@
       <span><?= e($r['reason']) ?></span>
     </div>
     <span style="white-space:nowrap">
-      <form method="post" action="/mod/report/<?= (int) $r['id'] ?>/handle" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?>
-        <input type="hidden" name="status" value="resolved"><button class="smallbtn">Resolve</button></form>
+      <form method="get" action="/mod/report/<?= (int) $r['id'] ?>/resolve" style="display:inline"><button class="smallbtn">Resolve</button></form>
       <form method="post" action="/mod/report/<?= (int) $r['id'] ?>/handle" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?>
         <input type="hidden" name="status" value="dismissed"><button class="smallbtn">Dismiss</button></form>
       <form method="post" action="/mod/report/<?= (int) $r['id'] ?>/delete-post" style="display:inline" onsubmit="return confirm('Delete the reported post?')"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn danger">Delete post</button></form>
-      <form method="post" action="/mod/report/<?= (int) $r['id'] ?>/warn-author" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn">Warn author</button></form>
+      <form method="get" action="/mod/report/<?= (int) $r['id'] ?>/warn" style="display:inline"><button class="smallbtn">Warn author</button></form>
     </span>
   </div>
 <?php endforeach; ?>

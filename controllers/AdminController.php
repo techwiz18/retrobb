@@ -62,6 +62,12 @@ class AdminController
         View::render('admin/settings', ['settings' => $this->settingsRows(), 'pageTitle' => 'Settings — AdminCP']);
     }
 
+    public function featuresPage(): void
+    {
+        $this->guard();
+        View::render('admin/features', ['settings' => $this->settingsRows(), 'pageTitle' => 'Features — AdminCP']);
+    }
+
     public function spamPage(): void
     {
         $this->guard();
@@ -104,7 +110,7 @@ class AdminController
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             redirect('/admin');
         }
-        $allowed = ['board_name', 'board_tagline', 'default_skin', 'posts_per_page', 'topics_per_page',
+        $allowed = ['board_name', 'board_tagline', 'posts_per_page', 'topics_per_page',
             'flood_seconds', 'edit_window_mins', 'captcha_provider', 'captcha_sitekey', 'captcha_secret'];
         $pdo = Db::pdo();
         foreach ($allowed as $k) {
@@ -124,6 +130,53 @@ class AdminController
             }
         }
         redirect($this->settingsReturn());
+    }
+
+    public function saveFeatures(): void
+    {
+        $this->guard();
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin');
+        }
+        $pdo = Db::pdo();
+        $upsert = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
+        foreach (['feature_alerts', 'feature_mentions', 'feature_reactions', 'feature_pms', 'skin_selector'] as $k) {
+            $upsert->execute([$k, isset($_POST[$k]) ? '1' : '0']);
+        }
+        foreach (['theme_light', 'theme_dark', 'theme_auto'] as $k) {
+            $upsert->execute([$k, isset($_POST[$k]) ? '1' : '0']);
+        }
+        // At least one theme mode must stay on, or members get a broken picker.
+        if (!isset($_POST['theme_light']) && !isset($_POST['theme_dark']) && !isset($_POST['theme_auto'])) {
+            $upsert->execute(['theme_auto', '1']);
+        }
+        $effectiveThemes = array_values(array_filter(
+            ['light', 'dark', 'auto'],
+            fn($m) => isset($_POST['theme_' . $m])
+        ));
+        if (!$effectiveThemes) {
+            $effectiveThemes = ['auto'];
+        }
+        $skin = (string) ($_POST['default_skin'] ?? 'classic');
+        $upsert->execute(['default_skin', in_array($skin, ['classic', 'midnight', 'silver'], true) ? $skin : 'classic']);
+        $thm = (string) ($_POST['default_theme'] ?? 'auto');
+        if (!in_array($thm, ['light', 'dark', 'auto'], true)) {
+            $thm = 'auto';
+        }
+        // A default nobody may pick is a contradiction: coerce it to an
+        // allowed mode (prefer auto) and tell the admin it happened.
+        $fixedTheme = false;
+        if (!in_array($thm, $effectiveThemes, true)) {
+            foreach (['auto', 'light', 'dark'] as $m) {
+                if (in_array($m, $effectiveThemes, true)) {
+                    $thm = $m;
+                    break;
+                }
+            }
+            $fixedTheme = true;
+        }
+        $upsert->execute(['default_theme', $thm]);
+        redirect('/admin/features?saved=1' . ($fixedTheme ? '&fixed-theme=1' : ''));
     }
 
     /** Where a settings POST should land: /admin/settings or /admin/spam. */

@@ -31,7 +31,7 @@ foreach ($migrations as $file) {
         } catch (Throwable $t) {
             // Ignore idempotent re-run noise.
             $msg = $t->getMessage();
-            if (!str_contains($msg, 'already exists') && !str_contains($msg, 'duplicate column') && !str_contains($msg, 'Duplicate key name')) {
+            if (!str_contains($msg, 'already exists') && !str_contains($msg, 'duplicate column') && !str_contains($msg, 'Duplicate key name') && !str_contains($msg, 'Duplicate column')) {
                 throw $t;
             }
         }
@@ -51,6 +51,15 @@ $defaults = [
     'captcha_provider' => 'honeypot',
     'captcha_sitekey' => '',
     'captcha_secret' => '',
+    'feature_alerts' => '1',
+    'feature_pms' => '1',
+    'feature_reactions' => '1',
+    'feature_mentions' => '1',
+    'skin_selector' => '1',
+    'theme_light' => '1',
+    'theme_dark' => '1',
+    'theme_auto' => '1',
+    'default_theme' => 'auto',
 ];
 $upsert = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
 foreach ($defaults as $k => $v) {

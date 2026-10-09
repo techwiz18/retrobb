@@ -34,9 +34,12 @@ class ForumController
         $perPage = max(5, min(50, (int) setting('topics_per_page', '25')));
         $data = Board::topics($id, $page, $perPage);
         $pages = (int) ceil($data['total'] / $perPage);
+        $me = \RetroBB\Core\Auth::user();
+        $unread = $me ? \RetroBB\Models\TopicRead::unreadMap((int) $me['id'], array_map(fn($t) => (int) $t['id'], $data['topics'])) : [];
         View::render('forum/show', [
             'forum' => $forum,
             'topics' => $data['topics'],
+            'unread' => $unread,
             'total' => $data['total'],
             'page' => $page,
             'pages' => $pages,

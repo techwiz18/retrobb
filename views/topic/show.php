@@ -1,4 +1,4 @@
-<?php /** @var array $topic */ /** @var array|null $forum */ /** @var array $posts */ /** @var int $page */ /** @var int $pages */ /** @var int $perPage */ ?>
+<?php /** @var array $topic */ /** @var array|null $forum */ /** @var array $posts */ /** @var array $reactions */ /** @var int $page */ /** @var int $pages */ /** @var int $perPage */ ?>
 <div class="breadcrumb"><a href="/">Index</a> &raquo; <?php if ($forum): ?><a href="<?= e(\RetroBB\Core\Slug::forumUrl($forum)) ?>"><?= e($forum['name']) ?></a> &raquo;<?php endif; ?> <?= e($topic['title']) ?></div>
 <div class="maintitle"><?= e($topic['title']) ?></div>
 <div class="actionrow">
@@ -18,9 +18,21 @@
 <?php foreach ($posts as $i => $p): ?>
 <?php $hue = abs(crc32($p['username'])) % 360; $initial = mb_strtoupper(mb_substr($p['username'], 0, 1)); ?>
 <div class="postbit" id="p<?= (int) $p['id'] ?>" data-username="<?= e($p['username']) ?>">
+  <?php $me = \RetroBB\Core\Auth::user(); ?>
   <div class="posthead">
     <a class="postnum" href="#p<?= (int) $p['id'] ?>">#<?= (($page - 1) * $perPage) + $i + 1 ?></a>
     <span class="postdate"><?= e($p['created_at']) ?> (<?= e(time_ago($p['created_at'])) ?>)</span>
+    <?php if ($me): ?>
+    <span class="postactions">
+      <button type="button" class="smallbtn quotebtn" data-post="<?= (int) $p['id'] ?>">Quote</button>
+      <?php if ((int) $p['user_id'] === (int) $me['id'] || \RetroBB\Core\Auth::isMod()): ?>
+        <a class="smallbtn" href="/post/<?= (int) $p['id'] ?>/edit">Edit</a>
+      <?php endif; ?>
+      <?php if ((int) $p['user_id'] !== (int) $me['id']): ?>
+        <a class="smallbtn" href="/post/<?= (int) $p['id'] ?>/report">Report</a>
+      <?php endif; ?>
+    </span>
+    <?php endif; ?>
   </div>
   <div class="postbody">
     <div class="postleft">
@@ -29,18 +41,14 @@
       <span class="group group-<?= e($p['user_group']) ?>"><?= e($p['user_group']) ?></span>
       <small class="postmeta"><?= (int) $p['user_posts'] ?> posts<br>Joined <?= e(substr($p['user_since'], 0, 10)) ?></small>
     </div>
-    <div class="postright"><?= $p['body_html'] ?><?php if (!empty($p['edited_at'])): ?><div class="editedmark">Edited <?= e(time_ago($p['edited_at'])) ?></div><?php endif; ?></div>
+    <div class="postright"><?= \RetroBB\Core\BBCode::needsRepair($p['body_html']) ? \RetroBB\Core\BBCode::toHtml($p['body_bbcode']) : $p['body_html'] ?><?php if (!empty($p['edited_at'])): ?><div class="editedmark">Edited <?= e(time_ago($p['edited_at'])) ?></div><?php endif; ?></div>
   </div>
-  <?php $me = \RetroBB\Core\Auth::user(); ?>
-  <?php if ($me): ?>
+  <?php if ($me && feature('reactions')): ?>
+  <?php $rc = $reactions[(int) $p['id']] ?? []; ?>
   <div class="postfoot">
-    <button type="button" class="smallbtn quotebtn" data-post="<?= (int) $p['id'] ?>">Quote</button>
-    <?php if ((int) $p['user_id'] === (int) $me['id'] || \RetroBB\Core\Auth::isMod()): ?>
-      <a class="smallbtn" href="/post/<?= (int) $p['id'] ?>/edit">Edit</a>
-    <?php endif; ?>
-    <?php if ((int) $p['user_id'] !== (int) $me['id']): ?>
-      <a class="smallbtn" href="/post/<?= (int) $p['id'] ?>/report">Report</a>
-    <?php endif; ?>
+    <?php foreach (['like' => '👍', 'thanks' => '🙏', 'funny' => '😄'] as $rk => $emoji): ?>
+      <form method="post" action="/post/<?= (int) $p['id'] ?>/react" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><input type="hidden" name="reaction" value="<?= $rk ?>"><button class="smallbtn" title="<?= $rk ?>"><?= $emoji ?><?= !empty($rc[$rk]) ? ' ' . (int) $rc[$rk] : '' ?></button></form>
+    <?php endforeach; ?>
   </div>
   <?php endif; ?>
 </div>
