@@ -24,8 +24,8 @@ def login(op, u, p):
     post(op, '/login', {'csrf': csrf(html), 'login': u, 'password': p})
 
 def views_db(tid):
-    out = subprocess.run(['sh', 'retrobb/scripts/mysql-sql.sh', 'SELECT views FROM topics WHERE id=%d' % tid],
-                         capture_output=True, text=True, cwd='/media/dan/data/ai/RandomProjects')
+    out = subprocess.run(['sh', 'scripts/mysql-sql.sh', 'SELECT views FROM topics WHERE id=%d' % tid],
+                         capture_output=True, text=True, cwd='/media/dan/data/ai/RetroBB')
     return int(out.stdout.strip())
 
 admin = session()

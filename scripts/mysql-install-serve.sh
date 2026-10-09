@@ -1,6 +1,6 @@
 #!/bin/sh
 # Serve RetroBB on :8097 backed by the EMPTY retrobb_fresh database (install test).
-ROOT="$(pwd)/retrobb"
+ROOT="$(pwd)"
 docker rm -f retrobb-install-web 2>/dev/null || true
 docker run -d --rm --name retrobb-install-web -p 8097:8000 -v "${ROOT}:/app" -w /app --network retrobb-net \
   -e RETROBB_DB=mysql \

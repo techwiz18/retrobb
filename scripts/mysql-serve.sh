@@ -1,6 +1,6 @@
 #!/bin/sh
 # Serve RetroBB on :8092 backed by MySQL (leaves :8080 sqlite board alone).
-ROOT="$(pwd)/retrobb"
+ROOT="$(pwd)"
 docker rm -f retrobb-mysql-web 2>/dev/null || true
 docker run -d --rm --name retrobb-mysql-web -p 8092:8000 -v "${ROOT}:/app" -w /app --network retrobb-net \
   -e RETROBB_DB=mysql \

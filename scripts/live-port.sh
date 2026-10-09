@@ -1,7 +1,7 @@
 #!/bin/sh
 # One-shot: port the live SQLite board into MySQL and switch the live config.
 # Safe to re-run (importer skips duplicate rows; config rewrite is idempotent).
-ROOT="$(pwd)/retrobb"
+ROOT="$(pwd)"
 SRC="${1:-${ROOT}/storage/backup-walkthrough.sqlite}"
 LIVEDB="${2:-retrobb_live}"
 docker exec retrobb-mysql mysql -uroot -proot -e "CREATE DATABASE IF NOT EXISTS \`$LIVEDB\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL ON \`$LIVEDB\`.* TO 'retrobb'@'%'; FLUSH PRIVILEGES;" 2>&1 | grep -v "password on the command" || true

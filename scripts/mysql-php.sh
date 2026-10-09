@@ -1,7 +1,7 @@
 #!/bin/sh
 # Run a PHP CLI command against the MySQL backend (mounts project, sets env).
 # Usage: sh scripts/mysql-php.sh php bin/migrate.php --seed
-ROOT="$(pwd)/retrobb"
+ROOT="$(pwd)"
 docker run --rm -v "${ROOT}:/app" -w /app --network retrobb-net \
   -e RETROBB_DB=mysql \
   -e RETROBB_MYSQL_HOST=retrobb-mysql \

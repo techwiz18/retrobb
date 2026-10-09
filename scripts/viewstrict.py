@@ -10,8 +10,8 @@ op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
 opNR = urllib.request.build_opener(NoRedir, urllib.request.HTTPCookieProcessor(cj))
 
 def sql(q):
-    out = subprocess.run(['sh', 'retrobb/scripts/mysql-sql.sh', q],
-                         capture_output=True, text=True, cwd='/media/dan/data/ai/RandomProjects')
+    out = subprocess.run(['sh', 'scripts/mysql-sql.sh', q],
+                         capture_output=True, text=True, cwd='/media/dan/data/ai/RetroBB')
     return out.stdout.strip()
 
 def get(path):
