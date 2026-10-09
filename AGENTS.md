@@ -41,8 +41,8 @@ Pure-PHP forum (no framework). MIT. Production code + tests must stay green.
   name to re-test the wizard.
 - Never commit/push without `git status` plus a remote check inside THIS repo.
 
-## Current state (2026-10-08)
+## Current state (2026-10-09)
 
-- Pre-release `v0.2.0-beta.1` published. MySQL-only backend. Installer wizard live.
-- Open threads: 0.3 batch (alerts/reactions/PMs) not started; user walkthroughs
-  in progress.
+- Pre-release `v0.3.0-beta.1` published (branch `dev/0.3-social` merged).
+  MySQL-only backend. Stepped installer wizard live.
+- Open threads: 0.4 batch (search, importers) not started.

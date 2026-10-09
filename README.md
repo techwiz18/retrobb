@@ -139,7 +139,7 @@ need a running board on `http://localhost:8080`. PHP 8.1–8.4 supported.
 
 ## 🗺 What's next
 
-- v0.3 (built, in testing): alerts, mentions, reactions, private messages,
+- v0.3 (current beta): alerts, mentions, reactions, private messages,
   read tracking, board-wide feature flags
 - v0.4: search, importers (phpBB/SMF)
 - v0.5: plugin directory, API, translations
