@@ -158,7 +158,13 @@ $r->post('#^/admin/add-forum$#', [\RetroBB\Controllers\AdminController::class, '
 $r->post('#^/admin/add-category$#', [\RetroBB\Controllers\AdminController::class, 'addCategory']);
 $r->post('#^/admin/user/(\d+)/group$#', [\RetroBB\Controllers\AdminController::class, 'setGroup']);
 $r->post('#^/admin/category/(\d+)/move/(up|down)$#', [\RetroBB\Controllers\AdminController::class, 'moveCategory']);
+$r->get('#^/admin/category/(\d+)/edit$#', [\RetroBB\Controllers\AdminController::class, 'editCategoryForm']);
+$r->post('#^/admin/category/(\d+)/rename$#', [\RetroBB\Controllers\AdminController::class, 'renameCategory']);
+$r->post('#^/admin/category/(\d+)/delete$#', [\RetroBB\Controllers\AdminController::class, 'deleteCategory']);
 $r->post('#^/admin/forum/(\d+)/move/(up|down)$#', [\RetroBB\Controllers\AdminController::class, 'moveForum']);
+$r->get('#^/admin/forum/(\d+)/edit$#', [\RetroBB\Controllers\AdminController::class, 'editForumForm']);
+$r->post('#^/admin/forum/(\d+)/rename$#', [\RetroBB\Controllers\AdminController::class, 'renameForum']);
+$r->post('#^/admin/forum/(\d+)/delete$#', [\RetroBB\Controllers\AdminController::class, 'deleteForum']);
 $r->post('#^/admin/unban/(\d+)$#', [\RetroBB\Controllers\AdminController::class, 'unban']);
 $r->get('#^/sitemap\.xml$#', [\RetroBB\Controllers\SitemapController::class, 'xml']);
 $r->get('#^/sitemap\.xsl$#', [\RetroBB\Controllers\SitemapController::class, 'xsl']);

@@ -259,4 +259,113 @@ class AdminController
         \RetroBB\Models\Moderation::unban($banId, (int) Auth::user()['id']);
         redirect('/admin/bans');
     }
+
+    public function editCategoryForm(int $id): void
+    {
+        $this->guard();
+        $cat = \RetroBB\Models\Board::category($id);
+        if (!$cat) {
+            http_response_code(404);
+            View::render('errors/404', ['path' => '/admin/category/' . $id . '/edit']);
+            return;
+        }
+        View::render('admin/edit-category', ['cat' => $cat, 'error' => null, 'pageTitle' => 'Edit category — AdminCP']);
+    }
+
+    public function renameCategory(int $id): void
+    {
+        $this->guard();
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin');
+        }
+        $res = \RetroBB\Models\Board::renameCategory($id, (string) ($_POST['title'] ?? ''));
+        if (!$res['ok']) {
+            $cat = \RetroBB\Models\Board::category($id);
+            if (!$cat) {
+                redirect('/admin/structure');
+            }
+            View::render('admin/edit-category', ['cat' => $cat, 'error' => $res['error'], 'pageTitle' => 'Edit category']);
+            return;
+        }
+        \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'rename', 'category', $id, mb_substr(trim((string) ($_POST['title'] ?? '')), 0, 150));
+        $_SESSION['flash_ok'] = 'Category renamed.';
+        redirect('/admin/structure');
+    }
+
+    public function deleteCategory(int $id): void
+    {
+        $this->guard();
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin');
+        }
+        $cat = \RetroBB\Models\Board::category($id);
+        $res = \RetroBB\Models\Board::deleteCategory($id);
+        if (!$res['ok']) {
+            $_SESSION['flash_error'] = $res['error'];
+            redirect('/admin/structure');
+        }
+        \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'delete', 'category', $id, $cat ? mb_substr($cat['title'], 0, 150) : '');
+        $_SESSION['flash_ok'] = 'Category deleted.';
+        redirect('/admin/structure');
+    }
+
+    public function editForumForm(int $id): void
+    {
+        $this->guard();
+        $forum = \RetroBB\Models\Board::forum($id);
+        if (!$forum) {
+            http_response_code(404);
+            View::render('errors/404', ['path' => '/admin/forum/' . $id . '/edit']);
+            return;
+        }
+        View::render('admin/edit-forum', [
+            'forum' => $forum, 'cats' => $this->cats(), 'error' => null,
+            'pageTitle' => 'Edit forum — AdminCP',
+        ]);
+    }
+
+    public function renameForum(int $id): void
+    {
+        $this->guard();
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin');
+        }
+        $res = \RetroBB\Models\Board::renameForum(
+            $id,
+            (string) ($_POST['name'] ?? ''),
+            (string) ($_POST['description'] ?? ''),
+            (int) ($_POST['category_id'] ?? 0)
+        );
+        if (!$res['ok']) {
+            $forum = \RetroBB\Models\Board::forum($id);
+            if (!$forum) {
+                redirect('/admin/structure');
+            }
+            View::render('admin/edit-forum', [
+                'forum' => $forum, 'cats' => $this->cats(), 'error' => $res['error'],
+                'pageTitle' => 'Edit forum',
+            ]);
+            return;
+        }
+        \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'rename', 'forum', $id, mb_substr(trim((string) ($_POST['name'] ?? '')), 0, 150));
+        $_SESSION['flash_ok'] = 'Forum saved.';
+        redirect('/admin/structure');
+    }
+
+    public function deleteForum(int $id): void
+    {
+        $this->guard();
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin');
+        }
+        $forum = \RetroBB\Models\Board::forum($id);
+        $res = \RetroBB\Models\Board::deleteForum($id);
+        if (!$res['ok']) {
+            $_SESSION['flash_error'] = $res['error'];
+            redirect('/admin/structure');
+        }
+        \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'delete', 'forum', $id, $forum ? mb_substr($forum['name'], 0, 150) : '');
+        $_SESSION['flash_ok'] = 'Forum deleted.';
+        redirect('/admin/structure');
+    }
 }

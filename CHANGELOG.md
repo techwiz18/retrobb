@@ -42,6 +42,8 @@ Social batch plus board control. Tinkerers welcome; not production-hardened yet.
 - Plugin management UI (add/edit/remove from AdminCP).
 - Appearance customization beyond the shipped skins.
 - More visual breakup across forum appearance (experiment).
+- Forgot-password flow (email reset tokens).
+- Mass actions on topics/posts (bulk move/delete/lock/pin from forum and mod views).
 - Sub-forums (nested forum hierarchy; importers currently flatten).
 
 ## [0.2.0-beta.1] — 2026-10-08 (pre-release)
