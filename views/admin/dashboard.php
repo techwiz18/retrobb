@@ -10,5 +10,6 @@
   <a class="dash-card" href="/admin/bans"><b>⛔ Bans<?= $activeBans > 0 ? ' (' . $activeBans . ' active)' : '' ?></b><small>Ban list &amp; unban</small></a>
   <a class="dash-card" href="/admin/users"><b>👥 Users (<?= (int) $stats['users'] ?>)</b><small>Groups &amp; roles</small></a>
   <a class="dash-card" href="/admin/modlog"><b>📜 Mod log</b><small>Every moderation action</small></a>
+  <a class="dash-card" href="/admin/import"><b>📥 Import</b><small>From phpBB / SMF</small></a>
 </div>
 <div class="statsbar"><b><?= (int) $stats['topics'] ?></b> topics · <b><?= (int) $stats['posts'] ?></b> posts · <b><?= (int) $stats['users'] ?></b> members · newest: <b><?= e($stats['newest']) ?></b></div>

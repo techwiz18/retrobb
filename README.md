@@ -139,10 +139,11 @@ need a running board on `http://localhost:8080`. PHP 8.1–8.4 supported.
 
 ## 🗺 What's next
 
-- v0.3 (current beta): alerts, mentions, reactions, private messages,
-  read tracking, board-wide feature flags
-- v0.4: search, importers (phpBB/SMF)
-- v0.5: plugin directory, API, translations
+- v0.4 (in progress): search, importers (phpBB/SMF), forgot-password flow
+- v0.5 — moderation & admin: permission system (general + per-forum groups),
+  mass actions on topics/posts, drag-and-drop ordering, plugin management UI
+- v0.6 — structure & look: sub-forums, appearance customization, visual breakup
+- v0.7 — platform: plugin directory, API, translations
 - v1.0: the masses-ready release 🎉
 
 Vote on features in [issues](https://github.com/techwiz18/retrobb/issues).

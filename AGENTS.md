@@ -41,8 +41,9 @@ Pure-PHP forum (no framework). MIT. Production code + tests must stay green.
   name to re-test the wizard.
 - Never commit/push without `git status` plus a remote check inside THIS repo.
 
-## Current state (2026-10-09)
+## Current state (2026-10-10)
 
-- Pre-release `v0.3.0-beta.1` published (branch `dev/0.3-social` merged).
-  MySQL-only backend. Stepped installer wizard live.
-- Open threads: 0.4 batch (search, importers) not started.
+- Pre-release `v0.3.0-beta.1` published (`main`). `dev/0.4-search` in progress:
+  search built, importers built (uncommitted), forgot-password up next.
+- Open threads: reworked roadmap in README (v0.4→v0.7); changelog Ideas is the
+  raw backlog.

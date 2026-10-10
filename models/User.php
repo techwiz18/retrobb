@@ -99,10 +99,15 @@ class User
             return ['ok' => false, 'error' => 'New password must be at least 8 characters.'];
         }
         $user = self::find($id);
-        if (!$user || !password_verify($current, $user['password_hash'])) {
+        if (!$user || !\RetroBB\Core\Passwords::verify($current, $user)) {
             return ['ok' => false, 'error' => 'Current password is wrong.'];
         }
-        Db::pdo()->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash_safe($new), $id]);
+        try {
+            Db::pdo()->prepare("UPDATE users SET password_hash=?, auth_scheme='modern', passwd_salt='' WHERE id=?")->execute([password_hash_safe($new), $id]);
+        } catch (\Throwable) {
+            // Pre-011 tables lack the scheme columns.
+            Db::pdo()->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash_safe($new), $id]);
+        }
         return ['ok' => true];
     }
 }

@@ -67,9 +67,18 @@ class AuthController
             return;
         }
         $user = User::findByLogin($login);
-        if (!$user || !password_verify($pass, $user['password_hash'])) {
+        if (!$user || !\RetroBB\Core\Passwords::verify($pass, $user)) {
             View::render('auth/login', ['pageTitle' => 'Log in', 'error' => 'Invalid login.']);
             return;
+        }
+        // Imported accounts carry legacy hashes: upgrade to modern on success.
+        if (($user['auth_scheme'] ?? 'modern') !== 'modern') {
+            try {
+                \RetroBB\Core\Db::pdo()->prepare("UPDATE users SET password_hash=?, auth_scheme='modern', passwd_salt='' WHERE id=?")
+                    ->execute([password_hash_safe($pass), $user['id']]);
+            } catch (\Throwable) {
+                // Pre-011 tables: keep the legacy hash, it still verifies.
+            }
         }
         $ban = \RetroBB\Models\Moderation::activeBan((int) $user['id']);
         if ($ban) {

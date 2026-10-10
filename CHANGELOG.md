@@ -42,6 +42,7 @@ Social batch plus board control. Tinkerers welcome; not production-hardened yet.
 - Plugin management UI (add/edit/remove from AdminCP).
 - Appearance customization beyond the shipped skins.
 - More visual breakup across forum appearance (experiment).
+- Sub-forums (nested forum hierarchy; importers currently flatten).
 
 ## [0.2.0-beta.1] — 2026-10-08 (pre-release)
 First public pre-release. Tinkerers welcome; not production-hardened yet.

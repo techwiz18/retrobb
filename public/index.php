@@ -8,8 +8,12 @@ require_once $root . '/core/Slug.php';
 require_once $root . '/core/Hooks.php';
 require_once $root . '/core/Auth.php';
 require_once $root . '/core/Csrf.php';
+require_once $root . '/core/Passwords.php';
 require_once $root . '/core/BBCode.php';
 require_once $root . '/core/Mentions.php';
+require_once $root . '/core/Import/Base.php';
+require_once $root . '/core/Import/Phpbb.php';
+require_once $root . '/core/Import/Smf.php';
 require_once $root . '/core/View.php';
 require_once $root . '/core/Router.php';
 require_once $root . '/core/Plugins.php';
@@ -21,6 +25,7 @@ require_once $root . '/models/Topic.php';
 require_once $root . '/models/Post.php';
 require_once $root . '/models/Report.php';
 require_once $root . '/models/Moderation.php';
+require_once $root . '/models/Search.php';
 require_once $root . '/models/TopicRead.php';
 require_once $root . '/models/Notification.php';
 require_once $root . '/models/Reaction.php';
@@ -32,7 +37,9 @@ require_once $root . '/controllers/ReportController.php';
 require_once $root . '/controllers/AuthController.php';
 require_once $root . '/controllers/ProfileController.php';
 require_once $root . '/controllers/AdminController.php';
+require_once $root . '/controllers/ImportController.php';
 require_once $root . '/controllers/SitemapController.php';
+require_once $root . '/controllers/SearchController.php';
 require_once $root . '/controllers/AlertController.php';
 require_once $root . '/controllers/ReactionController.php';
 require_once $root . '/controllers/PmController.php';
@@ -138,6 +145,9 @@ $r->get('#^/admin$#', [\RetroBB\Controllers\AdminController::class, 'index']);
 $r->get('#^/admin/settings$#', [\RetroBB\Controllers\AdminController::class, 'settingsPage']);
 $r->get('#^/admin/features$#', [\RetroBB\Controllers\AdminController::class, 'featuresPage']);
 $r->post('#^/admin/features$#', [\RetroBB\Controllers\AdminController::class, 'saveFeatures']);
+$r->get('#^/admin/import$#', [\RetroBB\Controllers\ImportController::class, 'form']);
+$r->post('#^/admin/import/test$#', [\RetroBB\Controllers\ImportController::class, 'test']);
+$r->get('#^/admin/import/run$#', [\RetroBB\Controllers\ImportController::class, 'run']);
 $r->get('#^/admin/spam$#', [\RetroBB\Controllers\AdminController::class, 'spamPage']);
 $r->get('#^/admin/structure$#', [\RetroBB\Controllers\AdminController::class, 'structurePage']);
 $r->get('#^/admin/bans$#', [\RetroBB\Controllers\AdminController::class, 'bansPage']);
@@ -152,6 +162,7 @@ $r->post('#^/admin/forum/(\d+)/move/(up|down)$#', [\RetroBB\Controllers\AdminCon
 $r->post('#^/admin/unban/(\d+)$#', [\RetroBB\Controllers\AdminController::class, 'unban']);
 $r->get('#^/sitemap\.xml$#', [\RetroBB\Controllers\SitemapController::class, 'xml']);
 $r->get('#^/sitemap\.xsl$#', [\RetroBB\Controllers\SitemapController::class, 'xsl']);
+$r->get('#^/search$#', [\RetroBB\Controllers\SearchController::class, 'index']);
 // skin switcher + legacy compat
 $r->get('#^/skin/([a-z0-9]+)$#', function (string $s) {
     if (feature('skin_selector') && in_array($s, ['classic', 'midnight', 'silver'], true)) {

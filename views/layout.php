@@ -34,7 +34,7 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
       <?php endif; ?>
     </div>
   </div>
-  <nav class="navrow"><a href="/">Board Index</a> · <a href="/members">Members</a> · <a href="/sitemap.xml">Sitemap</a>
+  <nav class="navrow"><a href="/">Board Index</a> · <a href="/members">Members</a> · <a href="/search">Search</a> · <a href="/sitemap.xml">Sitemap</a>
     <?php if (\RetroBB\Core\Auth::isMod()): ?>
       · <a href="/mod/reports"><b>Mod queue<?php $qc = \RetroBB\Models\Report::openCount(); if ($qc > 0): ?> (<?= $qc ?>)<?php endif; ?></b></a>
     <?php endif; ?>
