@@ -121,4 +121,79 @@ class Board
             $upd->execute([(int) $a['sort'] + ($dir < 0 ? -1 : 1), $a['id']]);
         }
     }
+
+    public static function category(int $id): ?array
+    {
+        $st = Db::pdo()->prepare('SELECT * FROM categories WHERE id=?');
+        $st->execute([$id]);
+        $r = $st->fetch();
+        return $r ?: null;
+    }
+
+    /** Rename a category. Returns [ok, error?]. */
+    public static function renameCategory(int $id, string $title): array
+    {
+        $title = trim($title);
+        if (mb_strlen($title) < 2 || mb_strlen($title) > 190) {
+            return ['ok' => false, 'error' => 'Category title must be 2–190 characters.'];
+        }
+        if (!self::category($id)) {
+            return ['ok' => false, 'error' => 'Category not found.'];
+        }
+        Db::pdo()->prepare('UPDATE categories SET title=? WHERE id=?')->execute([$title, $id]);
+        return ['ok' => true];
+    }
+
+    /** Delete an empty category (one holding forums is refused — move them first). */
+    public static function deleteCategory(int $id): array
+    {
+        if (!self::category($id)) {
+            return ['ok' => false, 'error' => 'Category not found.'];
+        }
+        $n = Db::pdo()->prepare('SELECT COUNT(*) c FROM forums WHERE category_id=?');
+        $n->execute([$id]);
+        if ((int) $n->fetch()['c'] > 0) {
+            return ['ok' => false, 'error' => 'Move or delete its forums first.'];
+        }
+        Db::pdo()->prepare('DELETE FROM categories WHERE id=?')->execute([$id]);
+        return ['ok' => true];
+    }
+
+    /** Rename a forum (and optionally move it to another category). Returns [ok, error?]. */
+    public static function renameForum(int $id, string $name, string $desc, int $categoryId): array
+    {
+        $name = trim($name);
+        $desc = trim($desc);
+        if (mb_strlen($name) < 2 || mb_strlen($name) > 190) {
+            return ['ok' => false, 'error' => 'Forum name must be 2–190 characters.'];
+        }
+        if (mb_strlen($desc) > 500) {
+            return ['ok' => false, 'error' => 'Description must be under 500 characters.'];
+        }
+        if (!self::forum($id)) {
+            return ['ok' => false, 'error' => 'Forum not found.'];
+        }
+        if (!self::category($categoryId)) {
+            return ['ok' => false, 'error' => 'Target category not found.'];
+        }
+        Db::pdo()->prepare('UPDATE forums SET name=?, slug=?, description=?, category_id=? WHERE id=?')
+            ->execute([$name, Slug::make($name), mb_substr($desc, 0, 500), $categoryId, $id]);
+        return ['ok' => true];
+    }
+
+    /** Delete an empty forum (one holding topics is refused — topics would cascade). */
+    public static function deleteForum(int $id): array
+    {
+        $forum = self::forum($id);
+        if (!$forum) {
+            return ['ok' => false, 'error' => 'Forum not found.'];
+        }
+        $n = Db::pdo()->prepare('SELECT COUNT(*) c FROM topics WHERE forum_id=?');
+        $n->execute([$id]);
+        if ((int) $n->fetch()['c'] > 0) {
+            return ['ok' => false, 'error' => 'Move or delete its topics first.'];
+        }
+        Db::pdo()->prepare('DELETE FROM forums WHERE id=?')->execute([$id]);
+        return ['ok' => true];
+    }
 }

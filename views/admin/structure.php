@@ -18,14 +18,16 @@
 <div class="struct-cat">
   <form method="post" action="/admin/category/<?= (int) $c['id'] ?>/move/up" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn" title="Move up">↑</button></form>
   <form method="post" action="/admin/category/<?= (int) $c['id'] ?>/move/down" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn" title="Move down">↓</button></form>
-  <?= e($c['title']) ?>
+  <?= e($c['title']) ?> <a class="smallbtn" href="/admin/category/<?= (int) $c['id'] ?>/edit">Edit</a>
+  <form method="post" action="/admin/category/<?= (int) $c['id'] ?>/delete" style="display:inline" onsubmit="return confirm('Delete this category? Only empty ones can go.')"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn danger" type="submit">Delete</button></form>
 </div>
 <div class="recent-list">
 <?php foreach ($c['forums'] as $f): ?>
 <div class="recent-row"><span>
   <form method="post" action="/admin/forum/<?= (int) $f['id'] ?>/move/up" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn" title="Move up">↑</button></form>
   <form method="post" action="/admin/forum/<?= (int) $f['id'] ?>/move/down" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn" title="Move down">↓</button></form>
-  <?= e($f['name']) ?></span><span class="recent-date"><?= (int) $f['topics_count'] ?> topics / <?= (int) $f['posts_count'] ?> posts</span></div>
+  <?= e($f['name']) ?> <a class="smallbtn" href="/admin/forum/<?= (int) $f['id'] ?>/edit">Edit</a>
+  <form method="post" action="/admin/forum/<?= (int) $f['id'] ?>/delete" style="display:inline" onsubmit="return confirm('Delete this forum? Only empty ones can go.')"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn danger" type="submit">Delete</button></form></span><span class="recent-date"><?= (int) $f['topics_count'] ?> topics / <?= (int) $f['posts_count'] ?> posts</span></div>
 <?php endforeach; ?>
 </div>
 <?php endforeach; ?>
