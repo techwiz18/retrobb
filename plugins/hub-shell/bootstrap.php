@@ -36,57 +36,14 @@ Hooks::add_action('head', static function () {
         . '.site-header .switchers{display:flex;gap:14px;align-items:center;font-size:12px;opacity:.75}'
         . '.site-header .switchers .grp button{font:inherit;font-size:12px;cursor:pointer;background:transparent;border:0;padding:0;margin-left:6px;color:inherit;opacity:.6;text-decoration:underline}'
         . ".site-header .switchers .grp button[aria-pressed='true']{opacity:1;font-weight:bold;text-decoration:none}"
-        . '.site-footer{font-size:12px;color:#667;padding:22px 16px 26px;text-align:center}'
-        . '.site-footer a{color:#1a3f7a}'
-        . 'body.theme-dark .site-footer{color:#93a0b4}'
-        . 'body.theme-dark .site-footer a{color:#9dbdea}'
-        // Palette follow: hub tokens → forum surfaces, all skins. theme-auto
-        // resolves via media query (not a class swap), so it is wired to the
-        // light values with a dark override below.
-        . 'body.skin-classic.theme-light,body.skin-classic.theme-auto{--bg:#dfe6f0;--panel:#f4f6fa;--border:#5b7fb4;--title-a:#3d639b;--title-b:#6f97c8;'
-        . '--row:#f4f6fa;--row2:#e6ecf5;--link:#1a3f7a;--muted:#5a6577;--text:#1e2430;'
-        . '--bar-bg:#e9eef6;--sub-bg:#eef2f8;--sub-text:#445068;--head-a:#e8eef6;--head-b:#d3ddee;'
-        . '--quote-bg:#f4f6fa;--input-bg:#fff;--input-text:#1e2430;--btn-a:#fff;--btn-b:#cfd9e8;--btn-text:#1a3f7a}'
-        . 'body.skin-classic.theme-dark{--bg:#141b2c;--panel:#1b2740;--border:#4a6ea0;--title-a:#2b456e;--title-b:#4a6ea0;'
-        . '--row:#1b2740;--row2:#141b2c;--link:#9dbdea;--muted:#93a0b4;--text:#dbe3f0;'
-        . '--bar-bg:#101827;--sub-bg:#141b2c;--sub-text:#93a0b4;--head-a:#4a6ea0;--head-b:#2b456e;'
-        . '--quote-bg:#141b2c;--input-bg:#101827;--input-text:#dbe3f0;--btn-a:#4a6ea0;--btn-b:#2b456e;--btn-text:#fff}'
-        . 'body.skin-midnight.theme-light,body.skin-midnight.theme-auto{--bg:#d8e0ec;--panel:#fff;--border:#2f4a75;--title-a:#2b456e;--title-b:#4a6ea0;'
-        . '--row:#fff;--row2:#eef2f8;--link:#1a3f7a;--muted:#5a6577;--text:#1e2430;'
-        . '--bar-bg:#e8edf5;--sub-bg:#f2f5fa;--sub-text:#445068;--head-a:#e8edf5;--head-b:#d5deee;'
-        . '--quote-bg:#fff;--input-bg:#fff;--input-text:#1e2430;--btn-a:#fff;--btn-b:#cfd9e8;--btn-text:#1a3f7a}'
-        . 'body.skin-midnight.theme-dark{--bg:#05080f;--panel:#0d1526;--border:#3f6cb3;--title-a:#274b85;--title-b:#3f7ad0;'
-        . '--row:#0d1526;--row2:#05080f;--link:#8fb6f2;--muted:#8b96ab;--text:#d6e0f2;'
-        . '--bar-bg:#05080f;--sub-bg:#05080f;--sub-text:#8b96ab;--head-a:#3f7ad0;--head-b:#274b85;'
-        . '--quote-bg:#05080f;--input-bg:#0d1526;--input-text:#d6e0f2;--btn-a:#3f7ad0;--btn-b:#274b85;--btn-text:#eaf1ff}'
-        . 'body.skin-silver.theme-light,body.skin-silver.theme-auto{--bg:#e8ecf2;--panel:#f7f8fb;--border:#8b98ad;--title-a:#5b667c;--title-b:#697383;'
-        . '--row:#f7f8fb;--row2:#edf0f5;--link:#2c4a75;--muted:#67727f;--text:#232a36;'
-        . '--bar-bg:#eef1f6;--sub-bg:#f2f4f8;--sub-text:#4c565f;--head-a:#eef1f6;--head-b:#d9dfe9;'
-        . '--quote-bg:#f7f8fb;--input-bg:#fff;--input-text:#232a36;--btn-a:#fff;--btn-b:#d3d9e3;--btn-text:#2c4a75}'
-        . 'body.skin-silver.theme-dark{--bg:#101216;--panel:#1a1f29;--border:#6e7b91;--title-a:#5b667c;--title-b:#8e9cb5;'
-        . '--row:#1a1f29;--row2:#101216;--link:#a9c3ea;--muted:#8e99ab;--text:#d3dae6;'
-        . '--bar-bg:#0b0e14;--sub-bg:#101216;--sub-text:#8e99ab;--head-a:#8e9cb5;--head-b:#5b667c;'
-        . '--quote-bg:#101216;--input-bg:#1a1f29;--input-text:#d3dae6;--btn-a:#8e9cb5;--btn-b:#5b667c;--btn-text:#f2f4f8}'
+        . '.footer{background:transparent;border:0;border-top:1px solid var(--border);font-size:12px;padding:22px 16px 26px;text-align:center;color:var(--muted)}'
+        . '.footer a{color:var(--link)}'
+        . '.footer>div+div{margin-top:6px}'
+        // Board palette lives in stock CSS now (ships for everyone); only
+        // hub-chrome rules below.
         . '@media (prefers-color-scheme:dark){'
-        . 'body.skin-classic.theme-auto{--bg:#141b2c;--panel:#1b2740;--border:#4a6ea0;--title-a:#2b456e;--title-b:#4a6ea0;'
-        . '--row:#1b2740;--row2:#141b2c;--link:#9dbdea;--muted:#93a0b4;--text:#dbe3f0;'
-        . '--bar-bg:#101827;--sub-bg:#141b2c;--sub-text:#93a0b4;--head-a:#4a6ea0;--head-b:#2b456e;'
-        . '--quote-bg:#141b2c;--input-bg:#101827;--input-text:#dbe3f0;--btn-a:#4a6ea0;--btn-b:#2b456e;--btn-text:#fff}'
-        . 'body.skin-midnight.theme-auto{--bg:#05080f;--panel:#0d1526;--border:#3f6cb3;--title-a:#274b85;--title-b:#3f7ad0;'
-        . '--row:#0d1526;--row2:#05080f;--link:#8fb6f2;--muted:#8b96ab;--text:#d6e0f2;'
-        . '--bar-bg:#05080f;--sub-bg:#05080f;--sub-text:#8b96ab;--head-a:#3f7ad0;--head-b:#274b85;'
-        . '--quote-bg:#05080f;--input-bg:#0d1526;--input-text:#d6e0f2;--btn-a:#3f7ad0;--btn-b:#274b85;--btn-text:#eaf1ff}'
-        . 'body.skin-silver.theme-auto{--bg:#101216;--panel:#1a1f29;--border:#6e7b91;--title-a:#5b667c;--title-b:#8e9cb5;'
-        . '--row:#1a1f29;--row2:#101216;--link:#a9c3ea;--muted:#8e99ab;--text:#d3dae6;'
-        . '--bar-bg:#0b0e14;--sub-bg:#101216;--sub-text:#8e99ab;--head-a:#8e9cb5;--head-b:#5b667c;'
-        . '--quote-bg:#101216;--input-bg:#1a1f29;--input-text:#d3dae6;--btn-a:#8e9cb5;--btn-b:#5b667c;--btn-text:#f2f4f8}}'
-        // Hardcoded surfaces the variable overrides cannot reach: retint the
-        // forum topbar / category bars from the mapped title gradient (hub
-        // bars use the same bar-from → bar-to shape), follow the hub header
-        // background per skin + theme, and mute hardcoded small grey text.
-        . '.topbar{background:linear-gradient(180deg,var(--title-b),var(--title-a))}'
-        . '.cat-row{background:linear-gradient(180deg,var(--title-b),var(--cat))}'
-        . '.postdate,.empty{color:var(--muted)}'
+        // Masthead follows the hub header background per skin + theme.
+        // Masthead follows the hub header background per skin + theme.
         . 'body.skin-classic .site-header{background:#1c2b4a}'
         . 'body.skin-midnight .site-header{background:#0a0f1c}'
         . 'body.skin-silver .site-header{background:#1c2b4a}'

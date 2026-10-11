@@ -44,7 +44,7 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
     <?php $allowedThemes = allowed_themes(); ?>
     <?php if (feature('skin_selector') || count($allowedThemes) > 1): ?>
     <span class="skinswitch"><?php if (feature('skin_selector')): ?>Skin:
-      <a href="<?= e(url('/skin/classic')) ?>">Classic</a> <a href="<?= e(url('/skin/midnight')) ?>">Midnight</a> <a href="<?= e(url('/skin/silver')) ?>">Silver</a><?php endif; ?><?php if (feature('skin_selector') && count($allowedThemes) > 1): ?> · <?php endif; ?><?php if (count($allowedThemes) > 1): ?>Theme:<?php foreach ($allowedThemes as $i => $tm): ?><?= $i > 0 ? ' ' : ' ' ?><a href="<?= e(url('/theme/' . $tm)) ?>"><?= ucfirst($tm) ?></a><?php endforeach; ?><?php endif; ?>
+      <?php $curSkin = skin(); foreach (['classic' => 'Classic', 'midnight' => 'Midnight', 'silver' => 'Silver'] as $sk => $label): ?><?php if ($sk === $curSkin): ?><b class="on"><?= $label ?></b><?php else: ?><a href="<?= e(url('/skin/' . $sk)) ?>"><?= $label ?></a><?php endif; ?> <?php endforeach; ?><?php endif; ?><?php if (feature('skin_selector') && count($allowedThemes) > 1): ?> · <?php endif; ?><?php if (count($allowedThemes) > 1): ?>Theme:<?php $curTheme = theme(); foreach ($allowedThemes as $i => $tm): ?><?= $i > 0 ? ' ' : ' ' ?><?php if ($tm === $curTheme): ?><b class="on"><?= ucfirst($tm) ?></b><?php else: ?><a href="<?= e(url('/theme/' . $tm)) ?>"><?= ucfirst($tm) ?></a><?php endif; ?><?php endforeach; ?><?php endif; ?>
     </span>
     <?php endif; ?>
   </nav>
