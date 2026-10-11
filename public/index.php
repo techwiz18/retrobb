@@ -76,7 +76,14 @@ Auth::validateSession();
 // runs first but only touches the DB when a session cookie is present.)
 // NOTE: plain require, never require_once — config.php returns a value,
 // and require_once would hand us `true` on second inclusion.
-if (!is_file($root . '/config.php') && !str_starts_with(Router::currentPath(), '/install')) {
+// currentPath() is raw (base prefix intact) — accept /install* with or
+// without the subpath prefix so /forum/install.php doesn't loop.
+$reqPath = Router::currentPath();
+$bp = base_path();
+$reqStripped = ($bp !== '' && ($reqPath === $bp || str_starts_with($reqPath, $bp . '/')))
+    ? (substr($reqPath, strlen($bp)) ?: '/') : $reqPath;
+$onInstall = str_starts_with($reqPath, '/install') || str_starts_with($reqStripped, '/install');
+if (!is_file($root . '/config.php') && !$onInstall) {
     // Fresh upload: no config yet, so there is nothing to connect to.
     redirect('/install.php');
 }
@@ -87,7 +94,7 @@ try {
 } catch (Throwable) {
     $needsInstall = true;
 }
-if ($needsInstall && !str_starts_with(Router::currentPath(), '/install')) {
+if ($needsInstall && !$onInstall) {
     redirect('/install.php');
 }
 

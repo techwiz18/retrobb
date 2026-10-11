@@ -53,6 +53,7 @@ $defaults = [
     'captcha_sitekey' => '',
     'captcha_secret' => '',
     'mail_from' => '',
+    'credit_url' => 'https://techwiz.dad',
     'feature_alerts' => '1',
     'feature_pms' => '1',
     'feature_reactions' => '1',

@@ -11,6 +11,14 @@ RewriteCond %{REQUEST_URI} ^/[^/]+/(.*)$
 RewriteCond %{DOCUMENT_ROOT}/%1 -f
 RewriteRule ^[^/]+/.*$ %1 [L]
 
+# Same, when the package root itself is the docroot and real files live one
+# level down under public/ (plain public_html upload).
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} ^/[^/]+/(.*)$
+RewriteCond %{DOCUMENT_ROOT}/public/%1 -f
+RewriteRule ^[^/]+/.*$ public/%1 [L]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
