@@ -80,6 +80,23 @@ Hooks::add_action('head', static function () {
         . '--row:#1a1f29;--row2:#101216;--link:#a9c3ea;--muted:#8e99ab;--text:#d3dae6;'
         . '--bar-bg:#0b0e14;--sub-bg:#101216;--sub-text:#8e99ab;--head-a:#8e9cb5;--head-b:#5b667c;'
         . '--quote-bg:#101216;--input-bg:#1a1f29;--input-text:#d3dae6;--btn-a:#8e9cb5;--btn-b:#5b667c;--btn-text:#f2f4f8}}'
+        // Hardcoded surfaces the variable overrides cannot reach: retint the
+        // forum topbar / category bars from the mapped title gradient (hub
+        // bars use the same bar-from → bar-to shape), follow the hub header
+        // background per skin + theme, and mute hardcoded small grey text.
+        . '.topbar{background:linear-gradient(180deg,var(--title-b),var(--title-a))}'
+        . '.cat-row{background:linear-gradient(180deg,var(--title-b),var(--cat))}'
+        . '.postdate,.empty{color:var(--muted)}'
+        . 'body.skin-classic .site-header{background:#1c2b4a}'
+        . 'body.skin-midnight .site-header{background:#0a0f1c}'
+        . 'body.skin-silver .site-header{background:#1c2b4a}'
+        . 'body.skin-classic.theme-dark .site-header{background:#101827}'
+        . 'body.skin-midnight.theme-dark .site-header{background:#05080f}'
+        . 'body.skin-silver.theme-dark .site-header{background:#0b0e14}'
+        . '@media (prefers-color-scheme:dark){'
+        . 'body.skin-classic.theme-auto .site-header{background:#101827}'
+        . 'body.skin-midnight.theme-auto .site-header{background:#05080f}'
+        . 'body.skin-silver.theme-auto .site-header{background:#0b0e14}}'
         . '@media(max-width:640px){.site-header .mainnav{margin-left:0}}'
         . '</style>';
 });
