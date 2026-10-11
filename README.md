@@ -40,19 +40,13 @@ MIT licensed. Made with nostalgia by [techwiz.dad](https://techwiz.dad).
 1. Download the latest zip from the
    [releases page](https://github.com/techwiz18/retrobb/releases).
 2. In cPanel → File Manager, open `public_html` and upload the zip there, then
-   **Extract** it. You'll get a folder like `public_html/retrobb/` containing
-   another folder called `public/`.
-3. Go to **Domains** (or **Addon Domains**) → point your domain at the inner
-   folder: `public_html/retrobb/public`. This is the important bit — the
-   domain must serve the `public` folder, *not* the top-level `retrobb`
-   folder. (Hosts that don't let you pick the folder per-domain usually still
-   let you pick it per *addon domain* or *subdomain* — use one of those.)
-   *Why?* Only `public/` is meant for browsers. Everything else — forum code
-   and your database — lives one level above, where visitors can't reach it.
-4. Click through: enter your MySQL details, name your board, and create your
-   admin account (plus optional demo content to play with).
-5. Log in with the account you just made. The installer disables itself
-   when done — no cleanup needed. Go make some boards!
+   **Extract** it. Browse to your domain: the installer starts itself. (If
+   your host lets you point the domain at a subfolder instead, aim it at the
+   inner `public` folder — stricter, since forum code and data then live
+   above the web root. Either layout works.)
+3. Click through the installer: database details → board + look → features →
+   owner account. It creates a starter category, forum, and welcome thread,
+   then disables itself when done — no cleanup needed. Go make some boards!
 
 **Option B — local test drive:**
 ```bash
@@ -99,9 +93,12 @@ run RetroBB. The code part is only for people who want to build plugins.
 **Does it work on phones?** Yes — the retro look collapses into a mobile layout
 automatically.
 
-**How do I update?** Back up first, then overwrite the files with the new
-release (keep `config.php` and `storage/`), and run `php bin/migrate.php`.
-Your posts and users stay put.
+**How do I update?** Back up first (database dump + a copy of `config.php`),
+then delete everything **except** `config.php`, `storage/`, and `plugins/`
+(your own plugins live there) and upload the new release. Then update the
+database, either with one click in AdminCP → Dashboard (“Database updates”)
+or via SSH with `php bin/migrate.php`. Your posts, users, and settings stay
+put: migrations only ever add, and the settings seeder never overwrites.
 
 **Something broke?** Check that `storage/` is writable by the web server, and
 look at the PHP error log. Still stuck?
@@ -141,8 +138,10 @@ need a running board on `http://localhost:8080`. PHP 8.1–8.4 supported.
 
 - v0.4 (in progress): search, importers (phpBB/SMF), forgot-password flow
 - v0.5 — moderation & admin: permission system (general + per-forum groups),
-  mass actions on topics/posts, drag-and-drop ordering, plugin management UI
-- v0.6 — structure & look: sub-forums, appearance customization, visual breakup
+  mass actions on topics/posts, drag-and-drop ordering, plugin management UI,
+  maintenance mode, email verification
+- v0.6 — structure & look: sub-forums, appearance customization, visual breakup,
+  optional homepage link in the nav
 - v0.7 — platform: plugin directory, API, translations
 - v1.0: the masses-ready release 🎉
 

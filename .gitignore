@@ -8,5 +8,8 @@ storage/hold-*
 storage/backup-*
 storage/*.sql
 storage/*.sql.gz
+# Dev-only mail mirror flag + log (reset links — must never ship).
+storage/dev-mail.php
+storage/mail.log
 # Local config (copy config.example.php to config.php and adjust).
 config.php

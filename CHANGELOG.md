@@ -1,5 +1,13 @@
 # Changelog — RetroBB by techwiz.dad. Format follows keep-a-changelog loosely.
 
+## [Unreleased] (v0.4 batch)
+- Search across topic titles and post bodies (multi-term, snippets).
+- Importers for phpBB 3.x and SMF 2.x (stepped AdminCP run; legacy passwords
+  keep working, upgraded on first login).
+- Forgot-password flow (single-use emailed tokens, 1-hour expiry).
+- Password storage review: no plaintext anywhere — modern hashes, one-way
+  legacy imports, hashed reset tokens.
+
 ## [0.3.0-beta.1] — 2026-10-09 (pre-release)
 Social batch plus board control. Tinkerers welcome; not production-hardened yet.
 
@@ -45,6 +53,8 @@ Social batch plus board control. Tinkerers welcome; not production-hardened yet.
 - Forgot-password flow (email reset tokens).
 - Mass actions on topics/posts (bulk move/delete/lock/pin from forum and mod views).
 - Sub-forums (nested forum hierarchy; importers currently flatten).
+- Optional homepage link in the nav (for boards with a dedicated home page) → v0.6.
+- Email verification (activation links; gated posting) → v0.5.
 
 ## [0.2.0-beta.1] — 2026-10-08 (pre-release)
 First public pre-release. Tinkerers welcome; not production-hardened yet.

@@ -9,6 +9,7 @@ require_once $root . '/core/Hooks.php';
 require_once $root . '/core/Auth.php';
 require_once $root . '/core/Csrf.php';
 require_once $root . '/core/Passwords.php';
+require_once $root . '/core/Mail.php';
 require_once $root . '/core/BBCode.php';
 require_once $root . '/core/Mentions.php';
 require_once $root . '/core/Import/Base.php';
@@ -25,6 +26,7 @@ require_once $root . '/models/Topic.php';
 require_once $root . '/models/Post.php';
 require_once $root . '/models/Report.php';
 require_once $root . '/models/Moderation.php';
+require_once $root . '/models/PasswordReset.php';
 require_once $root . '/models/Search.php';
 require_once $root . '/models/TopicRead.php';
 require_once $root . '/models/Notification.php';
@@ -74,6 +76,11 @@ Auth::validateSession();
 // runs first but only touches the DB when a session cookie is present.)
 // NOTE: plain require, never require_once — config.php returns a value,
 // and require_once would hand us `true` on second inclusion.
+if (!is_file($root . '/config.php') && !str_starts_with($_SERVER['REQUEST_URI'] ?? '/', '/install')) {
+    // Fresh upload: no config yet, so there is nothing to connect to.
+    header('Location: /install.php');
+    exit;
+}
 require $root . '/config.php';
 $needsInstall = false;
 try {
@@ -133,6 +140,10 @@ $r->get('#^/register$#', [\RetroBB\Controllers\AuthController::class, 'registerF
 $r->post('#^/register$#', [\RetroBB\Controllers\AuthController::class, 'registerSubmit']);
 $r->get('#^/login$#', [\RetroBB\Controllers\AuthController::class, 'loginForm']);
 $r->post('#^/login$#', [\RetroBB\Controllers\AuthController::class, 'loginSubmit']);
+$r->get('#^/forgot-password$#', [\RetroBB\Controllers\AuthController::class, 'forgotForm']);
+$r->post('#^/forgot-password$#', [\RetroBB\Controllers\AuthController::class, 'forgotSubmit']);
+$r->get('#^/reset-password$#', [\RetroBB\Controllers\AuthController::class, 'resetForm']);
+$r->post('#^/reset-password$#', [\RetroBB\Controllers\AuthController::class, 'resetSubmit']);
 $r->post('#^/logout$#', [\RetroBB\Controllers\AuthController::class, 'logout']);
 $r->get('#^/members$#', [\RetroBB\Controllers\ProfileController::class, 'index']);
 $r->get('#^/settings/profile$#', [\RetroBB\Controllers\ProfileController::class, 'settingsForm']);
@@ -166,6 +177,7 @@ $r->get('#^/admin/forum/(\d+)/edit$#', [\RetroBB\Controllers\AdminController::cl
 $r->post('#^/admin/forum/(\d+)/rename$#', [\RetroBB\Controllers\AdminController::class, 'renameForum']);
 $r->post('#^/admin/forum/(\d+)/delete$#', [\RetroBB\Controllers\AdminController::class, 'deleteForum']);
 $r->post('#^/admin/unban/(\d+)$#', [\RetroBB\Controllers\AdminController::class, 'unban']);
+$r->post('#^/admin/migrate$#', [\RetroBB\Controllers\AdminController::class, 'runMigrate']);
 $r->get('#^/sitemap\.xml$#', [\RetroBB\Controllers\SitemapController::class, 'xml']);
 $r->get('#^/sitemap\.xsl$#', [\RetroBB\Controllers\SitemapController::class, 'xsl']);
 $r->get('#^/search$#', [\RetroBB\Controllers\SearchController::class, 'index']);

@@ -13,3 +13,7 @@
   <a class="dash-card" href="/admin/import"><b>📥 Import</b><small>From phpBB / SMF</small></a>
 </div>
 <div class="statsbar"><b><?= (int) $stats['topics'] ?></b> topics · <b><?= (int) $stats['posts'] ?></b> posts · <b><?= (int) $stats['users'] ?></b> members · newest: <b><?= e($stats['newest']) ?></b></div>
+<?php if (isset($_GET['migrated'])): ?><div class="flash-ok">Database updates ran clean.</div><?php endif; ?>
+<div class="cat-row">Database</div>
+<p class="muted">After uploading a new release, run the database updates here (same as <code>php bin/migrate.php</code>). Safe to run any time — updates only ever add.</p>
+<form method="post" action="/admin/migrate"><?= \RetroBB\Core\Csrf::field() ?><button class="btn" type="submit">Run database updates</button></form>

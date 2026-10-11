@@ -111,7 +111,7 @@ class AdminController
             redirect('/admin');
         }
         $allowed = ['board_name', 'board_tagline', 'posts_per_page', 'topics_per_page',
-            'flood_seconds', 'edit_window_mins', 'captcha_provider', 'captcha_sitekey', 'captcha_secret'];
+            'flood_seconds', 'edit_window_mins', 'captcha_provider', 'captcha_sitekey', 'captcha_secret', 'mail_from'];
         $pdo = Db::pdo();
         foreach ($allowed as $k) {
             if (isset($_POST[$k])) {
@@ -258,6 +258,28 @@ class AdminController
         }
         \RetroBB\Models\Moderation::unban($banId, (int) Auth::user()['id']);
         redirect('/admin/bans');
+    }
+
+    /** One-click database updates after a file upgrade (mirrors bin/migrate.php). */
+    public function runMigrate(): void
+    {
+        $this->guard();
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin');
+        }
+        try {
+            @set_time_limit(120);
+            ob_start();
+            require dirname(__DIR__) . '/bin/migrate.php';
+            ob_end_clean();
+        } catch (\Throwable $t) {
+            ob_end_clean();
+            error_log('RetroBB web migrate failed: ' . $t->getMessage());
+            $_SESSION['flash_error'] = 'Database updates failed — see the PHP error log, or run php bin/migrate.php by hand.';
+            redirect('/admin');
+        }
+        \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'migrate', 'board', 0, 'database updates via AdminCP');
+        redirect('/admin?migrated=1');
     }
 
     public function editCategoryForm(int $id): void

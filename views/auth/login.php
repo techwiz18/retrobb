@@ -7,5 +7,5 @@
   <label>Username or email<br><input type="text" name="login" required></label><br><br>
   <label>Password<br><input type="password" name="password" required></label><br><br>
   <button class="btn" type="submit">Log in</button>
-  <p class="muted">No account? <a href="/register">Register</a></p>
+  <p class="muted">No account? <a href="/register">Register</a> · <a href="/forgot-password">Forgot password?</a></p>
 </form>

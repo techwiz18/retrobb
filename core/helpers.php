@@ -116,7 +116,9 @@ function time_ago(string $datetime): string
     try {
         $t = new DateTime($datetime);
     } catch (Throwable) {
-        return $datetime;
+        // Unparseable input (e.g. legacy garbage in the column): show
+        // nothing rather than echoing the raw value back into the page.
+        return '';
     }
     $diff = time() - $t->getTimestamp();
     if ($diff < 60) {

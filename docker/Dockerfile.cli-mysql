@@ -1,3 +1,6 @@
-# Dev/test image only: stock PHP CLI plus the MySQL driver.
+# Dev/test image only: stock PHP CLI plus the MySQL driver and an SMTP shim
+# (msmtp relays PHP mail() to the Mailpit container for local mail tests).
 FROM php:8.3-cli
-RUN docker-php-ext-install pdo_mysql
+RUN apt-get update && apt-get install -y --no-install-recommends msmtp \
+  && rm -rf /var/lib/apt/lists \
+  && docker-php-ext-install pdo_mysql

@@ -1,14 +1,19 @@
 #!/bin/sh
 # MySQL 8 for RetroBB verification. Idempotent-ish.
+# Data lives in the retrobb-mysql-data volume, so reboots and container
+# replaces keep every database (retrobb_live holds USER DATA).
 docker network create retrobb-net 2>/dev/null || true
+docker volume create retrobb-mysql-data 2>/dev/null || true
 if ! docker ps --format '{{.Names}}' | grep -q '^retrobb-mysql$'; then
   docker run -d --rm --name retrobb-mysql --network retrobb-net \
+    -v retrobb-mysql-data:/var/lib/mysql \
     -e MYSQL_ROOT_PASSWORD=root \
     -e MYSQL_DATABASE=retrobb \
     -e MYSQL_USER=retrobb \
     -e MYSQL_PASSWORD=retrobb \
     mysql:8 --mysql-native-password=ON 2>&1 | tail -1 || \
   docker run -d --rm --name retrobb-mysql --network retrobb-net \
+    -v retrobb-mysql-data:/var/lib/mysql \
     -e MYSQL_ROOT_PASSWORD=root \
     -e MYSQL_DATABASE=retrobb \
     -e MYSQL_USER=retrobb \

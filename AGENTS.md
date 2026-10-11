@@ -22,7 +22,10 @@ Pure-PHP forum (no framework). MIT. Production code + tests must stay green.
 
 - `retrobb` container → live board on :8080 (`scripts/serve.sh`, image
   `retrobb-php`, network `retrobb-net`).
-- `retrobb-mysql` → MySQL 8, persistent. Databases: `retrobb_live` (USER DATA,
+- `retrobb-mailpit` → dev SMTP sink + inbox UI on :8025 (started by
+  `serve.sh`; PHP `mail()` relays via msmtp — nothing leaves the machine).
+- `retrobb-mysql` → MySQL 8, persistent via the `retrobb-mysql-data` volume
+  (survives reboots/recreates — verified 2026-10-10 after a wipe scare). Databases: `retrobb_live` (USER DATA,
   never drop), `retrobb` (scratch for backend tests), `retrobb_wipe` (empty
   staging for installer tests).
 - Test creds: admin/admin123; seeded members use password123.

@@ -156,6 +156,10 @@ class ProfileController
         }
         $which = (string) ($_POST['form'] ?? 'profile');
         if ($which === 'password') {
+            if ((string) ($_POST['new'] ?? '') !== (string) ($_POST['new2'] ?? '')) {
+                \RetroBB\Core\View::render('profile/edit', ['edituser' => $user, 'pageTitle' => 'Edit profile', 'error' => 'New passwords do not match.']);
+                return;
+            }
             $res = User::changePassword((int) $me['id'], (string) ($_POST['current'] ?? ''), (string) ($_POST['new'] ?? ''));
             if (!$res['ok']) {
                 \RetroBB\Core\View::render('profile/edit', ['edituser' => $user, 'pageTitle' => 'Edit profile', 'error' => $res['error']]);

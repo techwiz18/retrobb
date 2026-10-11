@@ -133,6 +133,12 @@ function try_db(array $values): array
             return [false, 'Could not use database "' . $values['mysql_db'] . '" — create it in your hosting panel (and add your MySQL user to it with all privileges), then try again.', null];
         }
     }
+    // Pre-created databases often default to latin1/utf8mb3: normalize when
+    // allowed so 4-byte emoji survive. Best-effort — privilege failure is fine.
+    try {
+        $mysql->exec('ALTER DATABASE `' . $values['mysql_db'] . '` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    } catch (Throwable) {
+    }
     return [true, null, $mysql];
 }
 
@@ -363,6 +369,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
                     }
                 }
                 unset($_SESSION['rb_install']);
+                if (!is_dir($root . '/storage')) {
+                    @mkdir($root . '/storage', 0775, true);
+                }
                 file_put_contents($lock, date('c'));
                 // Neutralize this very file so setup can't be re-run from the web:
                 // renaming beats deleting (atomic, visible, reversible). If the

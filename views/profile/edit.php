@@ -15,6 +15,7 @@
   <input type="hidden" name="form" value="password">
   <label>Current password<br><input type="password" name="current" required></label><br><br>
   <label>New password (8+ chars)<br><input type="password" name="new" required></label><br><br>
+  <label>Repeat new password<br><input type="password" name="new2" required></label><br><br>
   <button class="btn" type="submit">Change password</button>
 </form>
 </div>

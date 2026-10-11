@@ -1,0 +1,23 @@
+# RetroBB shared-hosting front door: when the package root itself is the
+# document root (plain public_html upload), route everything into public/.
+# If your host lets you point the domain at public/ instead, do that — it's
+# stricter (code and data stay above the docroot entirely).
+
+RewriteEngine On
+
+# Never serve code, config, or data from the web.
+RewriteRule ^(config\.php|core|controllers|models|migrations|bin|docker|scripts|storage|lang)(/|$) - [F]
+RewriteRule \.(sql|sqlite|sqlite-wal|sqlite-shm|sqlite-journal|sql\.gz)$ - [F,NC]
+RewriteRule ^(\.git|\.htaccess|\.gitignore|config\.example\.php|composer\..*)$ - [F]
+
+# No directory listings, ever.
+Options -Indexes
+
+# Real files inside public/ (assets, installer) serve as-is.
+RewriteCond %{REQUEST_URI} !^/public/
+RewriteCond %{DOCUMENT_ROOT}/public/$1 -f
+RewriteRule ^(.*)$ public/$1 [L]
+
+# Everything else boots the forum; REQUEST_URI stays intact for the router.
+RewriteCond %{REQUEST_URI} !^/public/
+RewriteRule ^(.*)$ public/index.php [L]

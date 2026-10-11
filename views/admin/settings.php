@@ -12,5 +12,6 @@
 <label>Edit window (minutes, 0 = no limit)<br><input type="number" name="edit_window_mins" min="0" max="3600" value="<?= e($map['edit_window_mins'] ?? '30') ?>" style="width:120px"></label><br><br>
 <label>Topics per page<br><input type="number" name="topics_per_page" min="5" max="50" value="<?= e($map['topics_per_page'] ?? '25') ?>" style="width:120px"></label><br><br>
 <label>Posts per page<br><input type="number" name="posts_per_page" min="5" max="50" value="<?= e($map['posts_per_page'] ?? '15') ?>" style="width:120px"></label><br><br>
+<label>Mail sender (password resets; blank = automatic)<br><input type="email" name="mail_from" value="<?= e($map['mail_from'] ?? '') ?>" placeholder="noreply@example.com" style="width:100%"></label><br><br>
 <button class="btn" type="submit">Save settings</button>
 </form>

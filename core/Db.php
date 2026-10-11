@@ -28,6 +28,11 @@ class Db
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             ]);
+            // The charset= DSN parameter is ignored by libmysql-based PHP
+            // builds (common on shared hosts): without this, the connection
+            // falls back to latin1 and every 4-byte character (all our
+            // emoticon emoji) degrades to "?".
+            $pdo->exec("SET NAMES 'utf8mb4'");
         } catch (\PDOException $e) {
             throw new \RuntimeException('Database connection failed: ' . $e->getMessage());
         }

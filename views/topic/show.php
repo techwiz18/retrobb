@@ -41,7 +41,7 @@
       <span class="group group-<?= e($p['user_group']) ?>"><?= e($p['user_group']) ?></span>
       <small class="postmeta"><?= (int) $p['user_posts'] ?> posts<br>Joined <?= e(substr($p['user_since'], 0, 10)) ?></small>
     </div>
-    <div class="postright"><?= \RetroBB\Core\BBCode::needsRepair($p['body_html']) ? \RetroBB\Core\BBCode::toHtml($p['body_bbcode']) : $p['body_html'] ?><?php if (!empty($p['edited_at'])): ?><div class="editedmark">Edited <?= e(time_ago($p['edited_at'])) ?></div><?php endif; ?></div>
+    <div class="postright"><?= \RetroBB\Core\BBCode::needsRepair($p['body_html']) ? \RetroBB\Core\BBCode::toHtml($p['body_bbcode']) : $p['body_html'] ?><?php $editedTs = strtotime((string) ($p['edited_at'] ?? '')); ?><?php if ($editedTs > 0): ?><div class="editedmark">Edited <?= e(time_ago($p['edited_at'])) ?></div><?php endif; ?></div>
   </div>
   <?php if ($me && feature('reactions')): ?>
   <?php $rc = $reactions[(int) $p['id']] ?? []; ?>

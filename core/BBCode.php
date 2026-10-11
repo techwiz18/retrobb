@@ -68,6 +68,9 @@ class BBCode
             $html
         );
 
+        // bare URLs become links (explicit [url]/[img] already handled above)
+        $html = self::autolink($html);
+
         // emoticons :) :( :D ;) :P
         $emos = [
             ':)' => '🙂', ':(' => '🙁', ':D' => '😀',
@@ -114,6 +117,53 @@ class BBCode
         $html = Mentions::renderHtml($html);
 
         return Hooks::apply_filters('post_body_html', $html, $bbcode);
+    }
+
+    /**
+     * Linkify bare http(s) URLs in text segments only — never inside tags or
+     * attributes, link labels (no nested anchors), or code blocks. Trailing
+     * punctuation is left outside the link.
+     */
+    private static function autolink(string $html): string
+    {
+        $segs = preg_split('/(<[^>]*>)/', $html, -1, PREG_SPLIT_DELIM_CAPTURE) ?: [$html];
+        $skip = 0; // depth inside <pre> or <a>
+        foreach ($segs as &$s) {
+            if (str_starts_with($s, '<')) {
+                if (preg_match('#^<(pre|a)[\s>]#i', $s)) {
+                    $skip++;
+                } elseif (preg_match('#^</(pre|a)[\s>]#i', $s)) {
+                    $skip = max(0, $skip - 1);
+                }
+                continue;
+            }
+            if ($skip > 0) {
+                continue;
+            }
+            $s = (string) preg_replace_callback(
+                '#https?://[^\s<>]+#i',
+                function ($m) {
+                    $raw = $m[0];
+                    // Peel trailing punctuation (and unbalanced closing parens).
+                    $trail = '';
+                    while ($raw !== '' && str_contains('.,;:!?\'"', substr($raw, -1))) {
+                        $trail = substr($raw, -1) . $trail;
+                        $raw = substr($raw, 0, -1);
+                    }
+                    while (str_ends_with($raw, ')') && substr_count($raw, '(') < substr_count($raw, ')')) {
+                        $trail = ')' . $trail;
+                        $raw = substr($raw, 0, -1);
+                    }
+                    if ($raw === '') {
+                        return $m[0];
+                    }
+                    return self::linkTag(html_entity_decode($raw), $raw) . $trail;
+                },
+                $s
+            );
+        }
+        unset($s);
+        return implode('', $segs);
     }
 
     private static function linkTag(string $url, ?string $label): string

@@ -104,4 +104,83 @@ class AuthController
         Auth::logout();
         redirect('/');
     }
+
+    public function forgotForm(): void
+    {
+        if (Auth::check()) {
+            redirect('/');
+        }
+        View::render('auth/forgot', ['pageTitle' => 'Forgot password', 'sent' => false]);
+    }
+
+    public function forgotSubmit(): void
+    {
+        if (Auth::check()) {
+            redirect('/');
+        }
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            View::render('auth/forgot', ['pageTitle' => 'Forgot password', 'sent' => false]);
+            return;
+        }
+        // Session throttle on top of the per-user one in the model.
+        $_SESSION['pwreset_attempts'] = ($_SESSION['pwreset_attempts'] ?? 0) + 1;
+        if ($_SESSION['pwreset_attempts'] > 10) {
+            View::render('auth/forgot', ['pageTitle' => 'Forgot password', 'sent' => true]);
+            return;
+        }
+        $login = trim((string) ($_POST['login'] ?? ''));
+        // Same message either way: never reveal whether an account exists.
+        $user = $login !== '' ? User::findByLogin($login) : null;
+        if ($user) {
+            $token = \RetroBB\Models\PasswordReset::issue((int) $user['id']);
+            if ($token !== '' && !empty($user['email'])) {
+                \RetroBB\Core\Mail::send(
+                    $user['email'],
+                    'Password reset for ' . board_name(),
+                    "Someone asked to reset the password for '" . $user['username'] . "' on " . board_name() . ".\n\n"
+                    . \RetroBB\Core\Mail::resetLink($token) . "\n\n"
+                    . "The link works once and expires in an hour. Ignore this mail if it wasn't you."
+                );
+            }
+        }
+        View::render('auth/forgot', ['pageTitle' => 'Forgot password', 'sent' => true]);
+    }
+
+    public function resetForm(): void
+    {
+        if (Auth::check()) {
+            redirect('/');
+        }
+        $token = (string) ($_GET['token'] ?? '');
+        if (!\RetroBB\Models\PasswordReset::check($token)) {
+            View::render('auth/forgot', ['pageTitle' => 'Forgot password', 'sent' => false, 'badlink' => true]);
+            return;
+        }
+        View::render('auth/reset', ['pageTitle' => 'Set new password', 'token' => $token, 'error' => null]);
+    }
+
+    public function resetSubmit(): void
+    {
+        if (Auth::check()) {
+            redirect('/');
+        }
+        $token = (string) ($_POST['token'] ?? '');
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            View::render('auth/reset', ['pageTitle' => 'Set new password', 'token' => $token, 'error' => 'Session expired.']);
+            return;
+        }
+        $pass = (string) ($_POST['password'] ?? '');
+        $pass2 = (string) ($_POST['password2'] ?? '');
+        if ($pass !== $pass2) {
+            View::render('auth/reset', ['pageTitle' => 'Set new password', 'token' => $token, 'error' => 'Passwords do not match.']);
+            return;
+        }
+        $res = \RetroBB\Models\PasswordReset::consume($token, $pass);
+        if (!$res['ok']) {
+            View::render('auth/forgot', ['pageTitle' => 'Forgot password', 'sent' => false, 'badlink' => true]);
+            return;
+        }
+        $_SESSION['flash_ok'] = 'Password set — log in with the new one.';
+        redirect('/login');
+    }
 }
