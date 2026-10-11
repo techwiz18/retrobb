@@ -1,5 +1,10 @@
 # Changelog — RetroBB by techwiz.dad. Format follows keep-a-changelog loosely.
 
+## [0.4.0-beta.3] — 2026-10-11 (pre-release)
+Follow-up: deleting posts and topics hands each author their post count
+back (floored at zero). No migration changes — drop over any 0.4 beta,
+no database update needed.
+
 ## [0.4.0-beta.2] — 2026-10-11 (pre-release)
 Small follow-up: staff can delete any post (was author-only), topic/reply
 creation rejects user id 0, uniform button sizing in postbit and modbar.
