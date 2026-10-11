@@ -60,16 +60,18 @@ class Moderation
         return $id;
     }
 
-    public static function unban(int $banId, int $modId): void
+    /** Lifts a ban by ban id. Returns the unbanned user id (0 when missing). */
+    public static function unban(int $banId, int $modId): int
     {
         $st = Db::pdo()->prepare('SELECT * FROM bans WHERE id=?');
         $st->execute([$banId]);
         $ban = $st->fetch();
         if (!$ban) {
-            return;
+            return 0;
         }
         Db::pdo()->prepare('UPDATE bans SET lifted_at=? WHERE id=?')->execute([date('Y-m-d H:i:s'), $banId]);
         Modlog::log($modId, 'unban', 'user', (int) $ban['user_id'], 'ban #' . $banId);
+        return (int) $ban['user_id'];
     }
 
     /** Active (non-lifted, non-expired) ban for a user, or null. */

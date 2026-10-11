@@ -125,9 +125,12 @@ class ProfileController
             echo 'CSRF mismatch';
             return;
         }
-        \RetroBB\Models\Moderation::unban($banId, (int) \RetroBB\Core\Auth::user()['id']);
+        $unbannedId = \RetroBB\Models\Moderation::unban($banId, (int) \RetroBB\Core\Auth::user()['id']);
         $_SESSION['flash_ok'] = 'Ban lifted.';
-        redirect('/admin/bans');
+        // Land on the member profile: mods can see it, while /admin/bans
+        // is admin-only (bouncing a mod there is a 403).
+        $banUser = $unbannedId > 0 ? User::find($unbannedId) : null;
+        redirect($banUser ? \RetroBB\Core\Slug::memberUrl($banUser) : '/members');
     }
 
     public function settingsForm(): void
