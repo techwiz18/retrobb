@@ -41,6 +41,7 @@ class Post
             return null;
         }
         $pdo->prepare('DELETE FROM posts WHERE id=?')->execute([$id]);
+        $pdo->prepare('UPDATE users SET posts_count=GREATEST(posts_count-1,0) WHERE id=?')->execute([(int) $post['user_id']]);
         Topic::recountTopic($topicId);
         Topic::recountForum((int) $post['forum_id']);
         return $topicId;
