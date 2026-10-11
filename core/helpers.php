@@ -180,6 +180,19 @@ function canonical_url(string $path): string
     // Prefer the configured board URL when the owner set one at install.
     $base = rtrim(setting('board_url', ''), '/');
     if ($base !== '' && preg_match('#^https?://#i', $base)) {
+        // board_url may itself carry the subpath (https://hub/forum after
+        // cutover) while app paths already include the base prefix — never
+        // double it, but still add it for paths that lack it (e.g. mail
+        // links built from bare paths).
+        $parts = parse_url($base);
+        $prefix = rtrim($parts['path'] ?? '', '/');
+        if ($prefix !== '' && ($path === $prefix || str_starts_with($path, $prefix . '/'))) {
+            $origin = ($parts['scheme'] ?? 'http') . '://' . ($parts['host'] ?? '');
+            if (isset($parts['port'])) {
+                $origin .= ':' . $parts['port'];
+            }
+            return $origin . $path;
+        }
         return $base . $path;
     }
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';

@@ -30,7 +30,11 @@ class Router
         // under the prefix (/forum/members, /forum/search, ...) reach their
         // real handlers instead of the greedy /forum/<slug> route; genuine
         // forum URLs still win because their stripped form (/<slug>.fN)
-        // matches no route and we fall through to the raw path.
+        // matches no route and we fall through to the raw path. Last resort:
+        // re-attach the base — a reverse proxy that strips /forum uniformly
+        // forwards /forum/<slug>.fN as /<slug>.fN, which matches nothing bare
+        // but is a real forum URL once re-prefixed. It runs last so bare app
+        // routes (/members, /topic/x, ...) always win over it.
         $candidates = [];
         $base = \base_path();
         if ($base !== '' && ($path === $base || str_starts_with($path, $base . '/'))) {
@@ -40,6 +44,9 @@ class Router
             }
         }
         $candidates[] = $path;
+        if ($base !== '' && $path !== '/' && $path !== $base && !str_starts_with($path, $base . '/')) {
+            $candidates[] = $base . $path;
+        }
         foreach ($candidates as $try) {
             foreach ($this->routes as [$m, $pattern, $handler]) {
                 if ($m !== $method && !($m === 'GET' && $method === 'HEAD')) {
