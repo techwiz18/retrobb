@@ -136,7 +136,7 @@ need a running board on `http://localhost:8080`. PHP 8.1–8.4 supported.
 
 ## 🗺 What's next
 
-- v0.4 (in progress): search, importers (phpBB/SMF), forgot-password flow
+- v0.4 (current beta): search, importers (phpBB/SMF), forgot-password flow
 - v0.5 — moderation & admin: permission system (general + per-forum groups),
   mass actions on topics/posts, drag-and-drop ordering, plugin management UI,
   maintenance mode, email verification

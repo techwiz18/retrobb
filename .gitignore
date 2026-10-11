@@ -11,5 +11,7 @@ storage/*.sql.gz
 # Dev-only mail mirror flag + log (reset links — must never ship).
 storage/dev-mail.php
 storage/mail.log
+# Built release zips (regenerate with scripts/package-release.sh).
+dist/
 # Local config (copy config.example.php to config.php and adjust).
 config.php

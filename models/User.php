@@ -87,8 +87,10 @@ class User
         if ($chk->fetch()) {
             return ['ok' => false, 'error' => 'That email is already in use.'];
         }
+        // Canonical empty: real NULL, never '' — one representation, no ambiguity.
+        $bio = trim($bio) === '' ? null : mb_substr(trim($bio), 0, 1000);
         Db::pdo()->prepare('UPDATE users SET email=?, bio=? WHERE id=?')
-            ->execute([$email, mb_substr(trim($bio), 0, 1000), $id]);
+            ->execute([$email, $bio, $id]);
         return ['ok' => true];
     }
 

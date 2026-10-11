@@ -1,12 +1,31 @@
 # Changelog — RetroBB by techwiz.dad. Format follows keep-a-changelog loosely.
 
-## [Unreleased] (v0.4 batch)
-- Search across topic titles and post bodies (multi-term, snippets).
-- Importers for phpBB 3.x and SMF 2.x (stepped AdminCP run; legacy passwords
-  keep working, upgraded on first login).
-- Forgot-password flow (single-use emailed tokens, 1-hour expiry).
+## [0.4.0-beta.1] — 2026-10-11 (pre-release)
+Search, importers, and account recovery. Tinkerers welcome; not production-hardened yet.
+
+### Added
+- Search across topic titles and post bodies (multi-term, snippets,
+  query-preserving pagination, nav link).
+- Importers for phpBB 3.x and SMF 2.x: stepped AdminCP run (users, forums,
+  topics, posts, recount) with counts preview, id mapping, guest fallback,
+  conflict renaming, and skipped-content notes. Legacy passwords keep working
+  and upgrade silently on first login.
+- Forgot-password flow (single-use emailed tokens, 1-hour expiry, throttles,
+  enumeration-safe replies) plus password-confirm on profile changes.
+- User post deletes with a configurable window (opening posts protected).
+- Bare URLs auto-link; BBCode toolbar on the new-topic form.
+- Shared-hosting front door (package-root `.htaccess` + fallback) and a lean
+  release packager (`scripts/package-release.sh`).
+- Drop-in upgrades: settings seeder never overwrites, migrations heal
+  charsets, one-click database updates in AdminCP → Dashboard.
+
+### Fixed
 - Password storage review: no plaintext anywhere — modern hashes, one-way
   legacy imports, hashed reset tokens.
+- Emoticon emoji no longer degrade to `?` (forced utf8mb4 connections,
+  database/table healing in migrate).
+- `Edited NULL` / `NULL` bio phantoms can no longer render; saves canonicalize.
+- Fresh uploads without `config.php` route to the installer (was a 500).
 
 ## [0.3.0-beta.1] — 2026-10-09 (pre-release)
 Social batch plus board control. Tinkerers welcome; not production-hardened yet.

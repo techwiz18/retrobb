@@ -113,6 +113,7 @@ $r->post('#^/topic/(\d+)/(pinned|locked)$#', [\RetroBB\Controllers\TopicControll
   $r->post('#^/topic/(\d+)/merge$#', [\RetroBB\Controllers\TopicController::class, 'mergeSubmit']);
   $r->get('#^/post/(\d+)/edit$#', [\RetroBB\Controllers\TopicController::class, 'editPostForm']);
   $r->post('#^/post/(\d+)/edit$#', [\RetroBB\Controllers\TopicController::class, 'editPostSubmit']);
+  $r->post('#^/post/(\d+)/delete$#', [\RetroBB\Controllers\TopicController::class, 'deletePost']);
   $r->get('#^/post/(\d+)/report$#', [\RetroBB\Controllers\ReportController::class, 'reportForm']);
   $r->post('#^/post/(\d+)/report$#', [\RetroBB\Controllers\ReportController::class, 'reportSubmit']);
   $r->post('#^/post/(\d+)/react$#', [\RetroBB\Controllers\ReactionController::class, 'toggle']);

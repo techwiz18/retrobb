@@ -5,6 +5,7 @@ namespace RetroBB\Controllers;
 
 use RetroBB\Core\Auth;
 use RetroBB\Core\Csrf;
+use RetroBB\Core\Db;
 use RetroBB\Core\Slug;
 use RetroBB\Core\View;
 use RetroBB\Models\Board;
@@ -78,6 +79,7 @@ class TopicController
             'forum' => $forum,
             'posts' => $data['posts'],
             'reactions' => $reactions,
+            'firstPostId' => Topic::firstPostId($id),
             'total' => $data['total'],
             'page' => $page,
             'pages' => $pages,
@@ -409,5 +411,63 @@ class TopicController
             return 'The edit window (' . $mins . ' min) has expired.';
         }
         return true;
+    }
+
+    /** @return true|string true if allowed, else an error message */
+    private function canDeletePost(array $post): bool|string
+    {
+        $me = Auth::user();
+        if (!$me) {
+            redirect('/login');
+        }
+        if (Auth::isMod()) {
+            return true;
+        }
+        if ((int) $post['user_id'] !== (int) $me['id']) {
+            return 'You can only delete your own posts.';
+        }
+        if ((int) ($post['locked'] ?? 0) === 1) {
+            return 'This topic is locked.';
+        }
+        $mins = (int) setting('delete_window_mins', '30');
+        if ($mins > 0 && (time() - strtotime($post['created_at'])) > $mins * 60) {
+            return 'The delete window (' . $mins . ' min) has expired.';
+        }
+        // First posts anchor their threads: only removable while they're the
+        // only post (which removes the whole topic) — otherwise mods only.
+        $firstId = Topic::firstPostId((int) $post['topic_id']);
+        if ((int) $post['id'] === $firstId) {
+            $n = (int) Db::pdo()->query('SELECT COUNT(*) c FROM posts WHERE topic_id=' . (int) $post['topic_id'])->fetch()['c'];
+            if ($n > 1) {
+                return 'The opening post can only be removed by a moderator.';
+            }
+        }
+        return true;
+    }
+
+    public function deletePost(int $postId): void
+    {
+        $post = \RetroBB\Models\Post::find($postId);
+        if (!$post) {
+            redirect('/');
+        }
+        $allowed = $this->canDeletePost($post);
+        if ($allowed !== true) {
+            $_SESSION['flash_error'] = $allowed;
+            redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
+        }
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            http_response_code(419);
+            echo 'CSRF mismatch';
+            return;
+        }
+        $topicId = \RetroBB\Models\Post::delete($postId);
+        \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'delete', 'post', $postId, "topic {$post['topic_id']}");
+        if ($topicId === null) {
+            $forum = Board::forum((int) $post['forum_id']);
+            redirect($forum ? Slug::forumUrl($forum) : '/');
+        }
+        $topic = Topic::find($topicId);
+        redirect(($topic ? Slug::topicUrl($topic) : '/') . '#reply');
     }
 }

@@ -28,6 +28,9 @@
       <?php if ((int) $p['user_id'] === (int) $me['id'] || \RetroBB\Core\Auth::isMod()): ?>
         <a class="smallbtn" href="/post/<?= (int) $p['id'] ?>/edit">Edit</a>
       <?php endif; ?>
+      <?php if ((int) $p['user_id'] === (int) $me['id'] && ((int) $p['id'] !== (int) ($firstPostId ?? 0) || (int) $total === 1)): ?>
+        <form method="post" action="/post/<?= (int) $p['id'] ?>/delete" style="display:inline" onsubmit="return confirm('Delete this post?')"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn danger" type="submit">Delete</button></form>
+      <?php endif; ?>
       <?php if ((int) $p['user_id'] !== (int) $me['id']): ?>
         <a class="smallbtn" href="/post/<?= (int) $p['id'] ?>/report">Report</a>
       <?php endif; ?>

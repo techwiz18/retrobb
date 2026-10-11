@@ -48,6 +48,7 @@ $defaults = [
     'topics_per_page' => '25',
     'flood_seconds' => '30',
     'edit_window_mins' => '30',
+    'delete_window_mins' => '30',
     'captcha_provider' => 'honeypot',
     'captcha_sitekey' => '',
     'captcha_secret' => '',

@@ -131,6 +131,11 @@ class ImportController
             if ($step === 'users') {
                 if ($offset === 0) {
                     $this->mapTable();
+                    // Fresh run: drop stale mappings from any aborted attempt.
+                    try {
+                        Db::pdo()->exec('TRUNCATE TABLE import_map');
+                    } catch (\Throwable) {
+                    }
                     $this->ensureGuest();
                 }
                 $rows = $reader->fetchUsers($offset, self::CHUNK);

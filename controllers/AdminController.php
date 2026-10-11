@@ -111,7 +111,7 @@ class AdminController
             redirect('/admin');
         }
         $allowed = ['board_name', 'board_tagline', 'posts_per_page', 'topics_per_page',
-            'flood_seconds', 'edit_window_mins', 'captcha_provider', 'captcha_sitekey', 'captcha_secret', 'mail_from'];
+            'flood_seconds', 'edit_window_mins', 'delete_window_mins', 'captcha_provider', 'captcha_sitekey', 'captcha_secret', 'mail_from'];
         $pdo = Db::pdo();
         foreach ($allowed as $k) {
             if (isset($_POST[$k])) {
@@ -119,7 +119,7 @@ class AdminController
                 if (in_array($k, ['posts_per_page', 'topics_per_page'], true)) {
                     $v = (string) max(5, min(50, (int) $v));
                 }
-                if (in_array($k, ['flood_seconds', 'edit_window_mins'], true)) {
+                if (in_array($k, ['flood_seconds', 'edit_window_mins', 'delete_window_mins'], true)) {
                     $v = (string) max(0, min(3600, (int) $v));
                 }
                 if ($k === 'captcha_provider' && !in_array($v, ['honeypot', 'builtin', 'turnstile', 'hcaptcha', 'recaptcha'], true)) {
