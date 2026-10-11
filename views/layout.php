@@ -19,6 +19,9 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
 </head>
 <body class="<?= e($skinClass) ?>">
 <div class="page-wrap">
+  <?php \RetroBB\Core\Hooks::render_template_hook('header', []); ?>
+  <?php \RetroBB\Core\Hooks::do_action('header'); ?>
+  <?php if (\RetroBB\Core\Hooks::apply_filters('show_default_header', true)): ?>
   <div class="topbar">
     <div class="logo"><a href="<?= e(url('/')) ?>"><svg class="floppy" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="4" width="26" height="25" rx="2" fill="#3A6EA5"/><rect x="9" y="4" width="14" height="9" fill="#c9d2e4"/><rect x="19" y="4" width="4" height="9" fill="#232c40"/><rect x="6" y="17" width="20" height="9" rx="1" fill="#f4f6fb"/><rect x="9" y="20" width="14" height="2" fill="#98a5b3"/></svg> <?= e(board_name()) ?></a> <span class="tagline"><?= e(setting('board_tagline', '')) ?></span></div>
     <div class="userbox">
@@ -45,6 +48,7 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
     </span>
     <?php endif; ?>
   </nav>
+  <?php endif; ?>
 
   <?php if (!empty($_SESSION['flash_error'])): ?><div class="flash-error"><?= e($_SESSION['flash_error']); unset($_SESSION['flash_error']); ?></div><?php endif; ?>
   <?php if (!empty($_SESSION['flash_ok'])): ?><div class="flash-ok"><?= e($_SESSION['flash_ok']); unset($_SESSION['flash_ok']); ?></div><?php endif; ?>
@@ -53,7 +57,9 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
   <main><?= $content ?></main>
 
   <footer class="footer">
+    <?php if (\RetroBB\Core\Hooks::apply_filters('show_default_footer', true)): ?>
     <div>Powered by <b>RetroBB</b> by <a href="https://techwiz.dad">techwiz.dad</a> · Old-school soul, modern code · <?= date('Y') ?></div>
+    <?php endif; ?>
     <?php \RetroBB\Core\Hooks::render_template_hook('footer', []); ?>
     <?php \RetroBB\Core\Hooks::do_action('footer'); ?>
   </footer>

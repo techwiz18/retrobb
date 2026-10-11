@@ -17,13 +17,13 @@ mkdir -p /tmp/opencode /tmp/zipstage
 rm -rf /tmp/zipstage/rel && mkdir -p /tmp/zipstage/rel/storage
 if [ "$2" = "--worktree" ]; then
   # shellcheck disable=SC2086
-  zip -qr "$OUT" $FILES -x '*/storage/*'
+  zip -qr "$OUT" $FILES -x '*/storage/*' 'plugins/hub-shell/*'
 else
   if [ -n "$(git status --porcelain | grep -v '^?? .opencode/')" ]; then
     echo "Worktree is dirty — commit first or use --worktree."; exit 1;
   fi
   # shellcheck disable=SC2086
-  git archive --format=tar "HEAD" $FILES | tar -x -C /tmp/zipstage/rel
+  git archive --format=tar "HEAD" $FILES ':!plugins/hub-shell' | tar -x -C /tmp/zipstage/rel
   (cd /tmp/zipstage/rel && zip -qr "$OUT" .)
 fi
 # Sanity: front door present, no secrets.
@@ -33,5 +33,6 @@ for f in public/install.php public/index.php index.php .htaccess config.example.
   [ -e "/tmp/zipstage/chk/$f" ] || { echo "MISSING $f"; exit 1; };
 done
 if [ -e /tmp/zipstage/chk/config.php ]; then echo "LEAK: config.php"; exit 1; fi
+if [ -e /tmp/zipstage/chk/plugins/hub-shell/bootstrap.php ]; then echo "LEAK: site-specific hub-shell in release"; exit 1; fi
 echo "wrote $OUT ($(du -h "$OUT" | cut -f1))"
 unzip -l "$OUT" | tail -n 2
