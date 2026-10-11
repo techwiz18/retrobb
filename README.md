@@ -140,8 +140,9 @@ need a running board on `http://localhost:8080`. PHP 8.1–8.4 supported.
 
 - v0.4 (current beta): search, importers (phpBB/SMF), forgot-password flow
 - v0.5 — moderation & admin: permission system (general + per-forum groups),
-  mass actions on topics/posts, drag-and-drop ordering, plugin management UI,
-  maintenance mode, email verification
+  mass actions on topics/posts, soft deletions, drag-and-drop ordering,
+  plugin management UI, maintenance mode, email verification, MFA (TOTP,
+  enforceable for staff)
 - v0.6 — structure & look: sub-forums, appearance customization, visual breakup,
   optional homepage link in the nav
 - v0.7 — platform: plugin directory, API, translations
