@@ -1,6 +1,7 @@
 <?php /** @var array $reports */ /** @var int $total */ /** @var int $page */ /** @var int $pages */ ?>
 <div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; Mod queue</div>
 <div class="maintitle">Mod queue — <?= $total ?> open report<?= $total === 1 ? '' : 's' ?></div>
+<div style="padding:6px 2px;font-size:12px"><a href="<?= e(url('/mod/bans')) ?>">Bans</a></div>
 <?php if (\RetroBB\Core\Auth::isAdmin()): ?><?php \RetroBB\Core\View::partial('admin/_nav', ['active' => 'queue']); ?><?php endif; ?>
 <div class="recent-list">
 <?php foreach ($reports as $r): ?>

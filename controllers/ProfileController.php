@@ -79,7 +79,10 @@ class ProfileController
             $_SESSION['flash_error'] = 'Give a short warning reason.';
             redirect(\RetroBB\Core\Slug::memberUrl($user));
         }
-        \RetroBB\Models\Moderation::warn($id, (int) \RetroBB\Core\Auth::user()['id'], $reason);
+        if (!\RetroBB\Models\Moderation::warn($id, (int) \RetroBB\Core\Auth::user()['id'], $reason)) {
+            $_SESSION['flash_error'] = 'Admins cannot be warned.';
+            redirect(\RetroBB\Core\Slug::memberUrl($user));
+        }
         $_SESSION['flash_ok'] = 'Warning recorded.';
         redirect(\RetroBB\Core\Slug::memberUrl($user));
     }
@@ -109,7 +112,13 @@ class ProfileController
             $_SESSION['flash_error'] = 'Give a short ban reason.';
             redirect(\RetroBB\Core\Slug::memberUrl($user));
         }
-        \RetroBB\Models\Moderation::ban($id, (int) \RetroBB\Core\Auth::user()['id'], $reason, $days);
+        $banId = \RetroBB\Models\Moderation::ban($id, (int) \RetroBB\Core\Auth::user()['id'], $reason, $days);
+        if ($banId === 0) {
+            $_SESSION['flash_error'] = $user['user_group'] === 'admin'
+                ? 'Admins cannot be banned here.'
+                : 'Only admins can ban staff.';
+            redirect(\RetroBB\Core\Slug::memberUrl($user));
+        }
         \RetroBB\Core\Auth::refresh($user);
         $_SESSION['flash_ok'] = 'User banned.';
         redirect(\RetroBB\Core\Slug::memberUrl($user));
@@ -125,7 +134,7 @@ class ProfileController
             echo 'CSRF mismatch';
             return;
         }
-        $unbannedId = \RetroBB\Models\Moderation::unban($banId, (int) \RetroBB\Core\Auth::user()['id']);
+        $unbannedId = \RetroBB\Models\Moderation::unban($banId, (int) \RetroBB\Core\Auth::user()['id'], (string) ($_POST['reason'] ?? ''));
         $_SESSION['flash_ok'] = 'Ban lifted.';
         // Land on the member profile: mods can see it, while /admin/bans
         // is admin-only (bouncing a mod there is a 403).

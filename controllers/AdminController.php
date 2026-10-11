@@ -259,7 +259,7 @@ class AdminController
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             redirect('/admin');
         }
-        \RetroBB\Models\Moderation::unban($banId, (int) Auth::user()['id']);
+        \RetroBB\Models\Moderation::unban($banId, (int) Auth::user()['id'], (string) ($_POST['reason'] ?? ''));
         redirect('/admin/bans');
     }
 

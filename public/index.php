@@ -36,6 +36,7 @@ require_once $root . '/controllers/HomeController.php';
 require_once $root . '/controllers/ForumController.php';
 require_once $root . '/controllers/TopicController.php';
 require_once $root . '/controllers/ReportController.php';
+require_once $root . '/controllers/ModController.php';
 require_once $root . '/controllers/AuthController.php';
 require_once $root . '/controllers/ProfileController.php';
 require_once $root . '/controllers/AdminController.php';
@@ -180,6 +181,7 @@ $r->post('#^/topic/(\d+)/(pinned|locked)$#', [\RetroBB\Controllers\TopicControll
   $r->post('#^/mod/report/(\d+)/handle$#', [\RetroBB\Controllers\ReportController::class, 'handle']);
   $r->post('#^/mod/report/(\d+)/delete-post$#', [\RetroBB\Controllers\ReportController::class, 'deletePost']);
   $r->post('#^/mod/report/(\d+)/warn-author$#', [\RetroBB\Controllers\ReportController::class, 'warnAuthor']);
+  $r->get('#^/mod/bans$#', [\RetroBB\Controllers\ModController::class, 'bans']);
 $r->get('#^/register$#', [\RetroBB\Controllers\AuthController::class, 'registerForm']);
 $r->post('#^/register$#', [\RetroBB\Controllers\AuthController::class, 'registerSubmit']);
 $r->get('#^/login$#', [\RetroBB\Controllers\AuthController::class, 'loginForm']);
@@ -236,7 +238,10 @@ $r->get('#^/skin/([a-z0-9]+)$#', function (string $s) {
     if (!str_starts_with($bp, '/') || str_starts_with($bp, '//')) {
         $bp = '/';
     }
-    redirect($bp);
+    // Tell the sync bridge (hub-shell) this landing carries a fresh explicit
+    // choice: typed/bookmarked switcher URLs skip the click seeder, so the
+    // bridge must trust the server here, not stale localStorage.
+    redirect($bp . (str_contains($bp, '?') ? '&' : '?') . 'picked=skin');
 });
 // theme switcher (light / dark / auto-follows-OS)
 $r->get('#^/theme/(light|dark|auto)$#', function (string $t) {
@@ -248,7 +253,7 @@ $r->get('#^/theme/(light|dark|auto)$#', function (string $t) {
     if (!str_starts_with($bp, '/') || str_starts_with($bp, '//')) {
         $bp = '/';
     }
-    redirect($bp);
+    redirect($bp . (str_contains($bp, '?') ? '&' : '?') . 'picked=theme');
 });
 $r->get('#^/viewtopic\.php$#', function () {
     $t = (int) ($_GET['t'] ?? 0);

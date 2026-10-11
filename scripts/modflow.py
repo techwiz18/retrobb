@@ -79,9 +79,12 @@ data = urllib.parse.urlencode({'csrf': csrf(html), 'login': 'TechWiz18', 'passwo
 resp = m2.open(urllib.request.Request(base + '/login', data=data)).read().decode()
 print('banned login shows reason:', 'banned' in resp.lower())
 
-# 7. unban by ban id (mod path lands on profile, admin path on bans list)
-ub, ubc = post(mod, '/members/unban/1', {'_formpage': '/members/techwiz18.u4'})
-print('mod unban code:', ubc)
+# 7. unban the fresh ban (mod path lands on profile, admin path on bans list)
+bans = mod.open(base + '/mod/bans').read().decode()
+bid = re.search(r'/members/unban/(\d+)', bans)
+bid = bid.group(1) if bid else '1'
+ub, ubc = post(mod, '/members/unban/' + bid, {'_formpage': '/members/techwiz18.u4'})
+print('mod unban ban %s code:' % bid, ubc)
 ml = admin.open(base + '/admin/modlog').read().decode()
 print('modlog has warn:', 'warn' in ml.lower(), '| has ban:', 'ban' in ml.lower(), '| has unban:', 'unban' in ml.lower())
 
