@@ -24,7 +24,7 @@ use RetroBB\Core\Hooks;
 
 Hooks::add_action('head', static function () {
     echo '<style>'
-        . '.site-header{background:#1c2b4a;color:#f5e9b8;margin:0 0 16px;font-size:15px;line-height:1.6}'
+        . '.site-header{background:#1c2b4a;color:#f5e9b8;margin:0 0 16px;font-size:15px;line-height:1.6;font-family:Verdana,Tahoma,Geneva,sans-serif}'
         . '.site-header .wrap{max-width:860px;margin:0 auto;padding:0 16px}'
         . '.site-header .head-main{display:flex;align-items:center;gap:14px;padding:10px 16px;flex-wrap:wrap}'
         . '.site-header .head-util{display:flex;justify-content:flex-end;padding:0 16px 8px}'
@@ -59,7 +59,7 @@ Hooks::add_action('head', static function () {
         . '--row:#0d1526;--row2:#05080f;--link:#8fb6f2;--muted:#8b96ab;--text:#d6e0f2;'
         . '--bar-bg:#05080f;--sub-bg:#05080f;--sub-text:#8b96ab;--head-a:#3f7ad0;--head-b:#274b85;'
         . '--quote-bg:#05080f;--input-bg:#0d1526;--input-text:#d6e0f2;--btn-a:#3f7ad0;--btn-b:#274b85;--btn-text:#eaf1ff}'
-        . 'body.skin-silver.theme-light,body.skin-silver.theme-auto{--bg:#e8ecf2;--panel:#f7f8fb;--border:#8b98ad;--title-a:#7e8ba0;--title-b:#b9c3d4;'
+        . 'body.skin-silver.theme-light,body.skin-silver.theme-auto{--bg:#e8ecf2;--panel:#f7f8fb;--border:#8b98ad;--title-a:#5b667c;--title-b:#697383;'
         . '--row:#f7f8fb;--row2:#edf0f5;--link:#2c4a75;--muted:#67727f;--text:#232a36;'
         . '--bar-bg:#eef1f6;--sub-bg:#f2f4f8;--sub-text:#4c565f;--head-a:#eef1f6;--head-b:#d9dfe9;'
         . '--quote-bg:#f7f8fb;--input-bg:#fff;--input-text:#232a36;--btn-a:#fff;--btn-b:#d3d9e3;--btn-text:#2c4a75}'
