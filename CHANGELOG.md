@@ -82,8 +82,10 @@ Social batch plus board control. Tinkerers welcome; not production-hardened yet.
 - More visual breakup across forum appearance (experiment).
 - Forgot-password flow (email reset tokens).
 - Mass actions on topics/posts (bulk move/delete/lock/pin from forum and mod views).
+- Soft deletions (recoverable hides instead of hard deletes) → v0.5.
 - Sub-forums (nested forum hierarchy; importers currently flatten).
 - Optional homepage link in the nav (for boards with a dedicated home page) → v0.6.
+- MFA via TOTP (opt-in per user, enforceable for staff roles) → v0.5.
 - Query batching pass (mention lookups, PM tab counts, board subselects).
 - Login throttle that survives cookie drops (persistent/IP-based).
 - Reply alerts to all thread participants (currently the starter only).
