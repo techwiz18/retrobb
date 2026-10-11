@@ -353,7 +353,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
             if (!$res['ok']) {
                 $errors[] = $res['errors'][0];
             } else {
-                Db::pdo()->prepare("UPDATE users SET user_group='admin' WHERE id=?")->execute([$res['id']]);
+                Db::pdo()->prepare("UPDATE users SET user_group='admin', is_super=1 WHERE id=?")->execute([$res['id']]);
                 // Every fresh board starts with one placeholder category +
                 // forum and a welcome thread (skipped for used databases).
                 try {

@@ -214,6 +214,7 @@ $r->post('#^/admin/settings$#', [\RetroBB\Controllers\AdminController::class, 's
 $r->post('#^/admin/add-forum$#', [\RetroBB\Controllers\AdminController::class, 'addForum']);
 $r->post('#^/admin/add-category$#', [\RetroBB\Controllers\AdminController::class, 'addCategory']);
 $r->post('#^/admin/user/(\d+)/group$#', [\RetroBB\Controllers\AdminController::class, 'setGroup']);
+$r->post('#^/admin/user/(\d+)/super$#', [\RetroBB\Controllers\AdminController::class, 'superToggle']);
 $r->post('#^/admin/category/(\d+)/move/(up|down)$#', [\RetroBB\Controllers\AdminController::class, 'moveCategory']);
 $r->get('#^/admin/category/(\d+)/edit$#', [\RetroBB\Controllers\AdminController::class, 'editCategoryForm']);
 $r->post('#^/admin/category/(\d+)/rename$#', [\RetroBB\Controllers\AdminController::class, 'renameCategory']);

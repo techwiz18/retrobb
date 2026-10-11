@@ -16,7 +16,7 @@ class ImportController
 
     private function guard(): void
     {
-        if (!Auth::isAdmin()) {
+        if (!Auth::isSuper()) {
             http_response_code(403);
             View::render('errors/403', ['pageTitle' => 'Forbidden']);
             exit;

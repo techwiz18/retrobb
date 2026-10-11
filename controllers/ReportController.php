@@ -193,7 +193,7 @@ class ReportController
         if ($post) {
             $ok = \RetroBB\Models\Moderation::warn((int) $post['user_id'], $me, $reason, (int) $post['id'], (int) $post['topic_id']);
             if (!$ok) {
-                $this->warnForm($id, 'Admins cannot be warned — dismiss or delete the post instead.');
+                $this->warnForm($id, 'That author cannot be warned — dismiss or delete the post instead.');
                 return;
             }
         }

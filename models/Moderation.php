@@ -8,14 +8,16 @@ use RetroBB\Core\Modlog;
 
 class Moderation
 {
-    /** Warn a user. Refuses admin targets (any actor). Returns false on refusal. */
+    /** Warn a user. Refuses admin targets (any actor) and mod targets unless
+     *  the actor is super. Returns false on refusal. */
     public static function warn(int $userId, int $modId, string $reason, int $postId = 0, int $topicId = 0): bool
     {
         $reason = mb_substr(trim($reason), 0, 500);
-        $st = Db::pdo()->prepare('SELECT user_group FROM users WHERE id=?');
-        $st->execute([$userId]);
-        $target = $st->fetch();
-        if ($target && ($target['user_group'] ?? '') === 'admin') {
+        [$target, $actorSuper] = self::staffContext($userId, $modId);
+        if ($target === 'admin') {
+            return false;
+        }
+        if ($target === 'mod' && !$actorSuper) {
             return false;
         }
         try {
@@ -57,21 +59,14 @@ class Moderation
     }
 
     /** $days null = permanent. Returns ban id, or 0 on refusal (admin targets
-     *  always; mod targets need an admin actor). */
+     *  always; mod targets need a super actor). */
     public static function ban(int $userId, int $modId, string $reason, ?int $days): int
     {
-        $st = Db::pdo()->prepare('SELECT id, user_group FROM users WHERE id IN (?,?)');
-        $st->execute([$userId, $modId]);
-        $groups = [];
-        foreach ($st->fetchAll() as $row) {
-            $groups[(int) $row['id']] = $row['user_group'] ?? 'member';
-        }
-        $target = $groups[$userId] ?? 'member';
-        $actor = $groups[$modId] ?? 'member';
+        [$target, $actorSuper] = self::staffContext($userId, $modId);
         if ($target === 'admin') {
             return 0;
         }
-        if ($target === 'mod' && $actor !== 'admin') {
+        if ($target === 'mod' && !$actorSuper) {
             return 0;
         }
         $expires = $days === null ? null : date('Y-m-d H:i:s', time() + $days * 86400);
@@ -101,6 +96,34 @@ class Moderation
         }
         Modlog::log($modId, 'unban', 'user', (int) $ban['user_id'], $detail);
         return (int) $ban['user_id'];
+    }
+
+    /** Target group + whether the actor is super. Pre-tier schemas lack the
+     *  column: then every admin counts as super (old behavior preserved). */
+    private static function staffContext(int $userId, int $modId): array
+    {
+        try {
+            $st = Db::pdo()->prepare('SELECT id, user_group, is_super FROM users WHERE id IN (?,?)');
+            $st->execute([$userId, $modId]);
+            $rows = [];
+            foreach ($st->fetchAll() as $row) {
+                $rows[(int) $row['id']] = $row;
+            }
+            $tGroup = $rows[$userId]['user_group'] ?? 'member';
+            $aGroup = $rows[$modId]['user_group'] ?? 'member';
+            $aSuper = $aGroup === 'admin' && (int) ($rows[$modId]['is_super'] ?? 0) === 1;
+            return [$tGroup, $aSuper];
+        } catch (\Throwable) {
+            $st = Db::pdo()->prepare('SELECT id, user_group FROM users WHERE id IN (?,?)');
+            $st->execute([$userId, $modId]);
+            $groups = [];
+            foreach ($st->fetchAll() as $row) {
+                $groups[(int) $row['id']] = $row['user_group'] ?? 'member';
+            }
+            $tGroup = $groups[$userId] ?? 'member';
+            $aGroup = $groups[$modId] ?? 'member';
+            return [$tGroup, $aGroup === 'admin'];
+        }
     }
 
     /** Active (non-lifted, non-expired) ban for a user, or null. */

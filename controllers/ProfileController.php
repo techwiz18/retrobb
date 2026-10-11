@@ -80,7 +80,9 @@ class ProfileController
             redirect(\RetroBB\Core\Slug::memberUrl($user));
         }
         if (!\RetroBB\Models\Moderation::warn($id, (int) \RetroBB\Core\Auth::user()['id'], $reason)) {
-            $_SESSION['flash_error'] = 'Admins cannot be warned.';
+            $_SESSION['flash_error'] = $user['user_group'] === 'admin'
+                ? 'Admins cannot be warned.'
+                : 'Only super admins can warn staff.';
             redirect(\RetroBB\Core\Slug::memberUrl($user));
         }
         $_SESSION['flash_ok'] = 'Warning recorded.';
@@ -116,7 +118,7 @@ class ProfileController
         if ($banId === 0) {
             $_SESSION['flash_error'] = $user['user_group'] === 'admin'
                 ? 'Admins cannot be banned here.'
-                : 'Only admins can ban staff.';
+                : 'Only super admins can ban staff.';
             redirect(\RetroBB\Core\Slug::memberUrl($user));
         }
         \RetroBB\Core\Auth::refresh($user);

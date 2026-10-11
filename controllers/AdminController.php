@@ -21,6 +21,16 @@ class AdminController
         }
     }
 
+    /** Super-only: staff management and site-critical actions. */
+    private function needSuper(): void
+    {
+        if (!Auth::isSuper()) {
+            http_response_code(403);
+            View::render('errors/403', ['pageTitle' => 'Forbidden']);
+            exit;
+        }
+    }
+
     private function cats(): array
     {
         $pdo = Db::pdo();
@@ -58,13 +68,13 @@ class AdminController
 
     public function settingsPage(): void
     {
-        $this->guard();
+        $this->needSuper();
         View::render('admin/settings', ['settings' => $this->settingsRows(), 'pageTitle' => 'Settings — AdminCP']);
     }
 
     public function featuresPage(): void
     {
-        $this->guard();
+        $this->needSuper();
         View::render('admin/features', ['settings' => $this->settingsRows(), 'pageTitle' => 'Features — AdminCP']);
     }
 
@@ -106,7 +116,7 @@ class AdminController
 
     public function saveSettings(): void
     {
-        $this->guard();
+        $this->needSuper();
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             redirect('/admin');
         }
@@ -137,7 +147,7 @@ class AdminController
 
     public function saveFeatures(): void
     {
-        $this->guard();
+        $this->needSuper();
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             redirect('/admin');
         }
@@ -220,7 +230,7 @@ class AdminController
 
     public function setGroup(int $id): void
     {
-        $this->guard();
+        $this->needSuper();
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             redirect('/admin');
         }
@@ -230,6 +240,27 @@ class AdminController
         }
         User::setGroup($id, (string) ($_POST['group'] ?? 'member'));
         \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'setgroup', 'user', $id, '-> ' . (string) ($_POST['group'] ?? 'member'));
+        redirect('/admin/users');
+    }
+
+    /** Grant/revoke the super tier. Supers manage supers, never themselves. */
+    public function superToggle(int $id): void
+    {
+        $this->needSuper();
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin');
+        }
+        $me = Auth::user();
+        if ($me && (int) $me['id'] === $id) {
+            redirect('/admin/users');
+        }
+        $target = User::find($id);
+        if (!$target || ($target['user_group'] ?? '') !== 'admin') {
+            redirect('/admin/users');
+        }
+        $on = !((int) ($target['is_super'] ?? 0) === 1);
+        User::setSuper($id, $on);
+        \RetroBB\Core\Modlog::log((int) $me['id'], $on ? 'super_grant' : 'super_revoke', 'user', $id, $target['username']);
         redirect('/admin/users');
     }
 
@@ -266,7 +297,7 @@ class AdminController
     /** One-click database updates after a file upgrade (mirrors bin/migrate.php). */
     public function runMigrate(): void
     {
-        $this->guard();
+        $this->needSuper();
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             redirect('/admin');
         }

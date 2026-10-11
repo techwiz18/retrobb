@@ -63,6 +63,21 @@ $defaults = [
     'theme_auto' => '1',
     'default_theme' => 'auto',
 ];
+// Super-admin bootstrap for pre-tier boards: the first admin becomes super,
+// but only when nobody holds it yet (never clobber an existing choice).
+try {
+    $supers = (int) $pdo->query('SELECT COUNT(*) c FROM users WHERE is_super=1')->fetch()['c'];
+    if ($supers === 0) {
+        $first = $pdo->query("SELECT id FROM users WHERE user_group='admin' ORDER BY id LIMIT 1")->fetch();
+        if ($first) {
+            $pdo->prepare('UPDATE users SET is_super=1 WHERE id=?')->execute([(int) $first['id']]);
+            echo 'Super admin bootstrapped (user #' . (int) $first['id'] . ").\n";
+        }
+    }
+} catch (Throwable $t) {
+    echo 'Super bootstrap skipped (' . $t->getMessage() . ").\n";
+}
+
 // default settings: seed-only (INSERT IGNORE) so upgrades never clobber
 // an admin's existing values — new keys arrive, old ones stay untouched.
 $seedUpsert = $pdo->prepare('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)');
