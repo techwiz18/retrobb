@@ -18,9 +18,9 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
 <?php \RetroBB\Core\Hooks::do_action('head'); ?>
 </head>
 <body class="<?= e($skinClass) ?>">
+<?php \RetroBB\Core\Hooks::render_template_hook('header', []); ?>
+<?php \RetroBB\Core\Hooks::do_action('header'); ?>
 <div class="page-wrap">
-  <?php \RetroBB\Core\Hooks::render_template_hook('header', []); ?>
-  <?php \RetroBB\Core\Hooks::do_action('header'); ?>
   <?php if (\RetroBB\Core\Hooks::apply_filters('show_default_header', true)): ?>
   <div class="topbar">
     <div class="logo"><a href="<?= e(url('/')) ?>"><svg class="floppy" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="4" width="26" height="25" rx="2" fill="#3A6EA5"/><rect x="9" y="4" width="14" height="9" fill="#c9d2e4"/><rect x="19" y="4" width="4" height="9" fill="#232c40"/><rect x="6" y="17" width="20" height="9" rx="1" fill="#f4f6fb"/><rect x="9" y="20" width="14" height="2" fill="#98a5b3"/></svg> <?= e(board_name()) ?></a> <span class="tagline"><?= e(setting('board_tagline', '')) ?></span></div>
