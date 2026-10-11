@@ -3,11 +3,12 @@
 <?php \RetroBB\Core\View::partial('admin/_nav', ['active' => 'settings']); ?>
 <?php if (isset($_GET['saved'])): ?><div class="flash-ok">Settings saved.</div><?php endif; ?>
 <?php $map = []; foreach ($settings as $s) $map[$s['key']] = $s['value']; ?>
-<form method="post" action="/admin/settings" class="form" style="max-width:560px">
+<form method="post" action="<?= e(url('/admin/settings')) ?>" class="form" style="max-width:560px">
 <?= \RetroBB\Core\Csrf::field() ?>
 <input type="hidden" name="return" value="settings">
 <label>Board name<br><input name="board_name" value="<?= e($map['board_name'] ?? 'RetroBB') ?>" style="width:100%"></label><br><br>
 <label>Tagline<br><input name="board_tagline" value="<?= e($map['board_tagline'] ?? '') ?>" style="width:100%"></label><br><br>
+<label>Board URL (canonical address, optional — also feeds the footer credit link)<br><input name="board_url" value="<?= e($map['board_url'] ?? '') ?>" placeholder="https://…" style="width:100%"></label><br><br>
 <label>Flood control (seconds between posts and PMs, 0 = off)<br><input type="number" name="flood_seconds" min="0" max="3600" value="<?= e($map['flood_seconds'] ?? '30') ?>" style="width:120px"></label><br><br>
 <label>Edit window (minutes, 0 = no limit)<br><input type="number" name="edit_window_mins" min="0" max="3600" value="<?= e($map['edit_window_mins'] ?? '30') ?>" style="width:120px"></label><br><br>
 <label>Delete window (own posts, minutes, 0 = no limit)<br><input type="number" name="delete_window_mins" min="0" max="3600" value="<?= e($map['delete_window_mins'] ?? '30') ?>" style="width:120px"></label><br><br>

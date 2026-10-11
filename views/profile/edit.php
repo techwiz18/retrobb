@@ -1,5 +1,5 @@
 <?php /** @var array $edituser */ /** @var string|null $error */ ?>
-<div class="breadcrumb"><a href="/">Index</a> &raquo; <a href="<?= e(\RetroBB\Core\Slug::memberUrl($edituser)) ?>"><?= e($edituser['username']) ?></a> &raquo; Edit profile</div>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(\RetroBB\Core\Slug::memberUrl($edituser)) ?>"><?= e($edituser['username']) ?></a> &raquo; Edit profile</div>
 <div class="maintitle">Edit profile</div>
 <?php if (!empty($error)): ?><div class="flash-error"><?= e($error) ?></div><?php endif; ?>
 <div class="admin-grid">

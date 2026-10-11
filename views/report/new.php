@@ -1,5 +1,5 @@
 <?php /** @var array $post */ /** @var string|null $error */ ?>
-<div class="breadcrumb"><a href="/">Index</a> &raquo; Report post</div>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; Report post</div>
 <div class="maintitle">Report post by <?= e($post['username']) ?></div>
 <?php if (!empty($error)): ?><div class="flash-error"><?= e($error) ?></div><?php endif; ?>
 <form method="post" class="form">

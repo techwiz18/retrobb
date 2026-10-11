@@ -1,5 +1,5 @@
 <?php /** @var string $to */ /** @var string $subject */ /** @var string $body */ /** @var int $reply_to */ /** @var string|null $error */ ?>
-<div class="breadcrumb"><a href="/">Index</a> &raquo; <a href="/pm">Messages</a> &raquo; New</div>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(url('/pm')) ?>">Messages</a> &raquo; New</div>
 <div class="maintitle">New private message</div>
 <?php if (!empty($error)): ?><div class="flash-error"><?= e($error) ?></div><?php endif; ?>
 <form method="post" class="form" data-compose-guard>

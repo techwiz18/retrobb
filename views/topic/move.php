@@ -1,5 +1,5 @@
 <?php /** @var array $topic */ /** @var array $cats */ /** @var string|null $error */ ?>
-<div class="breadcrumb"><a href="/">Index</a> &raquo; <a href="<?= e(\RetroBB\Core\Slug::topicUrl($topic)) ?>"><?= e($topic['title']) ?></a> &raquo; Move</div>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(\RetroBB\Core\Slug::topicUrl($topic)) ?>"><?= e($topic['title']) ?></a> &raquo; Move</div>
 <div class="maintitle">Move topic</div>
 <?php if (!empty($error)): ?><div class="flash-error"><?= e($error) ?></div><?php endif; ?>
 <form method="post" class="form">

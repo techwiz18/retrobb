@@ -1,5 +1,5 @@
 <?php /** @var array $topic */ /** @var array|null $forum */ /** @var array $posts */ /** @var array $reactions */ /** @var int $page */ /** @var int $pages */ /** @var int $perPage */ ?>
-<div class="breadcrumb"><a href="/">Index</a> &raquo; <?php if ($forum): ?><a href="<?= e(\RetroBB\Core\Slug::forumUrl($forum)) ?>"><?= e($forum['name']) ?></a> &raquo;<?php endif; ?> <?= e($topic['title']) ?></div>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <?php if ($forum): ?><a href="<?= e(\RetroBB\Core\Slug::forumUrl($forum)) ?>"><?= e($forum['name']) ?></a> &raquo;<?php endif; ?> <?= e($topic['title']) ?></div>
 <div class="maintitle"><?= e($topic['title']) ?></div>
 <div class="actionrow">
   <span class="muted">by <a href="<?= e(\RetroBB\Core\Slug::memberUrl(['id' => $topic['user_id'], 'username' => $topic['author']])) ?>"><?= e($topic['author']) ?></a> · <?= (int) $topic['views'] ?> views</span>
@@ -7,12 +7,12 @@
 <?php if (\RetroBB\Core\Auth::isMod()): ?>
 <div class="modbar">
   <span class="modlabel">Moderation:</span>
-  <form method="post" action="/topic/<?= (int) $topic['id'] ?>/pinned" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn"><?= ((int) $topic['pinned'] === 1) ? 'Unpin' : 'Pin' ?></button></form>
-  <form method="post" action="/topic/<?= (int) $topic['id'] ?>/locked" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn"><?= ((int) $topic['locked'] === 1) ? 'Unlock' : 'Lock' ?></button></form>
-  <a class="smallbtn" href="/topic/<?= (int) $topic['id'] ?>/move">Move</a>
-  <a class="smallbtn" href="/topic/<?= (int) $topic['id'] ?>/split">Split</a>
-  <a class="smallbtn" href="/topic/<?= (int) $topic['id'] ?>/merge">Merge…</a>
-  <form method="post" action="/topic/<?= (int) $topic['id'] ?>/delete" style="display:inline" onsubmit="return confirm('Delete topic?')"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn danger">Delete</button></form>
+  <form method="post" action="<?= e(url('/topic/' . (int) $topic['id'] . '/pinned')) ?>" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn"><?= ((int) $topic['pinned'] === 1) ? 'Unpin' : 'Pin' ?></button></form>
+  <form method="post" action="<?= e(url('/topic/' . (int) $topic['id'] . '/locked')) ?>" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn"><?= ((int) $topic['locked'] === 1) ? 'Unlock' : 'Lock' ?></button></form>
+  <a class="smallbtn" href="<?= e(url('/topic/' . (int) $topic['id'] . '/move')) ?>">Move</a>
+  <a class="smallbtn" href="<?= e(url('/topic/' . (int) $topic['id'] . '/split')) ?>">Split</a>
+  <a class="smallbtn" href="<?= e(url('/topic/' . (int) $topic['id'] . '/merge')) ?>">Merge…</a>
+  <form method="post" action="<?= e(url('/topic/' . (int) $topic['id'] . '/delete')) ?>" style="display:inline" onsubmit="return confirm('Delete topic?')"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn danger">Delete</button></form>
 </div>
 <?php endif; ?>
 <?php foreach ($posts as $i => $p): ?>
@@ -26,14 +26,14 @@
     <span class="postactions">
       <button type="button" class="smallbtn quotebtn" data-post="<?= (int) $p['id'] ?>">Quote</button>
       <?php if ((int) $p['user_id'] === (int) $me['id'] || \RetroBB\Core\Auth::isMod()): ?>
-        <a class="smallbtn" href="/post/<?= (int) $p['id'] ?>/edit">Edit</a>
+        <a class="smallbtn" href="<?= e(url('/post/' . (int) $p['id'] . '/edit')) ?>">Edit</a>
       <?php endif; ?>
       <?php $canDel = (int) $p['user_id'] === (int) $me['id'] ? ((int) $p['id'] !== (int) ($firstPostId ?? 0) || (int) $total === 1) : \RetroBB\Core\Auth::isMod(); ?>
       <?php if ($canDel): ?>
-        <form method="post" action="/post/<?= (int) $p['id'] ?>/delete" style="display:inline" onsubmit="return confirm('Delete this post?')"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn danger" type="submit">Delete</button></form>
+        <form method="post" action="<?= e(url('/post/' . (int) $p['id'] . '/delete')) ?>" style="display:inline" onsubmit="return confirm('Delete this post?')"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn danger" type="submit">Delete</button></form>
       <?php endif; ?>
       <?php if ((int) $p['user_id'] !== (int) $me['id']): ?>
-        <a class="smallbtn" href="/post/<?= (int) $p['id'] ?>/report">Report</a>
+        <a class="smallbtn" href="<?= e(url('/post/' . (int) $p['id'] . '/report')) ?>">Report</a>
       <?php endif; ?>
     </span>
     <?php endif; ?>
@@ -51,7 +51,7 @@
   <?php $rc = $reactions[(int) $p['id']] ?? []; ?>
   <div class="postfoot">
     <?php foreach (['like' => '👍', 'thanks' => '🙏', 'funny' => '😄'] as $rk => $emoji): ?>
-      <form method="post" action="/post/<?= (int) $p['id'] ?>/react" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><input type="hidden" name="reaction" value="<?= $rk ?>"><button class="smallbtn" title="<?= $rk ?>"><?= $emoji ?><?= !empty($rc[$rk]) ? ' ' . (int) $rc[$rk] : '' ?></button></form>
+      <form method="post" action="<?= e(url('/post/' . (int) $p['id'] . '/react')) ?>" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><input type="hidden" name="reaction" value="<?= $rk ?>"><button class="smallbtn" title="<?= $rk ?>"><?= $emoji ?><?= !empty($rc[$rk]) ? ' ' . (int) $rc[$rk] : '' ?></button></form>
     <?php endforeach; ?>
   </div>
   <?php endif; ?>
@@ -80,6 +80,6 @@
   </form>
   <?php endif; ?>
 <?php else: ?>
-  <a class="btn" href="/login?next=<?= urlencode(\RetroBB\Core\Slug::topicUrl($topic)) ?>">Log in to reply</a>
+  <a class="btn" href="<?= e(url('/login?next=' . urlencode(\RetroBB\Core\Slug::topicUrl($topic)))) ?>">Log in to reply</a>
 <?php endif; ?>
 </div>

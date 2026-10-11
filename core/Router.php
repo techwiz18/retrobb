@@ -64,6 +64,13 @@ class Router
         if ($path === '') {
             $path = '/';
         }
+        // Subpath deployments (reverse proxy): strip the configured prefix
+        // so both /topic/x (direct) and /forum/topic/x (proxied) route the
+        // same. Unprefixed paths pass through untouched (dual-serve).
+        $base = \base_path();
+        if ($base !== '' && ($path === $base || str_starts_with($path, $base . '/'))) {
+            $path = substr($path, strlen($base)) ?: '/';
+        }
         return $path;
     }
 }

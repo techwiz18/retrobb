@@ -1,5 +1,5 @@
 <?php /** @var array $forum */ /** @var string|null $error */ ?>
-<div class="breadcrumb"><a href="/">Index</a> &raquo; <a href="<?= e(\RetroBB\Core\Slug::forumUrl($forum)) ?>"><?= e($forum['name']) ?></a> &raquo; New topic</div>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(\RetroBB\Core\Slug::forumUrl($forum)) ?>"><?= e($forum['name']) ?></a> &raquo; New topic</div>
 <div class="maintitle">New topic in <?= e($forum['name']) ?></div>
 <?php if (!empty($error)): ?><div class="flash-error"><?= e($error) ?></div><?php endif; ?>
 <form method="post" class="form">

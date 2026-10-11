@@ -10,7 +10,7 @@ function e(?string $s): string
 
 function redirect(string $url, int $code = 302): void
 {
-    header('Location: ' . $url, true, $code);
+    header('Location: ' . url($url), true, $code);
     exit;
 }
 
@@ -47,6 +47,65 @@ function setting(string $key, string $default = ''): string
 function board_name(): string
 {
     return setting('board_name', 'RetroBB');
+}
+
+/**
+ * Subpath deployment prefix (reverse-proxy setups): leading /, no trailing
+ * slash, '' when the board serves from the domain root. Env wins over
+ * config.php; never written by the installer.
+ */
+function base_path(): string
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $raw = getenv('RETROBB_BASE_PATH');
+    if ($raw === false) {
+        try {
+            $cfg = require dirname(__DIR__) . '/config.php';
+            $raw = $cfg['base_path'] ?? '';
+        } catch (\Throwable) {
+            $raw = '';
+        }
+    }
+    $normal = '/' . trim((string) $raw, '/');
+    $cache = $normal === '/' ? '' : $normal;
+    return $cache;
+}
+
+/**
+ * True when the request already addresses the canonical URL. Compares
+ * base-relative paths (subpath deploys) and ignores pagination suffixes,
+ * so both /topic/x and /forum/topic/x match without redirect loops.
+ */
+function is_canonical(string $canonical): bool
+{
+    $path = \RetroBB\Core\Router::currentPath();
+    $base = strtok($path, '?');
+    $base = (string) preg_replace('#/page-\d+$#', '', $base);
+    $canon = $canonical;
+    if (($b = base_path()) !== '' && str_starts_with($canon, $b . '/')) {
+        $canon = substr($canon, strlen($b));
+    }
+    return $base === $canon;
+}
+
+/**
+ * Single choke point for every URL the app emits. Absolute URLs pass
+ * through; anything already carrying the prefix is left alone (idempotent),
+ * so Referer-derived paths stay valid.
+ */
+function url(string $path): string
+{
+    if (preg_match('#^https?://#i', $path)) {
+        return $path;
+    }
+    $base = base_path();
+    if ($base !== '' && ($path === $base || str_starts_with($path, $base . '/'))) {
+        return $path;
+    }
+    return $base . '/' . ltrim($path, '/');
 }
 
 /** Board-wide feature flag. Unknown features default ON (opt-out model). */

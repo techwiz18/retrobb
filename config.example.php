@@ -9,4 +9,8 @@ return [
     'mysql_db' => getenv('RETROBB_MYSQL_DB') ?: 'retrobb',
     'mysql_user' => getenv('RETROBB_MYSQL_USER') ?: 'retrobb',
     'mysql_pass' => getenv('RETROBB_MYSQL_PASS') ?: '',
+    // Subpath deployment (reverse proxy): '/forum' serves the board under
+    // that prefix while the bare paths keep working. Env wins when set.
+    // Leave '' for a normal standalone install.
+    'base_path' => getenv('RETROBB_BASE_PATH') ?: '',
 ];

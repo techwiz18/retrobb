@@ -1,4 +1,16 @@
 RewriteEngine On
+
+# Direct subpath access (pre-cutover testing without the proxy): if the
+# request isn't a file but dropping one leading segment hits a real file
+# (e.g. /forum/install.php -> install.php), serve that. App routes can never
+# collide: slugs are sanitized and suffixed (.t/.f/.u), so the remainder of a
+# real route is never an existing filename.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} ^/[^/]+/(.*)$
+RewriteCond %{DOCUMENT_ROOT}/%1 -f
+RewriteRule ^[^/]+/.*$ %1 [L]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]

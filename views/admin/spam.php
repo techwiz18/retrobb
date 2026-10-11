@@ -4,7 +4,7 @@
 <?php if (isset($_GET['saved'])): ?><div class="flash-ok">Settings saved.</div><?php endif; ?>
 <p class="muted" style="max-width:560px">The invisible honeypot is always on. Pick a visible challenge for registration — built-in math for private boards, or an external service (needs site key + secret) for public forums.</p>
 <?php $map = []; foreach ($settings as $s) $map[$s['key']] = $s['value']; $cp = $map['captcha_provider'] ?? 'honeypot'; ?>
-<form method="post" action="/admin/settings" class="form" style="max-width:560px">
+<form method="post" action="<?= e(url('/admin/settings')) ?>" class="form" style="max-width:560px">
 <?= \RetroBB\Core\Csrf::field() ?>
 <input type="hidden" name="return" value="spam">
 <input type="hidden" name="board_name" value="<?= e($map['board_name'] ?? 'RetroBB') ?>">

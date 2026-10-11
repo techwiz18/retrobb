@@ -76,10 +76,9 @@ Auth::validateSession();
 // runs first but only touches the DB when a session cookie is present.)
 // NOTE: plain require, never require_once — config.php returns a value,
 // and require_once would hand us `true` on second inclusion.
-if (!is_file($root . '/config.php') && !str_starts_with($_SERVER['REQUEST_URI'] ?? '/', '/install')) {
+if (!is_file($root . '/config.php') && !str_starts_with(Router::currentPath(), '/install')) {
     // Fresh upload: no config yet, so there is nothing to connect to.
-    header('Location: /install.php');
-    exit;
+    redirect('/install.php');
 }
 require $root . '/config.php';
 $needsInstall = false;
@@ -88,9 +87,8 @@ try {
 } catch (Throwable) {
     $needsInstall = true;
 }
-if ($needsInstall && !str_starts_with($_SERVER['REQUEST_URI'] ?? '/', '/install')) {
-    header('Location: /install.php');
-    exit;
+if ($needsInstall && !str_starts_with(Router::currentPath(), '/install')) {
+    redirect('/install.php');
 }
 
 Plugins::load();
@@ -185,7 +183,7 @@ $r->get('#^/search$#', [\RetroBB\Controllers\SearchController::class, 'index']);
 // skin switcher + legacy compat
 $r->get('#^/skin/([a-z0-9]+)$#', function (string $s) {
     if (feature('skin_selector') && in_array($s, ['classic', 'midnight', 'silver'], true)) {
-        setcookie('retrobb_skin', $s, time() + 86400 * 365, '/');
+        setcookie('retrobb_skin', $s, time() + 86400 * 365, base_path() ?: '/');
     }
     // Referer is client-controlled: only follow local paths, never "//host".
     $back = $_SERVER['HTTP_REFERER'] ?? '/';
@@ -198,7 +196,7 @@ $r->get('#^/skin/([a-z0-9]+)$#', function (string $s) {
 // theme switcher (light / dark / auto-follows-OS)
 $r->get('#^/theme/(light|dark|auto)$#', function (string $t) {
     if (in_array($t, allowed_themes(), true)) {
-        setcookie('retrobb_theme', $t, time() + 86400 * 365, '/');
+        setcookie('retrobb_theme', $t, time() + 86400 * 365, base_path() ?: '/');
     }
     $back = $_SERVER['HTTP_REFERER'] ?? '/';
     $bp = parse_url($back, PHP_URL_PATH) ?: '/';

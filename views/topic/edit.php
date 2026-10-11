@@ -1,5 +1,5 @@
 <?php /** @var array $post */ /** @var bool $is_first */ /** @var string|null $error */ ?>
-<div class="breadcrumb"><a href="/">Index</a> &raquo; <a href="<?= e(\RetroBB\Core\Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']])) ?>"><?= e($post['topic_title']) ?></a> &raquo; Edit post</div>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(\RetroBB\Core\Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']])) ?>"><?= e($post['topic_title']) ?></a> &raquo; Edit post</div>
 <div class="maintitle">Edit post</div>
 <?php if (!empty($error)): ?><div class="flash-error"><?= e($error) ?></div><?php endif; ?>
 <form method="post" class="form">

@@ -31,7 +31,7 @@ class ProfileController
             return;
         }
         $canonical = Slug::memberUrl($user);
-        if (\RetroBB\Core\Router::currentPath() !== $canonical) {
+        if (!\is_canonical($canonical)) {
             redirect($canonical, 301);
         }
         $pdo = Db::pdo();

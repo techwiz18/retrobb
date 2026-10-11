@@ -4,7 +4,7 @@
 <?php if (!empty($error)): ?><div class="flash-error"><?= e($error) ?></div><?php endif; ?>
 <?php if ($stage === 'form'): ?>
 <p class="muted">Bring over users (passwords keep working), categories, forums, topics and posts from phpBB 3.x or SMF 2.x. Your existing board stays put — imports only add. Skipped: polls, attachments, PMs, bans, avatars, permissions. Don't run twice: re-running imports everything again.</p>
-<form method="post" action="/admin/import/test" class="form" style="max-width:560px">
+<form method="post" action="<?= e(url('/admin/import/test')) ?>" class="form" style="max-width:560px">
 <?= \RetroBB\Core\Csrf::field() ?>
 <label>Source board<br><select name="source"><option value="phpbb">phpBB 3.x</option><option value="smf">SMF 2.x</option></select></label><br><br>
 <div class="cat-row">Source database (read-only access is enough)</div>
@@ -51,5 +51,5 @@
   <div class="recent-row"><span>Skipped</span><b><?= (int) ($tally['skipped'] ?? 0) ?></b></div>
 </div>
 <p class="muted">Imported members log in with their old <?= $source === 'smf' ? 'SMF' : 'phpBB' ?> passwords (upgraded silently on first login). Guest posts belong to the Guest account.</p>
-<p><a class="btn" href="/">Visit the board</a></p>
+<p><a class="btn" href="<?= e(url('/')) ?>">Visit the board</a></p>
 <?php endif; ?>

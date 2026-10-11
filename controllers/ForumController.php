@@ -25,9 +25,7 @@ class ForumController
             return;
         }
         $canonical = Slug::forumUrl($forum);
-        $path = \RetroBB\Core\Router::currentPath();
-        $base = strtok($path, '?');
-        if ($base !== $canonical) {
+        if (!\is_canonical($canonical)) {
             redirect($canonical, 301);
         }
         $page = max(1, (int) ($_GET['page'] ?? 1));

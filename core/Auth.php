@@ -19,9 +19,10 @@ class Auth
             return false;
         }
         // Harden the session cookie (no JS access, same-site only).
+        // Path follows the install: subpath boards scope it to the prefix.
         session_set_cookie_params([
             'lifetime' => 0,
-            'path' => '/',
+            'path' => \base_path() ?: '/',
             'httponly' => true,
             'samesite' => 'Lax',
         ]);

@@ -4,7 +4,7 @@
 <?php if (isset($_GET['saved'])): ?><div class="flash-ok">Features saved.</div><?php endif; ?>
 <?php if (isset($_GET['fixed-theme'])): ?><div class="flash-error">Default theme wasn't one members may pick, so it was set to an allowed mode instead.</div><?php endif; ?>
 <?php $map = []; foreach ($settings as $s) $map[$s['key']] = $s['value']; ?>
-<form method="post" action="/admin/features" class="form" style="max-width:560px">
+<form method="post" action="<?= e(url('/admin/features')) ?>" class="form" style="max-width:560px">
 <?= \RetroBB\Core\Csrf::field() ?>
 <div class="cat-row">Functionality</div>
 <p class="muted">Core posting, registration and moderation are always on — they would break the board. Everything below can be toggled freely.</p>
