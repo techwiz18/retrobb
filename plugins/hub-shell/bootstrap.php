@@ -89,6 +89,14 @@ Hooks::add_action('header', static function () {
         . 'document.querySelectorAll("[data-theme-btn]").forEach(function(b){themes.push(b.getAttribute("data-theme-btn"));});'
         . 'var skin=(ls&&skins.indexOf(ls)>=0)?ls:curSkin;'
         . 'var theme=(lt&&themes.indexOf(lt)>=0)?lt:curTheme;'
+        // Server-flagged landing (?picked=skin|theme from the switcher
+        // routes): an explicit choice was just made server-side (typed URL,
+        // bookmark, middle-click all skip the click seeder), so trust the
+        // server-rendered state for that dimension over stored values.
+        . 'var picked=null;try{picked=(location.search.match(/[?&]picked=(skin|theme)\\b/)||[])[1]||null;}catch(e){}'
+        . 'if(picked==="skin"){skin=skins.indexOf(curSkin)>=0?curSkin:skin;}'
+        . 'if(picked==="theme"){theme=themes.indexOf(curTheme)>=0?curTheme:theme;}'
+        . 'try{if(picked&&history.replaceState){history.replaceState(null,"",location.pathname+(location.hash||""));}}catch(e){}'
         . 'if(skin!==curSkin){body.className=body.className.replace(/skin-[a-z]+/,"skin-"+skin);setCookie("retrobb_skin",skin);}'
         . 'if(theme!==curTheme){body.className=body.className.replace(/theme-(light|dark|auto)/,"theme-"+theme);setCookie("retrobb_theme",theme);}'
         . 'setStore("hub-skin",skin);setStore("hub-theme",theme);paint();'
