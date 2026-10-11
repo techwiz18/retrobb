@@ -2,8 +2,6 @@
 $user = \RetroBB\Core\Auth::user();
 $skinClass = 'skin-' . skin() . ' theme-' . theme();
 $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
-$creditUrl = setting('credit_url', 'https://techwiz.dad');
-$creditHost = ($creditUrl !== '' && preg_match('#^https?://#i', $creditUrl)) ? (string) parse_url($creditUrl, PHP_URL_HOST) : '';
 ?>
 <!doctype html>
 <html lang="en">
@@ -55,7 +53,7 @@ $creditHost = ($creditUrl !== '' && preg_match('#^https?://#i', $creditUrl)) ? (
   <main><?= $content ?></main>
 
   <footer class="footer">
-    <div>Powered by <b>RetroBB</b><?php if ($creditHost !== ''): ?> by <a href="<?= e($creditUrl) ?>"><?= e($creditHost) ?></a><?php endif; ?> · Old-school soul, modern code · <?= date('Y') ?></div>
+    <div>Powered by <b>RetroBB</b> by <a href="https://techwiz.dad">techwiz.dad</a> · Old-school soul, modern code · <?= date('Y') ?></div>
     <?php \RetroBB\Core\Hooks::render_template_hook('footer', []); ?>
     <?php \RetroBB\Core\Hooks::do_action('footer'); ?>
   </footer>

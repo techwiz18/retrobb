@@ -110,7 +110,7 @@ class AdminController
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             redirect('/admin');
         }
-        $allowed = ['board_name', 'board_tagline', 'board_url', 'credit_url', 'posts_per_page', 'topics_per_page',
+        $allowed = ['board_name', 'board_tagline', 'board_url', 'posts_per_page', 'topics_per_page',
             'flood_seconds', 'edit_window_mins', 'delete_window_mins', 'captcha_provider', 'captcha_sitekey', 'captcha_secret', 'mail_from'];
         $pdo = Db::pdo();
         foreach ($allowed as $k) {
@@ -126,9 +126,6 @@ class AdminController
                     continue;
                 }
                 if ($k === 'board_url' && $v !== '' && !preg_match('#^https?://[^/]+#i', $v)) {
-                    continue;
-                }
-                if ($k === 'credit_url' && $v !== '' && !preg_match('#^https?://[^/]+#i', $v)) {
                     continue;
                 }
                 // Native upsert (MySQL reports rows-changed, so UPDATE-then-check misfires).
