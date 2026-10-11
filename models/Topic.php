@@ -40,6 +40,9 @@ class Topic
     {
         $title = trim($title);
         $bbcode = trim($bbcode);
+        if ($userId <= 0) {
+            return ['ok' => false, 'error' => 'Not logged in.'];
+        }
         if (mb_strlen($title) < 3 || mb_strlen($title) > 120) {
             return ['ok' => false, 'error' => 'Title must be 3–120 characters.'];
         }
@@ -71,6 +74,9 @@ class Topic
         $topic = self::find($topicId);
         if (!$topic) {
             return ['ok' => false, 'error' => 'Topic not found.'];
+        }
+        if ($userId <= 0) {
+            return ['ok' => false, 'error' => 'Not logged in.'];
         }
         if ((int) $topic['locked'] === 1) {
             return ['ok' => false, 'error' => 'This topic is locked.'];
