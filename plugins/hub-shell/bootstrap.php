@@ -24,7 +24,7 @@ use RetroBB\Core\Hooks;
 
 Hooks::add_action('head', static function () {
     echo '<style>'
-        . '.site-header{background:#1c2b4a;color:#f5e9b8}'
+        . '.site-header{background:#1c2b4a;color:#f5e9b8;margin:0 0 16px}'
         . '.site-header .wrap{max-width:860px;margin:0 auto;padding:0 16px}'
         . '.site-header .head-main{display:flex;align-items:center;gap:14px;padding:10px 16px;flex-wrap:wrap}'
         . '.site-header .head-util{display:flex;justify-content:flex-end;padding:0 16px 8px}'
@@ -38,6 +38,19 @@ Hooks::add_action('head', static function () {
         . ".site-header .switchers .grp button[aria-pressed='true']{opacity:1;font-weight:bold;text-decoration:none}"
         . '.site-footer{font-size:12px;color:#667;padding:22px 16px 26px;text-align:center}'
         . '.site-footer a{color:#1a3f7a}'
+        . 'body.theme-dark .site-footer{color:#93a0b4}'
+        . 'body.theme-dark .site-footer a{color:#9dbdea}'
+        // Palette follow: hub tokens → forum surfaces, classic skin only
+        // (hub tokens file states this sharing as the intent; other skins
+        // keep stock RetroBB values until mapped the same way).
+        . 'body.skin-classic.theme-light{--bg:#dfe6f0;--panel:#f4f6fa;--border:#5b7fb4;--title-a:#3d639b;--title-b:#6f97c8;'
+        . '--row:#f4f6fa;--row2:#e6ecf5;--link:#1a3f7a;--muted:#5a6577;--text:#1e2430;'
+        . '--bar-bg:#e9eef6;--sub-bg:#eef2f8;--sub-text:#445068;--head-a:#e8eef6;--head-b:#d3ddee;'
+        . '--quote-bg:#f4f6fa;--input-bg:#fff;--input-text:#1e2430;--btn-a:#fff;--btn-b:#cfd9e8;--btn-text:#1a3f7a}'
+        . 'body.skin-classic.theme-dark{--bg:#141b2c;--panel:#1b2740;--border:#4a6ea0;--title-a:#2b456e;--title-b:#4a6ea0;'
+        . '--row:#1b2740;--row2:#141b2c;--link:#9dbdea;--muted:#93a0b4;--text:#dbe3f0;'
+        . '--bar-bg:#101827;--sub-bg:#141b2c;--sub-text:#93a0b4;--head-a:#4a6ea0;--head-b:#2b456e;'
+        . '--quote-bg:#141b2c;--input-bg:#101827;--input-text:#dbe3f0;--btn-a:#4a6ea0;--btn-b:#2b456e;--btn-text:#fff}'
         . '@media(max-width:640px){.site-header .mainnav{margin-left:0}}'
         . '</style>';
 });
@@ -77,7 +90,7 @@ Hooks::add_action('header', static function () {
         . 'if(skin!==curSkin){body.className=body.className.replace(/skin-[a-z]+/,"skin-"+skin);setCookie("retrobb_skin",skin);}'
         . 'if(theme!==curTheme){body.className=body.className.replace(/theme-(light|dark|auto)/,"theme-"+theme);setCookie("retrobb_theme",theme);}'
         . 'setStore("hub-skin",skin);setStore("hub-theme",theme);paint();'
-        . 'document.addEventListener("click",function(e){'
+        . 'function onPick(e){'
         . 'var s=e.target.closest?e.target.closest("[data-skin-btn]"):null;'
         . 'var t=e.target.closest?e.target.closest("[data-theme-btn]"):null;'
         . 'var a=e.target.closest?e.target.closest("a[href]"):null;'
@@ -86,7 +99,9 @@ Hooks::add_action('header', static function () {
         . 'body.className=body.className.replace(/skin-[a-z]+/,"skin-"+sv);skin=sv;paint();}'
         . 'if(t){var tv=t.getAttribute("data-theme-btn");setStore("hub-theme",tv);setCookie("retrobb_theme",tv);'
         . 'body.className=body.className.replace(/theme-(light|dark|auto)/,"theme-"+tv);theme=tv;paint();}'
-        . '});'
+        . '}'
+        . 'document.addEventListener("click",onPick);'
+        . 'document.addEventListener("auxclick",onPick);'
         . 'function paint(){'
         . 'document.querySelectorAll("[data-skin-btn]").forEach(function(b){b.setAttribute("aria-pressed",b.getAttribute("data-skin-btn")===skin?"true":"false");});'
         . 'document.querySelectorAll("[data-theme-btn]").forEach(function(b){b.setAttribute("aria-pressed",b.getAttribute("data-theme-btn")===theme?"true":"false");});}'
