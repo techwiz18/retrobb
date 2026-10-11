@@ -101,6 +101,44 @@ if ($needsInstall && !$onInstall) {
 Plugins::load();
 \RetroBB\Core\Hooks::do_action('boot');
 
+// Canonical-host enforcement (e.g. subdomain → hub-subpath consolidation).
+// Off unless enabled via config.php / RETROBB_FORCE_BOARD_HOST. When on,
+// requests whose Host differs from board_url's host get a 301 to the board
+// URL — except requests carrying the trusted proxy header (the reverse
+// proxy must send it; presence means "I already routed this"). Lives in
+// PHP rather than .htaccess so site owners never lose it to a re-upload,
+// and canonical_url() keeps prefixed paths from doubling (/forum/x stays
+// /forum/x instead of becoming /forum/forum/x).
+$forceHost = getenv('RETROBB_FORCE_BOARD_HOST');
+if ($forceHost === false) {
+    try {
+        $cfgHost = require $root . '/config.php';
+        $forceHost = !empty($cfgHost['force_board_host']) ? '1' : '';
+    } catch (Throwable) {
+        $forceHost = '';
+    }
+}
+if (PHP_SAPI !== 'cli' && $forceHost !== '' && $forceHost !== '0' && isset($_SERVER['HTTP_HOST'])) {
+    $boardUrl = setting('board_url', '');
+    $parts = ($boardUrl !== '' && preg_match('#^https?://#i', $boardUrl)) ? parse_url($boardUrl) : null;
+    $proxyName = getenv('RETROBB_PROXY_HEADER');
+    if ($proxyName === false) {
+        try {
+            $cfgProxy = require $root . '/config.php';
+            $proxyName = $cfgProxy['trusted_proxy_header'] ?? '';
+        } catch (Throwable) {
+            $proxyName = '';
+        }
+    }
+    $proxied = $proxyName !== '' && !empty($_SERVER['HTTP_' . strtoupper(str_replace('-', '_', (string) $proxyName))]);
+    $curHost = strtolower(explode(':', (string) $_SERVER['HTTP_HOST'])[0]);
+    if ($parts !== null && !$proxied && strcasecmp($curHost, strtolower($parts['host'] ?? '')) !== 0) {
+        $target = canonical_url(Router::currentPath());
+        $qs = (string) ($_SERVER['QUERY_STRING'] ?? '');
+        redirect($target . ($qs !== '' ? '?' . $qs : ''), 301);
+    }
+}
+
 $r = new Router();
 $r->get('#^/$#', [\RetroBB\Controllers\HomeController::class, 'index']);
 $r->get('#^/forum/([^/]+)$#', [\RetroBB\Controllers\ForumController::class, 'show']);
