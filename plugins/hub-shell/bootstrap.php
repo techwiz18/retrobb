@@ -38,7 +38,6 @@ Hooks::add_action('head', static function () {
         . ".site-header .switchers .grp button[aria-pressed='true']{opacity:1;font-weight:bold;text-decoration:none}"
         . '.footer{background:transparent;border:0;border-top:1px solid var(--border);font-size:12px;padding:22px 16px 26px;text-align:center;color:var(--muted)}'
         . '.footer a{color:var(--link)}'
-        . '.footer>div+div{margin-top:6px}'
         // Board palette lives in stock CSS now (ships for everyone); only
         // hub-chrome rules below.
         . '@media (prefers-color-scheme:dark){'
@@ -118,5 +117,4 @@ Hooks::add_filter('show_default_footer', static fn() => false);
 
 Hooks::add_action('footer', static function () {
     echo '<div>Powered by curiosity · <strong>techwiz.dad</strong> · Old-school soul, modern code · ' . date('Y') . '</div>';
-    echo '<div>Hub is static · Forum lives at <a href="https://techwiz.dad/forum/">https://techwiz.dad/forum/</a></div>';
 });
