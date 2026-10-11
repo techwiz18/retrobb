@@ -23,6 +23,8 @@ MIT licensed. Made with nostalgia by [techwiz.dad](https://techwiz.dad).
 - Alerts, mentions, reactions, and private messages (with drafts, trash,
   and reply threading) — every one toggleable board-wide in AdminCP → Features
 - Real "new post" markers: per-user read tracking, not just recent activity
+- Search across titles and bodies; importers from phpBB and SMF
+- Forgot-password flow, user post deletes (configurable window), bare URLs link themselves
 - Registration spam protection: invisible honeypot, built-in human check,
   or plug in Cloudflare Turnstile / hCaptcha / reCAPTCHA
 - Moderation done right: reports + mod queue, warnings, temp/perm bans,

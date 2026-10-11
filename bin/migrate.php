@@ -65,9 +65,9 @@ $defaults = [
 ];
 // default settings: seed-only (INSERT IGNORE) so upgrades never clobber
 // an admin's existing values — new keys arrive, old ones stay untouched.
-$seed = $pdo->prepare('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)');
+$seedUpsert = $pdo->prepare('INSERT IGNORE INTO settings (`key`, `value`) VALUES (?, ?)');
 foreach ($defaults as $k => $v) {
-    $seed->execute([$k, $v]);
+    $seedUpsert->execute([$k, $v]);
 }
 
 // charset healing: only utf8mb4 stores 4-byte emoji. Anything else degrades

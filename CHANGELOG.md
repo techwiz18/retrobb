@@ -1,5 +1,11 @@
 # Changelog — RetroBB by techwiz.dad. Format follows keep-a-changelog loosely.
 
+## [0.4.0-beta.2] — 2026-10-11 (pre-release)
+Small follow-up: staff can delete any post (was author-only), topic/reply
+creation rejects user id 0, uniform button sizing in postbit and modbar.
+No migration changes since beta.1 — drop the files over beta.1 and go
+(no database update needed unless skipped).
+
 ## [0.4.0-beta.1] — 2026-10-11 (pre-release)
 Search, importers, and account recovery. Tinkerers welcome; not production-hardened yet.
 
@@ -73,6 +79,10 @@ Social batch plus board control. Tinkerers welcome; not production-hardened yet.
 - Mass actions on topics/posts (bulk move/delete/lock/pin from forum and mod views).
 - Sub-forums (nested forum hierarchy; importers currently flatten).
 - Optional homepage link in the nav (for boards with a dedicated home page) → v0.6.
+- Query batching pass (mention lookups, PM tab counts, board subselects).
+- Login throttle that survives cookie drops (persistent/IP-based).
+- Reply alerts to all thread participants (currently the starter only).
+- Import re-run guard (retries currently duplicate).
 - Email verification (activation links; gated posting) → v0.5.
 
 ## [0.2.0-beta.1] — 2026-10-08 (pre-release)

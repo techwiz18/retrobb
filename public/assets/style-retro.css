@@ -34,7 +34,8 @@ main { padding:12px; }
 .actionrow { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 2px; flex-wrap:wrap; }
 .btn { display:inline-block; background:linear-gradient(180deg, var(--btn-a), var(--btn-b)); border:1px solid var(--border); padding:6px 14px; border-radius:3px; text-decoration:none; color:var(--btn-text); font-weight:bold; box-shadow:0 1px 0 rgba(255,255,255,.25) inset; }
 .btn:hover { filter:brightness(1.05); }
-.smallbtn { background:var(--bar-bg); color:var(--text); border:1px solid var(--border); border-radius:3px; padding:2px 8px; cursor:pointer; font-size:11px; }
+.smallbtn { background:var(--bar-bg); color:var(--text); border:1px solid var(--border); border-radius:3px; padding:2px 8px; cursor:pointer; font:11px/1.5 Verdana,Tahoma,Arial,sans-serif; vertical-align:middle; }
+button.smallbtn { margin:0; }
 a.smallbtn { display:inline-block; text-decoration:none; color:inherit; }
 .modbar { border:1px dashed var(--border); background:var(--bar-bg); padding:6px 10px; margin-top:8px; font-size:12px; }
 .modbar .modlabel { font-weight:bold; margin-right:6px; }
