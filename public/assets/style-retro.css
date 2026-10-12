@@ -25,6 +25,11 @@ main { padding:12px; }
 .forum-list, .topic-list { border:1px solid var(--border); border-top:0; }
 .forum-row, .topic-row { display:grid; grid-template-columns:44px 1fr 110px 230px; gap:8px; padding:8px 10px; background:var(--row); border-bottom:1px solid var(--border); align-items:center; }
 .topic-row { grid-template-columns:36px 1fr 70px 70px 160px; }
+/* Long titles/URLs must wrap instead of blowing out grids and panels
+   (mobile issue #1): grid/flex children need min-width:0 to shrink, and
+   title-bearing blocks need breakable words. */
+.topic-row > div, .forum-row > div, .recent-row > *, .actionrow > *, .postbody > div { min-width:0; }
+.topic-list a, .forum-list a, .maintitle, .breadcrumb, .subtitle, .recent-row { overflow-wrap:anywhere; }
 .topic-icon { font-size:17px; text-align:center; }
 .forum-row:nth-child(even), .topic-row:nth-child(even) { background:var(--row2); }
 .topic-head { display:grid; grid-template-columns:36px 1fr 70px 70px 160px; gap:8px; padding:6px 10px; background:linear-gradient(180deg, var(--head-a), var(--head-b)); font-size:11px; font-weight:bold; border-bottom:1px solid var(--border); }
