@@ -182,6 +182,16 @@ class ProfileController
             $_SESSION['flash_ok'] = 'Password changed.';
             redirect(\RetroBB\Core\Slug::memberUrl($user));
         }
+        $res = null;
+        if ($which === 'avatar') {
+            $err = $this->handleAvatar((int) $me['id'], $user);
+            if ($err !== null) {
+                \RetroBB\Core\View::render('profile/edit', ['edituser' => User::find((int) $me['id']), 'pageTitle' => 'Edit profile', 'error' => $err]);
+                return;
+            }
+            $_SESSION['flash_ok'] = 'Avatar updated.';
+            redirect(\RetroBB\Core\Slug::memberUrl(User::find((int) $me['id'])));
+        }
         $res = User::updateProfile((int) $me['id'], trim((string) ($_POST['email'] ?? '')), (string) ($_POST['bio'] ?? ''));
         if (!$res['ok']) {
             \RetroBB\Core\View::render('profile/edit', ['edituser' => $user, 'pageTitle' => 'Edit profile', 'error' => $res['error']]);
@@ -189,5 +199,78 @@ class ProfileController
         }
         $_SESSION['flash_ok'] = 'Profile updated.';
         redirect(\RetroBB\Core\Slug::memberUrl(User::find((int) $me['id'])));
+    }
+
+    /**
+     * Avatar choice (own profile only — settingsSubmit already scoped).
+     * Returns an error string, or null on success.
+     */
+    private function handleAvatar(int $id, array $user): ?string
+    {
+        $kind = (string) ($_POST['avatar_kind'] ?? 'none');
+        if ($kind === 'upload' && !feature('avatars_upload')) {
+            return 'Avatar uploads are disabled.';
+        }
+        if ($kind === 'link' && !feature('avatars_link')) {
+            return 'Linked avatars are disabled.';
+        }
+        if ($kind !== 'upload' && $kind !== 'link') {
+            self::dropAvatarFile((string) ($user['avatar_file'] ?? ''));
+            User::updateAvatar($id, 'none', '', '');
+            return null;
+        }
+        if ($kind === 'link') {
+            $url = mb_substr(trim((string) ($_POST['avatar_url'] ?? '')), 0, 500);
+            if (!preg_match('#^https?://[^/]+/.+#i', $url) || !preg_match('#\.(jpe?g|png|gif|webp|avif)(\?.*)?$#i', $url)) {
+                return 'Give a direct https link ending in .jpg, .png, .gif, .webp or .avif.';
+            }
+            self::dropAvatarFile((string) ($user['avatar_file'] ?? ''));
+            User::updateAvatar($id, 'link', $url, '');
+            return null;
+        }
+        // Upload: validate the actual bytes, never the client-supplied name.
+        $f = $_FILES['avatar'] ?? null;
+        if (!is_array($f) || ($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            return 'Choose an image file to upload.';
+        }
+        $limits = avatar_limits();
+        if ((int) ($f['size'] ?? 0) > $limits['bytes']) {
+            return 'That file is over the ' . (int) round($limits['bytes'] / 1024) . ' KB limit.';
+        }
+        $info = @getimagesize((string) ($f['tmp_name'] ?? ''));
+        $map = [IMAGETYPE_JPEG => 'jpg', IMAGETYPE_PNG => 'png', IMAGETYPE_GIF => 'gif'];
+        if ($info === false || !isset($map[$info[2]])) {
+            return 'Only JPG, PNG and GIF uploads are accepted.';
+        }
+        if ($info[0] > $limits['width'] || $info[1] > $limits['height']) {
+            return 'That image is ' . $info[0] . '×' . $info[1] . ' — max is ' . $limits['width'] . '×' . $limits['height'] . 'px.';
+        }
+        $dir = dirname(__DIR__) . '/public/avatars';
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
+            return 'Avatar storage is unavailable — tell the site owner.';
+        }
+        try {
+            $name = 'u' . $id . '_' . bin2hex(random_bytes(8)) . '.' . $map[$info[2]];
+        } catch (\Throwable) {
+            return 'Could not store that file — try again.';
+        }
+        if (!@move_uploaded_file((string) $f['tmp_name'], $dir . '/' . $name)) {
+            return 'Could not store that file — try again.';
+        }
+        self::dropAvatarFile((string) ($user['avatar_file'] ?? ''));
+        User::updateAvatar($id, 'upload', '', $name);
+        return null;
+    }
+
+    /** Delete a stored avatar file. Basename-guarded: never touches anything else. */
+    private static function dropAvatarFile(string $file): void
+    {
+        if (!preg_match('#^[A-Za-z0-9_-]+\.(jpg|jpeg|png|gif)$#', $file)) {
+            return;
+        }
+        $path = dirname(__DIR__) . '/public/avatars/' . $file;
+        if (is_file($path)) {
+            @unlink($path);
+        }
     }
 }

@@ -13,6 +13,8 @@
 <label><input type="checkbox" name="feature_mentions" value="1" <?= ($map['feature_mentions'] ?? '1') === '1' ? 'checked' : '' ?>> @mentions (link @usernames to profiles + notify)</label><br><br>
 <label><input type="checkbox" name="feature_reactions" value="1" <?= ($map['feature_reactions'] ?? '1') === '1' ? 'checked' : '' ?>> Reactions (👍 🙏 😄 on posts)</label><br><br>
 <label><input type="checkbox" name="feature_pms" value="1" <?= ($map['feature_pms'] ?? '1') === '1' ? 'checked' : '' ?>> Private messages</label><br><br>
+<label><input type="checkbox" name="feature_avatars_upload" value="1" <?= ($map['feature_avatars_upload'] ?? '1') === '1' ? 'checked' : '' ?>> Avatar uploads</label><br>
+<label><input type="checkbox" name="feature_avatars_link" value="1" <?= ($map['feature_avatars_link'] ?? '1') === '1' ? 'checked' : '' ?>> Linked avatars (hotlinked URLs)</label><br><br>
 <div class="cat-row">Appearance</div>
 <label>Default skin<br><select name="default_skin"><option value="classic" <?= ($map['default_skin'] ?? 'classic') === 'classic' ? 'selected' : '' ?>>Classic</option><option value="midnight" <?= ($map['default_skin'] ?? '') === 'midnight' ? 'selected' : '' ?>>Midnight</option><option value="silver" <?= ($map['default_skin'] ?? '') === 'silver' ? 'selected' : '' ?>>Silver</option></select></label><br><br>
 <label>Default theme<br><select name="default_theme"><option value="auto" <?= ($map['default_theme'] ?? 'auto') === 'auto' ? 'selected' : '' ?>>Auto (follows device)</option><option value="light" <?= ($map['default_theme'] ?? '') === 'light' ? 'selected' : '' ?>>Light</option><option value="dark" <?= ($map['default_theme'] ?? '') === 'dark' ? 'selected' : '' ?>>Dark</option></select></label><br><br>

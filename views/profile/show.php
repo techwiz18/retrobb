@@ -1,8 +1,7 @@
 <?php /** @var array $profile */ /** @var array $recent */ /** @var array $warnings */ /** @var array|null $activeBan */ ?>
-<?php $hue = abs(crc32($profile['username'])) % 360; $initial = mb_strtoupper(mb_substr($profile['username'], 0, 1)); ?>
 <div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(url('/members')) ?>">Members</a> &raquo; <?= e($profile['username']) ?></div>
 <div class="profile-card">
-  <span class="avatar avatar-lg" style="background:hsl(<?= $hue ?>,45%,55%)"><?= e($initial) ?></span>
+  <?= avatar_html($profile, true) ?>
   <div class="profile-id">
     <div class="profile-name"><?= e($profile['username']) ?></div>
     <div><span class="group group-<?= e($profile['user_group']) ?>"><?= e($profile['user_group']) ?></span>

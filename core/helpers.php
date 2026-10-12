@@ -227,3 +227,68 @@ function time_ago(string $datetime): string
     }
     return $t->format('M j, Y g:ia');
 }
+
+/** Parse a php.ini shorthand byte value (128M, 8M, 512K). 0 = unlimited. */
+function php_shorthand_bytes(string $v): int
+{
+    $v = trim($v);
+    if ($v === '' || $v === '-1') {
+        return 0;
+    }
+    $unit = strtolower(substr($v, -1));
+    $num = (float) $v;
+    if (ctype_digit($unit)) {
+        return (int) $num;
+    }
+    return (int) ($num * match ($unit) {
+        'g' => 1024 * 1024 * 1024,
+        'm' => 1024 * 1024,
+        'k' => 1024,
+        default => 1,
+    });
+}
+
+/**
+ * Effective avatar limits: admin caps clamped by what the host allows
+ * (upload_max_filesize / post_max_size win — the admin UI says so).
+ * @return array{bytes:int, width:int, height:int}
+ */
+function avatar_limits(): array
+{
+    $bytes = max(10, min(2048, (int) setting('avatar_max_kb', '100'))) * 1024;
+    foreach ([ini_get('upload_max_filesize'), ini_get('post_max_size')] as $h) {
+        $cap = is_string($h) ? php_shorthand_bytes($h) : 0;
+        if ($cap > 0) {
+            $bytes = min($bytes, $cap);
+        }
+    }
+    return [
+        'bytes' => $bytes,
+        'width' => max(16, min(2000, (int) setting('avatar_max_width', '200'))),
+        'height' => max(16, min(2000, (int) setting('avatar_max_height', '200'))),
+    ];
+}
+
+/**
+ * Avatar <img> for uploads/links, initial-letter fallback otherwise.
+ * Missing keys (pre-avatar schema) safely fall back to the initial.
+ */
+function avatar_html(array $user, bool $large = false): string
+{
+    $kind = $user['avatar_kind'] ?? 'none';
+    $src = '';
+    if ($kind === 'upload' && isset($user['avatar_file']) && preg_match('#^[A-Za-z0-9_-]+\.(jpg|jpeg|png|gif)$#', (string) $user['avatar_file'])) {
+        $src = url('/avatars/' . $user['avatar_file']);
+    } elseif ($kind === 'link' && isset($user['avatar_url']) && preg_match('#^https?://[^/]+/.+#i', (string) $user['avatar_url']) && preg_match('#\.(jpe?g|png|gif|webp|avif)(\?.*)?$#i', (string) $user['avatar_url'])) {
+        $src = $user['avatar_url'];
+    }
+    $cls = $large ? 'avatarimg avatar-lg' : 'avatarimg';
+    if ($src !== '') {
+        return '<img class="' . $cls . '" src="' . e($src) . '" alt="" loading="lazy">';
+    }
+    $name = (string) ($user['username'] ?? '?');
+    $hue = abs(crc32($name)) % 360;
+    $initial = mb_strtoupper(mb_substr($name, 0, 1));
+    $lg = $large ? ' avatar-lg' : '';
+    return '<span class="avatar' . $lg . '" style="background:hsl(' . $hue . ',45%,55%)">' . e($initial) . '</span>';
+}

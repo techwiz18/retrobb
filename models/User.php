@@ -105,6 +105,14 @@ class User
         return ['ok' => true];
     }
 
+    /** Persist avatar choice. $kind: none|upload|link. Caller validates. */
+    public static function updateAvatar(int $id, string $kind, string $url, string $file): void
+    {
+        $kind = in_array($kind, ['none', 'upload', 'link'], true) ? $kind : 'none';
+        Db::pdo()->prepare('UPDATE users SET avatar_kind=?, avatar_url=?, avatar_file=? WHERE id=?')
+            ->execute([$kind, mb_substr($url, 0, 500), mb_substr($file, 0, 64), $id]);
+    }
+
     /** Change password after verifying the current one. Returns [ok, error?]. */
     public static function changePassword(int $id, string $current, string $new): array
     {

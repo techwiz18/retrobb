@@ -16,7 +16,6 @@
 </div>
 <?php endif; ?>
 <?php foreach ($posts as $i => $p): ?>
-<?php $hue = abs(crc32($p['username'])) % 360; $initial = mb_strtoupper(mb_substr($p['username'], 0, 1)); ?>
 <div class="postbit" id="p<?= (int) $p['id'] ?>" data-username="<?= e($p['username']) ?>">
   <?php $me = \RetroBB\Core\Auth::user(); ?>
   <div class="posthead">
@@ -40,7 +39,7 @@
   </div>
   <div class="postbody">
     <div class="postleft">
-      <span class="avatar" style="background:hsl(<?= $hue ?>,45%,55%)"><?= e($initial) ?></span>
+      <?= avatar_html($p) ?>
       <b class="postuser"><a href="<?= e(\RetroBB\Core\Slug::memberUrl(['id' => $p['user_id'], 'username' => $p['username']])) ?>"><?= e($p['username']) ?></a></b>
       <span class="group group-<?= e($p['user_group']) ?>"><?= e($p['user_group']) ?></span>
       <small class="postmeta"><?= (int) $p['user_posts'] ?> posts<br>Joined <?= e(substr($p['user_since'], 0, 10)) ?></small>

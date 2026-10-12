@@ -121,7 +121,8 @@ class AdminController
             redirect('/admin');
         }
         $allowed = ['board_name', 'board_tagline', 'board_url', 'posts_per_page', 'topics_per_page',
-            'flood_seconds', 'edit_window_mins', 'delete_window_mins', 'captcha_provider', 'captcha_sitekey', 'captcha_secret', 'mail_from'];
+            'flood_seconds', 'edit_window_mins', 'delete_window_mins', 'captcha_provider', 'captcha_sitekey', 'captcha_secret', 'mail_from',
+            'avatar_max_kb', 'avatar_max_width', 'avatar_max_height'];
         $pdo = Db::pdo();
         foreach ($allowed as $k) {
             if (isset($_POST[$k])) {
@@ -131,6 +132,12 @@ class AdminController
                 }
                 if (in_array($k, ['flood_seconds', 'edit_window_mins', 'delete_window_mins'], true)) {
                     $v = (string) max(0, min(3600, (int) $v));
+                }
+                if ($k === 'avatar_max_kb') {
+                    $v = (string) max(10, min(2048, (int) $v));
+                }
+                if (in_array($k, ['avatar_max_width', 'avatar_max_height'], true)) {
+                    $v = (string) max(16, min(2000, (int) $v));
                 }
                 if ($k === 'captcha_provider' && !in_array($v, ['honeypot', 'builtin', 'turnstile', 'hcaptcha', 'recaptcha'], true)) {
                     continue;
@@ -153,7 +160,7 @@ class AdminController
         }
         $pdo = Db::pdo();
         $upsert = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
-        foreach (['feature_alerts', 'feature_mentions', 'feature_reactions', 'feature_pms', 'skin_selector'] as $k) {
+        foreach (['feature_alerts', 'feature_mentions', 'feature_reactions', 'feature_pms', 'feature_avatars_upload', 'feature_avatars_link', 'skin_selector'] as $k) {
             $upsert->execute([$k, isset($_POST[$k]) ? '1' : '0']);
         }
         foreach (['theme_light', 'theme_dark', 'theme_auto'] as $k) {
