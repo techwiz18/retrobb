@@ -13,7 +13,7 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
 <?php if (!empty($canonical)): ?><link rel="canonical" href="<?= e($canonical) ?>"><?php endif; ?>
 <meta property="og:title" content="<?= e($title) ?>">
 <meta property="og:type" content="website">
-<link rel="stylesheet" href="<?= e(url('/assets/style-retro.css')) ?>">
+<link rel="stylesheet" href="<?= e(url('/assets/style-retro.css') . '?v=' . (int) @filemtime(dirname(__DIR__) . '/public/assets/style-retro.css')) ?>">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='4' width='26' height='25' rx='2' fill='%233A6EA5'/%3E%3Crect x='9' y='4' width='14' height='9' fill='%23c9d2e4'/%3E%3Crect x='19' y='4' width='4' height='9' fill='%23232c40'/%3E%3Crect x='6' y='17' width='20' height='9' rx='1' fill='%23f4f6fb'/%3E%3Crect x='9' y='20' width='14' height='2' fill='%2398a5b3'/%3E%3C/svg%3E">
 <?php \RetroBB\Core\Hooks::do_action('head'); ?>
 <?php $avaCol = (function () { try { $l = avatar_limits(); return max(170, min((int) $l['width'] + 20, 320)); } catch (\Throwable) { return 170; } })(); ?>
@@ -66,6 +66,6 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
     <?php \RetroBB\Core\Hooks::do_action('footer'); ?>
   </footer>
 </div>
-<script src="<?= e(url('/assets/forum.js')) ?>"></script>
+<script src="<?= e(url('/assets/forum.js') . '?v=' . (int) @filemtime(dirname(__DIR__) . '/public/assets/forum.js')) ?>"></script>
 </body>
 </html>

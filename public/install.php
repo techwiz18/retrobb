@@ -28,6 +28,20 @@ $force = isset($_GET['force']);
 // admins legitimately install into pre-created (even used) databases — but it
 // requires explicit confirmation on the owner step.
 $installed = is_file($lock) && !$force;
+// Re-installing over a live board (?force=1) requires a super-admin session:
+// without this, anyone could re-run the wizard and overwrite config.php +
+// mint a rogue owner account whenever the self-rename failed. Locked out?
+// Delete install.php + installed.lock via your hosting panel instead.
+if (is_file($lock) && $force) {
+    $forceUser = \RetroBB\Core\Auth::user();
+    $forceOk = $forceUser !== null && \RetroBB\Core\Auth::isSuper();
+    if (!$forceOk) {
+        http_response_code(403);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "Installer is locked: log in as a super admin to re-run it,\nor delete install.php and storage/installed.lock by hand.";
+        exit;
+    }
+}
 
 $steps = ['database', 'board', 'features', 'owner'];
 $step = isset($_GET['step']) ? (string) $_GET['step'] : 'welcome';

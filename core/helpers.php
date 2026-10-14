@@ -10,6 +10,24 @@ function e(?string $s): string
 
 function redirect(string $url, int $code = 302): void
 {
+    // Choke point: never emit an off-site redirect, no matter what a caller
+    // passes. Absolute URLs survive only when they point back at this host
+    // (canonical-host 301s) or the configured board host; everything else
+    // (protocol-relative, backslashes, schemes) collapses to '/'.
+    if (preg_match('#^[a-z][a-z0-9+.-]*://#i', $url)) {
+        $h = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $mine = strtolower(explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''))[0]);
+        $boardHost = '';
+        $boardUrl = setting('board_url', '');
+        if ($boardUrl !== '' && preg_match('#^https?://#i', $boardUrl)) {
+            $boardHost = strtolower((string) parse_url($boardUrl, PHP_URL_HOST));
+        }
+        if ($h === '' || ($h !== $mine && $h !== $boardHost)) {
+            $url = '/';
+        }
+    } elseif (str_starts_with($url, '//') || str_contains($url, '\\') || preg_match('#^[a-z][a-z0-9+.-]*:#i', $url)) {
+        $url = '/';
+    }
     header('Location: ' . url($url), true, $code);
     exit;
 }
