@@ -19,7 +19,7 @@
   <label><input type="radio" name="avatar_kind" value="none" <?= ($edituser['avatar_kind'] ?? 'none') === 'none' ? 'checked' : '' ?>> No avatar</label><br>
   <?php if (feature('avatars_upload')): ?>
   <?php $lim = avatar_limits(); ?>
-  <label><input type="radio" name="avatar_kind" value="upload" <?= ($edituser['avatar_kind'] ?? '') === 'upload' ? 'checked' : '' ?>> Upload (JPG/PNG/GIF, max <?= (int) round($lim['bytes'] / 1024) ?> KB<?= avatar_resize_available() ? ', auto-shrunk to ' . $lim['width'] . '×' . $lim['height'] . 'px' : ', must fit ' . $lim['width'] . '×' . $lim['height'] . 'px' ?>)</label><br>
+  <label><input type="radio" name="avatar_kind" value="upload" <?= ($edituser['avatar_kind'] ?? '') === 'upload' ? 'checked' : '' ?>> Upload (JPG/PNG/GIF, max <?= (int) round($lim['bytes'] / 1024) ?> KB<?= avatar_resize_available() ? ', larger images are shrunk to fit' : '' ?>, max <?= $lim['width'] ?>×<?= $lim['height'] ?>px)</label><br>
   <input type="file" name="avatar" accept=".jpg,.jpeg,.png,.gif"><br>
   <?php endif; ?>
   <?php if (feature('avatars_link')): ?>

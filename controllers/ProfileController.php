@@ -276,7 +276,7 @@ class ProfileController
         } else {
             if (!avatar_resize_available()) {
                 return 'That image is ' . $w . '×' . $h . ' — max is ' . $limits['width'] . '×' . $limits['height']
-                    . 'px. Shrink it first, or ask the host to enable PHP GD for auto-resize.';
+                    . 'px. Please shrink it and try again.';
             }
             if ($w <= 0 || $h <= 0 || $w * $h > 25000000) {
                 return 'That image is too large to process.';
