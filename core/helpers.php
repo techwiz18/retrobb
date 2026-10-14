@@ -296,12 +296,12 @@ function avatar_html(array $user, bool $large = false): string
     }
     $cls = $large ? 'avatarimg avatar-lg' : 'avatarimg';
     // Display size follows the admin's max dimensions (uploads are shrunk
-    // to fit on the way in); the profile render doubles it for presence.
+    // to fit on the way in) — identical in posts and on profiles.
     // Width + aspect-ratio (never fixed height) so narrow columns and the
     // max-width guard can shrink without distortion.
     $lim = avatar_limits();
-    $w = $large ? min($lim['width'] * 2, 400) : $lim['width'];
-    $h = $large ? min($lim['height'] * 2, 400) : $lim['height'];
+    $w = (int) $lim['width'];
+    $h = (int) $lim['height'];
     // Images render at the configured caps with aspect preserved (the
     // postbit column scales from the same caps, so nothing spills); the
     // max-width guard only bites on viewports narrower than the layout.
