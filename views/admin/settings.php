@@ -17,7 +17,7 @@
 <label>Mail sender (password resets; blank = automatic)<br><input type="email" name="mail_from" value="<?= e($map['mail_from'] ?? '') ?>" placeholder="noreply@example.com" style="width:100%"></label><br><br>
 <label>Avatar max file size (KB, capped by host limits)<br><input type="number" name="avatar_max_kb" min="10" max="2048" value="<?= e($map['avatar_max_kb'] ?? '100') ?>" style="width:120px"></label><br>
 <?php $effKb = (int) round(avatar_limits()['bytes'] / 1024); ?>
-<small class="muted">Effective limit after host caps: <?= $effKb ?> KB — this is the number members see.</small><br><br>
+<small class="muted">Effective limit after host caps: <?= $effKb ?> KB — this is the number members see. Display size follows the max dimensions below.</small><br><br>
 <label>Avatar max dimensions (px)<?php if (!avatar_resize_available()): ?> — oversized uploads are rejected (PHP GD unavailable, so no auto-resize)<?php endif; ?><br><input type="number" name="avatar_max_width" min="16" max="2000" value="<?= e($map['avatar_max_width'] ?? '200') ?>" style="width:100px"> × <input type="number" name="avatar_max_height" min="16" max="2000" value="<?= e($map['avatar_max_height'] ?? '200') ?>" style="width:100px"></label><br><br>
 <button class="btn" type="submit">Save settings</button>
 </form>
