@@ -270,6 +270,18 @@ function avatar_limits(): array
 }
 
 /**
+ * Whether uploaded avatars can be resized server-side (PHP GD). Shared
+ * hosts without GD fall back to rejecting over-dimension uploads.
+ */
+function avatar_resize_available(): bool
+{
+    return extension_loaded('gd') && function_exists('imagecreatetruecolor')
+        && function_exists('imagecopyresampled') && function_exists('imagecreatefromjpeg')
+        && function_exists('imagecreatefrompng') && function_exists('imagecreatefromgif')
+        && function_exists('imagejpeg') && function_exists('imagepng') && function_exists('imagegif');
+}
+
+/**
  * Avatar <img> for uploads/links, initial-letter fallback otherwise.
  * Missing keys (pre-avatar schema) safely fall back to the initial.
  */

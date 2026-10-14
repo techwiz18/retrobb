@@ -242,9 +242,6 @@ class ProfileController
         if ($info === false || !isset($map[$info[2]])) {
             return 'Only JPG, PNG and GIF uploads are accepted.';
         }
-        if ($info[0] > $limits['width'] || $info[1] > $limits['height']) {
-            return 'That image is ' . $info[0] . '×' . $info[1] . ' — max is ' . $limits['width'] . '×' . $limits['height'] . 'px.';
-        }
         $dir = dirname(__DIR__) . '/public/avatars';
         if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
             return 'Avatar storage is unavailable — tell the site owner.';
@@ -254,11 +251,80 @@ class ProfileController
         } catch (\Throwable) {
             return 'Could not store that file — try again.';
         }
-        if (!@move_uploaded_file((string) $f['tmp_name'], $dir . '/' . $name)) {
-            return 'Could not store that file — try again.';
+        $err = self::storeAvatarFile($f, $info, $map[$info[2]], $limits, $dir . '/' . $name);
+        if ($err !== null) {
+            return $err;
         }
         self::dropAvatarFile((string) ($user['avatar_file'] ?? ''));
         User::updateAvatar($id, 'upload', '', $name);
+        return null;
+    }
+
+    /**
+     * Move (or downscale) an upload into place. Returns an error or null.
+     * Oversized images are resized when GD exists, rejected otherwise.
+     * Animated GIFs collapse to their first frame on resize.
+     */
+    private static function storeAvatarFile(array $f, array $info, string $ext, array $limits, string $dest): ?string
+    {
+        [$w, $h] = [(int) $info[0], (int) $info[1]];
+        $tmp = (string) ($f['tmp_name'] ?? '');
+        if ($w <= $limits['width'] && $h <= $limits['height']) {
+            if (!@move_uploaded_file($tmp, $dest)) {
+                return 'Could not store that file — try again.';
+            }
+        } else {
+            if (!avatar_resize_available()) {
+                return 'That image is ' . $w . '×' . $h . ' — max is ' . $limits['width'] . '×' . $limits['height']
+                    . 'px. Shrink it first, or ask the host to enable PHP GD for auto-resize.';
+            }
+            if ($w <= 0 || $h <= 0 || $w * $h > 25000000) {
+                return 'That image is too large to process.';
+            }
+            $scale = min($limits['width'] / $w, $limits['height'] / $h);
+            $nw = max(1, (int) floor($w * $scale));
+            $nh = max(1, (int) floor($h * $scale));
+            $src = match ($ext) {
+                'jpg' => @imagecreatefromjpeg($tmp),
+                'png' => @imagecreatefrompng($tmp),
+                default => @imagecreatefromgif($tmp),
+            };
+            if ($src === false) {
+                return 'Could not read that image.';
+            }
+            $dst = @imagecreatetruecolor($nw, $nh);
+            if ($dst === false) {
+                imagedestroy($src);
+                return 'Could not process that image.';
+            }
+            if ($ext === 'png') {
+                imagealphablending($dst, false);
+                imagesavealpha($dst, true);
+            } elseif ($ext === 'gif') {
+                $tr = imagecolortransparent($src);
+                if ($tr >= 0) {
+                    $tc = imagecolorsforindex($src, $tr);
+                    $fill = imagecolorallocate($dst, $tc['red'], $tc['green'], $tc['blue']);
+                    imagefill($dst, 0, 0, (int) $fill);
+                    imagecolortransparent($dst, (int) $fill);
+                }
+            }
+            imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
+            $ok = match ($ext) {
+                'jpg' => @imagejpeg($dst, $dest, 85),
+                'png' => @imagepng($dst, $dest, 6),
+                default => @imagegif($dst, $dest),
+            };
+            imagedestroy($src);
+            imagedestroy($dst);
+            if (!$ok) {
+                return 'Could not store that file — try again.';
+            }
+        }
+        if (@filesize($dest) > $limits['bytes']) {
+            @unlink($dest);
+            return 'That file is over the ' . (int) round($limits['bytes'] / 1024) . ' KB limit.';
+        }
         return null;
     }
 
