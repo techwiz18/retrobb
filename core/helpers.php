@@ -297,15 +297,19 @@ function avatar_html(array $user, bool $large = false): string
     $cls = $large ? 'avatarimg avatar-lg' : 'avatarimg';
     // Display size follows the admin's max dimensions (uploads are shrunk
     // to fit on the way in); the profile render doubles it for presence.
+    // Width + aspect-ratio (never fixed height) so narrow columns and the
+    // max-width guard can shrink without distortion.
     $lim = avatar_limits();
     $w = $large ? min($lim['width'] * 2, 400) : $lim['width'];
     $h = $large ? min($lim['height'] * 2, 400) : $lim['height'];
+    // Images render at natural size up to the caps (never upscaled, never
+    // spilling); the initial fallback keeps a fixed box instead.
     if ($src !== '') {
-        return '<img class="' . $cls . '" style="width:' . $w . 'px;height:' . $h . 'px" src="' . e($src) . '" alt="" loading="lazy">';
+        return '<img class="' . $cls . '" style="max-width:' . $w . 'px;max-height:' . $h . 'px" src="' . e($src) . '" alt="" loading="lazy">';
     }
     $name = (string) ($user['username'] ?? '?');
     $hue = abs(crc32($name)) % 360;
     $initial = mb_strtoupper(mb_substr($name, 0, 1));
     $lg = $large ? ' avatar-lg' : '';
-    return '<span class="avatar' . $lg . '" style="width:' . $w . 'px;height:' . $h . 'px;font-size:' . (int) round(min($w, $h) * 0.46) . 'px;background:hsl(' . $hue . ',45%,55%)">' . e($initial) . '</span>';
+    return '<span class="avatar' . $lg . '" style="' . $box . ';font-size:' . (int) round(min($w, $h) * 0.46) . 'px;background:hsl(' . $hue . ',45%,55%)">' . e($initial) . '</span>';
 }
