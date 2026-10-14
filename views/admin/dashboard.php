@@ -1,7 +1,7 @@
 <?php /** @var array $stats */ /** @var int $openReports */ /** @var int $activeBans */ /** @var bool $installPresent */ ?>
 <div class="maintitle">AdminCP — Dashboard</div>
 <?php \RetroBB\Core\View::partial('admin/_nav', ['active' => 'dashboard']); ?>
-<?php if (!empty($installPresent)): ?><div class="flash-error"><b>Security:</b> <code>public/install.php</code> is still on the server — anyone reaching it can probe your install. Delete it (and <code>storage/installed.lock</code> if reinstalling) via your hosting panel.</div><?php endif; ?>
+<?php if (!empty($installPresent)): ?><div class="flash-error"><b>Security:</b> <code>public/install.php</code> is still on the server — anyone reaching it can probe your install. Delete it via your hosting panel. A future reinstall also needs <code>storage/installed.lock</code> removed.</div><?php endif; ?>
 <?php if ($openReports > 0): ?><div class="flash-error"><a href="<?= e(url('/mod/reports')) ?>"><b><?= $openReports ?> open report<?= $openReports === 1 ? '' : 's' ?></b> in the mod queue</a></div><?php endif; ?>
 <div class="dash-grid">
   <?php $dashSuper = \RetroBB\Core\Auth::isSuper(); ?>
