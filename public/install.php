@@ -39,6 +39,93 @@ if (is_file($lock) && $force) {
     }
 }
 
+// Step-up auth for reinstalls: even a super-admin session must re-prove
+// itself with password + an emailed code before the wizard runs. (A future
+// TOTP step slots in beside the emailed code here.)
+$needVerify = is_file($lock) && $force;
+$verifiedAt = (int) ($_SESSION['rb_reinstall_ok'] ?? 0);
+if ($needVerify && $verifiedAt <= time() - 900) {
+    require_once $root . '/models/User.php';
+    require_once $root . '/core/Passwords.php';
+    require_once $root . '/core/Mail.php';
+    $me = \RetroBB\Core\Auth::user();
+    $vErrors = [];
+    $vSent = false;
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+        if (!\RetroBB\Core\Csrf::verify($_POST['csrf'] ?? null)) {
+            $vErrors[] = 'Session expired — try again.';
+        } else {
+            $fresh = \RetroBB\Models\User::find((int) $me['id']);
+            $vForm = (string) ($_POST['vform'] ?? '');
+            if ($vForm === 'send') {
+                $last = (int) ($_SESSION['rb_reinstall_sent'] ?? 0);
+                if (time() - $last < 60) {
+                    $vErrors[] = 'A code was just sent — wait a minute before asking again.';
+                } elseif (empty($fresh['email'])) {
+                    $vErrors[] = 'Your account has no email address on file.';
+                } else {
+                    $code = (string) random_int(100000, 999999);
+                    $_SESSION['rb_reinstall_code'] = ['hash' => hash('sha256', $code), 'exp' => time() + 600, 'tries' => 0];
+                    $_SESSION['rb_reinstall_sent'] = time();
+                    try {
+                        \RetroBB\Core\Mail::send(
+                            $fresh['email'],
+                            'Reinstall confirmation for ' . board_name(),
+                            "Someone asked to re-run the installer on '" . board_name() . "'.\n\n"
+                            . 'Your confirmation code is: ' . $code . "\n\n"
+                            . "It expires in 10 minutes. If it wasn't you, change your password at once."
+                        );
+                    } catch (\Throwable) {
+                        $vErrors[] = 'Could not send mail — check the board mail settings.';
+                    }
+                    if (!$vErrors) {
+                        $vSent = true;
+                    }
+                }
+            } elseif ($vForm === 'confirm') {
+                $st = $_SESSION['rb_reinstall_code'] ?? null;
+                $pwOk = $fresh && \RetroBB\Core\Passwords::verify((string) ($_POST['password'] ?? ''), $fresh);
+                $codeOk = is_array($st) && (int) ($st['exp'] ?? 0) >= time() && (int) ($st['tries'] ?? 99) < 5
+                    && hash_equals((string) ($st['hash'] ?? ''), hash('sha256', (string) ($_POST['code'] ?? '')));
+                if (!$pwOk) {
+                    $vErrors[] = 'Password does not match.';
+                } elseif (!$codeOk) {
+                    if (is_array($st)) {
+                        $st['tries'] = (int) ($st['tries'] ?? 99) + 1;
+                        $_SESSION['rb_reinstall_code'] = $st;
+                    }
+                    $vErrors[] = 'That code is wrong or expired — send a fresh one.';
+                } else {
+                    unset($_SESSION['rb_reinstall_code']);
+                    $_SESSION['rb_reinstall_ok'] = time();
+                    redirect('install.php?step=database&force=1');
+                }
+            }
+        }
+    }
+    $csrf = \RetroBB\Core\Csrf::field();
+    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        . '<title>Confirm reinstall — RetroBB</title></head><body style="font:14px Verdana,sans-serif;max-width:560px;margin:40px auto;padding:0 16px">'
+        . '<h1>Confirm reinstall</h1>'
+        . '<p>Re-running the installer can overwrite this board. Prove it is you: get an emailed code, then enter it with your password.</p>';
+    foreach ($vErrors as $ve) {
+        echo '<p style="color:#a00">' . e($ve) . '</p>';
+    }
+    if ($vSent) {
+        echo '<p style="color:#060">Code sent — check your inbox.</p>';
+    }
+    echo '<form method="post" action="install.php?force=1">' . $csrf
+        . '<input type="hidden" name="vform" value="send">'
+        . '<button type="submit">Email me a code</button></form><br>'
+        . '<form method="post" action="install.php?force=1">' . $csrf
+        . '<input type="hidden" name="vform" value="confirm">'
+        . '<label>Password<br><input type="password" name="password" autocomplete="current-password"></label><br><br>'
+        . '<label>Email code (6 digits)<br><input name="code" inputmode="numeric" maxlength="6" style="width:120px"></label><br><br>'
+        . '<button type="submit">Confirm and continue</button></form>'
+        . '</body></html>';
+    exit;
+}
+
 $steps = ['database', 'board', 'features', 'owner'];
 $step = isset($_GET['step']) ? (string) $_GET['step'] : 'welcome';
 if (!in_array($step, ['welcome', 'database', 'board', 'features', 'owner', 'done'], true)) {
