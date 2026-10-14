@@ -20,11 +20,15 @@ class Auth
         }
         // Harden the session cookie (no JS access, same-site only).
         // Path follows the install: subpath boards scope it to the prefix.
+        // Secure goes on automatically under HTTPS (never force it: plain-HTTP
+        // dev installs would silently lose their sessions).
+        $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
         session_set_cookie_params([
             'lifetime' => 0,
             'path' => \base_path() ?: '/',
             'httponly' => true,
             'samesite' => 'Lax',
+            'secure' => $https,
         ]);
         session_start();
         return true;
@@ -58,6 +62,14 @@ class Auth
         self::startSession();
         unset($_SESSION['user']);
         session_regenerate_id(true);
+    }
+
+    /** New session id, same data: call after privilege changes (password change). */
+    public static function rotate(): void
+    {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
     }
 
     public static function check(): bool

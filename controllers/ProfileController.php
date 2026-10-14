@@ -179,6 +179,7 @@ class ProfileController
                 \RetroBB\Core\View::render('profile/edit', ['edituser' => $user, 'pageTitle' => 'Edit profile', 'error' => $res['error']]);
                 return;
             }
+            \RetroBB\Core\Auth::rotate();
             $_SESSION['flash_ok'] = 'Password changed.';
             redirect(\RetroBB\Core\Slug::memberUrl($user));
         }

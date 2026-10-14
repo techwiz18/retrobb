@@ -51,6 +51,11 @@ use RetroBB\Core\Auth;
 use RetroBB\Core\Plugins;
 use RetroBB\Core\Router;
 
+// Never print fatals to visitors (paths, SQL, versions); the handler above
+// logs them server-side instead. error_log is untouched, so docker logs
+// and the PHP error log keep working.
+@ini_set('display_errors', '0');
+
 // Last-resort error page: never leak a stack trace to visitors.
 set_exception_handler(function (Throwable $e) {
     error_log('RetroBB fatal: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());

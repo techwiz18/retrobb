@@ -27,6 +27,9 @@ class Db
             $pdo = new PDO($dsn, $cfg['mysql_user'] ?? 'retrobb', $cfg['mysql_pass'] ?? '', [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                // Native prepares: bound values never become SQL text, even
+                // if a future query forgets a cast somewhere upstream.
+                PDO::ATTR_EMULATE_PREPARES => false,
             ]);
             // The charset= DSN parameter is ignored by libmysql-based PHP
             // builds (common on shared hosts): without this, the connection
