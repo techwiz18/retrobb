@@ -55,7 +55,7 @@ a.smallbtn { display:inline-block; text-decoration:none; color:inherit; }
 .postdate { color:var(--muted); font-size:11px; }
 .postactions { margin-left:auto; display:flex; gap:6px; align-items:center; }
 .postfoot { display:flex; gap:6px; justify-content:flex-end; padding:5px 10px; background:var(--bar-bg); border-top:1px solid var(--border); }
-.postbody { display:grid; grid-template-columns:170px 1fr; }
+.postbody { display:grid; grid-template-columns:var(--ava-post-col,170px) 1fr; }
 .postleft { background:var(--row2); padding:10px; border-right:1px solid var(--border); font-size:12px; text-align:center; }
 .avatar { display:inline-flex; align-items:center; justify-content:center; width:52px; height:auto; aspect-ratio:1/1; max-width:100%; border-radius:6px; color:#fff; font-size:24px; font-weight:bold; text-shadow:0 1px 2px rgba(0,0,0,.4); border:1px solid rgba(0,0,0,.3); box-shadow:1px 1px 0 #fff inset; margin-bottom:6px; }
 .avatarimg { width:52px; height:auto; aspect-ratio:1/1; max-width:100%; border-radius:6px; object-fit:cover; border:1px solid rgba(0,0,0,.3); margin-bottom:6px; background:var(--row2); }

@@ -302,10 +302,11 @@ function avatar_html(array $user, bool $large = false): string
     $lim = avatar_limits();
     $w = $large ? min($lim['width'] * 2, 400) : $lim['width'];
     $h = $large ? min($lim['height'] * 2, 400) : $lim['height'];
-    // Images render at natural size up to the caps (never upscaled, never
-    // spilling); the initial fallback keeps a fixed box instead.
+    // Images render at the configured caps with aspect preserved (the
+    // postbit column scales from the same caps, so nothing spills); the
+    // max-width guard only bites on viewports narrower than the layout.
     if ($src !== '') {
-        return '<img class="' . $cls . '" style="max-width:' . $w . 'px;max-height:' . $h . 'px" src="' . e($src) . '" alt="" loading="lazy">';
+        return '<img class="' . $cls . '" style="width:' . $w . 'px;aspect-ratio:' . $w . '/' . $h . '" src="' . e($src) . '" alt="" loading="lazy">';
     }
     $name = (string) ($user['username'] ?? '?');
     $hue = abs(crc32($name)) % 360;
