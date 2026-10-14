@@ -23,7 +23,7 @@
   <input type="file" name="avatar" accept=".jpg,.jpeg,.png,.gif"><br>
   <?php endif; ?>
   <?php if (feature('avatars_link')): ?>
-  <label><input type="radio" name="avatar_kind" value="link" <?= ($edituser['avatar_kind'] ?? '') === 'link' ? 'checked' : '' ?>> Link an image</label><br>
+  <label><input type="radio" name="avatar_kind" value="link" <?= ($edituser['avatar_kind'] ?? '') === 'link' ? 'checked' : '' ?>> Link an image (any size; direct .jpg/.png/.gif/.webp/.avif link)</label><br>
   <input type="url" name="avatar_url" value="<?= e($edituser['avatar_url'] ?? '') ?>" placeholder="https://…" style="width:100%"><br>
   <small class="muted">Hotlinked images reveal visitor IPs to the image host.</small><br>
   <?php endif; ?>
