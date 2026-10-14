@@ -72,7 +72,8 @@ a.smallbtn { display:inline-block; text-decoration:none; color:inherit; }
 .recent-list { border:1px solid var(--border); border-top:0; margin-bottom:16px; }
 .infocenter { border:1px solid var(--border); border-top:0; margin-bottom:16px; }
 .forum-stats { text-align:center; }
-.recent-row { display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:12px 16px; background:var(--row); border-bottom:1px solid var(--border); }
+.recent-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 16px; background:var(--row); border-bottom:1px solid var(--border); }
+.recent-row .avatarimg, .recent-row .avatar { margin:0 4px 0 0; vertical-align:middle; }
 .recent-row:nth-child(even) { background:var(--row2); }
 .recent-row:last-child { border-bottom:0; }
 .recent-date { color:var(--muted); font-size:11px; white-space:nowrap; }

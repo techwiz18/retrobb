@@ -68,7 +68,7 @@ class User
     {
         $limit = max(1, min(1000, $limit));
         try {
-            return Db::pdo()->query('SELECT id, username, user_group, is_super, posts_count, created_at FROM users ORDER BY created_at ASC LIMIT ' . $limit)->fetchAll();
+            return Db::pdo()->query('SELECT id, username, user_group, is_super, avatar_kind, avatar_url, avatar_file, posts_count, created_at FROM users ORDER BY created_at ASC LIMIT ' . $limit)->fetchAll();
         } catch (\Throwable) {
             // Pre-tier schema without is_super.
             return Db::pdo()->query('SELECT id, username, user_group, posts_count, created_at FROM users ORDER BY created_at ASC LIMIT ' . $limit)->fetchAll();

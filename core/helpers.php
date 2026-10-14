@@ -284,8 +284,10 @@ function avatar_resize_available(): bool
 /**
  * Avatar <img> for uploads/links, initial-letter fallback otherwise.
  * Missing keys (pre-avatar schema) safely fall back to the initial.
+ * $size: 'post' (caps), 'profile' (caps), 'mini' (half caps, 24–64px list
+ * thumb). Bool kept for back-compat (true = profile).
  */
-function avatar_html(array $user, bool $large = false): string
+function avatar_html(array $user, bool|string $size = 'post'): string
 {
     $kind = $user['avatar_kind'] ?? 'none';
     $src = '';
@@ -294,15 +296,25 @@ function avatar_html(array $user, bool $large = false): string
     } elseif ($kind === 'link' && isset($user['avatar_url']) && preg_match('#^https?://[^/]+/.+#i', (string) $user['avatar_url']) && preg_match('#\.(jpe?g|png|gif|webp|avif)(\?.*)?$#i', (string) $user['avatar_url'])) {
         $src = $user['avatar_url'];
     }
-    $cls = $large ? 'avatarimg avatar-lg' : 'avatarimg';
+    if ($size === true) {
+        $size = 'profile';
+    } elseif ($size === false) {
+        $size = 'post';
+    }
+    $cls = $size === 'profile' ? 'avatarimg avatar-lg' : 'avatarimg';
     // Display size follows the admin's max dimensions (uploads are shrunk
-    // to fit on the way in) — identical in posts and on profiles.
+    // to fit on the way in) — identical in posts and on profiles; minis
+    // render at half caps for dense lists like the members index.
     // Width + aspect-ratio (never fixed height) so narrow columns and the
     // max-width guard can shrink without distortion.
     $lim = avatar_limits();
     $w = (int) $lim['width'];
     $h = (int) $lim['height'];
-    // Images render at the configured caps with aspect preserved (the
+    if ($size === 'mini') {
+        $w = max(24, min(64, (int) floor($w / 2)));
+        $h = max(24, min(64, (int) floor($h / 2)));
+    }
+    // Images render at the configured size with aspect preserved (the
     // postbit column scales from the same caps, so nothing spills); the
     // max-width guard only bites on viewports narrower than the layout.
     if ($src !== '') {
@@ -311,6 +323,7 @@ function avatar_html(array $user, bool $large = false): string
     $name = (string) ($user['username'] ?? '?');
     $hue = abs(crc32($name)) % 360;
     $initial = mb_strtoupper(mb_substr($name, 0, 1));
-    $lg = $large ? ' avatar-lg' : '';
+    $lg = $size === 'profile' ? ' avatar-lg' : '';
+    $box = 'width:' . $w . 'px;aspect-ratio:' . $w . '/' . $h;
     return '<span class="avatar' . $lg . '" style="' . $box . ';font-size:' . (int) round(min($w, $h) * 0.46) . 'px;background:hsl(' . $hue . ',45%,55%)">' . e($initial) . '</span>';
 }
