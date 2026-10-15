@@ -115,6 +115,9 @@ a.smallbtn { display:inline-block; text-decoration:none; color:inherit; }
   .topic-head { display:none; }
   .forum-icon { display:none; }
   .forum-stats, .forum-last, .topic-row .c, .topic-row .r { font-size:11px; color:var(--muted); }
+  .forum-stats, .forum-last { text-align:left; margin-top:6px; }
+  .forum-row > div:nth-child(2), .topic-row > div:nth-child(2) { margin-bottom:2px; }
+  .footer { text-wrap:balance; }
   .topic-row > div:nth-child(3)::before { content:"Replies: "; }
   .topic-row > div:nth-child(4)::before { content:"Views: "; }
   .topic-row > div:nth-child(5)::before { content:"Last: "; }
