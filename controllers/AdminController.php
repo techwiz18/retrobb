@@ -63,6 +63,7 @@ class AdminController
             'openReports' => \RetroBB\Models\Report::openCount(),
             'activeBans' => $active,
             'installPresent' => is_file(dirname(__DIR__) . '/public/install.php'),
+            'update' => update_check(),
             'pageTitle' => 'AdminCP — ' . board_name(),
         ]);
     }

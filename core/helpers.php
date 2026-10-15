@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 // Global helpers (no namespace for brevity in views).
 
+/** Current package version. Bump on release; -dev/-beta suffixes sort below releases. */
+const RETROBB_VERSION = '0.5.0-dev';
+
 function e(?string $s): string
 {
     return htmlspecialchars((string) $s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -141,6 +144,56 @@ function url(string $path): string
         return $path;
     }
     return $base . '/' . ltrim($path, '/');
+}
+
+/**
+ * Latest-release check against GitHub. Cached 24h in settings; never fatal
+ * (offline hosts, disabled URL wrappers, and API hiccups all degrade to
+ * 'unknown'). Returns [latest|null, upToDate|null].
+ */
+function update_check(): array
+{
+    $cached = setting('update_latest', '');
+    $at = (int) setting('update_checked_at', '0');
+    if ($cached !== '' && $at > time() - 86400) {
+        return [$cached, version_compare(ltrim(RETROBB_VERSION, 'v'), ltrim($cached, 'v'), '>=')];
+    }
+    $latest = null;
+    $ctx = stream_context_create(['http' => ['timeout' => 5, 'header' => "User-Agent: RetroBB\r\nAccept: application/json\r\n"]]);
+    foreach (['file_get_contents', 'curl'] as $method) {
+        try {
+            if ($method === 'file_get_contents' && ini_get('allow_url_fopen')) {
+                $json = @file_get_contents('https://api.github.com/techwiz18/retrobb/releases/latest', false, $ctx);
+                $data = $json ? json_decode($json, true) : null;
+                if (is_array($data) && !empty($data['tag_name'])) {
+                    $latest = (string) $data['tag_name'];
+                    break;
+                }
+            } elseif ($method === 'curl' && function_exists('curl_init')) {
+                $ch = curl_init('https://api.github.com/techwiz18/retrobb/releases/latest');
+                curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5, CURLOPT_USERAGENT => 'RetroBB', CURLOPT_HTTPHEADER => ['Accept: application/json']]);
+                $json = curl_exec($ch);
+                curl_close($ch);
+                $data = $json ? json_decode($json, true) : null;
+                if (is_array($data) && !empty($data['tag_name'])) {
+                    $latest = (string) $data['tag_name'];
+                    break;
+                }
+            }
+        } catch (\Throwable) {
+        }
+    }
+    if ($latest !== null) {
+        try {
+            $pdo = \RetroBB\Core\Db::pdo();
+            $up = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
+            $up->execute(['update_latest', $latest]);
+            $up->execute(['update_checked_at', (string) time()]);
+        } catch (\Throwable) {
+        }
+        return [$latest, version_compare(ltrim(RETROBB_VERSION, 'v'), ltrim($latest, 'v'), '>=')];
+    }
+    return [$cached !== '' ? $cached : null, null];
 }
 
 /** Board-wide feature flag. Unknown features default ON (opt-out model). */
