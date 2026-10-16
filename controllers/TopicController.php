@@ -186,6 +186,7 @@ class TopicController
             $_SESSION['flash_error'] = 'Only super admins can delete staff topics.';
             redirect(Slug::topicUrl($topic));
         }
+        Topic::delete($id);
         \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'delete', 'topic', $id, $topic ? mb_substr($topic['title'], 0, 150) : '');
         redirect($topic ? Slug::forumUrl(['id' => $topic['forum_id'], 'name' => $topic['forum_name']]) : '/');
     }
