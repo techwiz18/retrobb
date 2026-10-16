@@ -4,6 +4,19 @@ This branch (`live`) is the deployable board: `main` plus the site-only
 `plugins/hub-shell/` chrome. A RetroBB session stages updates here by
 merging `main`; this session deploys them.
 
+## Hard rules (learned the hard way)
+- The `live` branch must always share history with `origin/live`. Verify
+  with `git merge-base --is-ancestor origin/live live` before pushing.
+  NEVER `--allow-unrelated-histories`, NEVER force-push: a divergent local
+  branch gets discarded and re-cloned, not pushed.
+- No SSH, no credential files, no server-side writes. Backups run through
+  cPanel UI by the owner; DB work runs through AdminCP or `php
+  bin/migrate.php` over an existing session. Never create `~/.ssh` keys,
+  `my.cnf` files, or anything containing a password on the server. If one
+  appears, delete it and rotate the exposed credential immediately.
+- Backups live OUTSIDE the web root (`~/retrobb-backups/` is fine) and must
+  never contain credential files.
+
 ## Never commit here
 - `config.php` (DB credentials — gitignored, keep it that way)
 - `storage/` dumps, logs, sqlite files (gitignored)
