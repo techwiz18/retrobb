@@ -145,6 +145,10 @@ class ReportController
         }
         $me = (int) Auth::user()['id'];
         $post = Post::find((int) $rep['post_id']);
+        if ($post && (int) $post['user_id'] !== $me && ($post['user_group'] ?? 'member') !== 'member' && !Auth::isSuper()) {
+            $_SESSION['flash_error'] = 'Only super admins can delete staff posts.';
+            redirect('/mod/reports');
+        }
         $topicId = $post ? Post::delete((int) $rep['post_id']) : null;
         Report::handle($id, $me, 'resolved', 'reported post deleted');
         Modlog::log($me, 'delete', 'post', (int) $rep['post_id'], 'via report #' . $id);

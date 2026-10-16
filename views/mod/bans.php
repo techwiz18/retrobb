@@ -1,6 +1,7 @@
 <?php /** @var array $bans */ ?>
 <div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(url('/mod/reports')) ?>">Mod queue</a> &raquo; Bans</div>
 <div class="maintitle">ModCP — Bans</div>
+<?php \RetroBB\Core\View::partial('mod/_nav', ['active' => 'bans']); ?>
 <div class="recent-list">
 <?php $nowTs = time(); ?>
 <?php foreach ($bans as $b): ?>
