@@ -142,6 +142,7 @@ class Topic
         $pdo = Db::pdo();
         // Hand every author back their post count (floored at zero).
         $authors = $pdo->query('SELECT user_id, COUNT(*) n FROM posts WHERE topic_id=' . $id . ' GROUP BY user_id')->fetchAll();
+        $pdo->prepare('DELETE FROM posts WHERE topic_id=?')->execute([$id]);
         $pdo->prepare('DELETE FROM topics WHERE id=?')->execute([$id]);
         $dec = $pdo->prepare('UPDATE users SET posts_count=GREATEST(posts_count-?,0) WHERE id=?');
         foreach ($authors as $a) {
