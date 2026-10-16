@@ -14,7 +14,7 @@
     <div class="forum-stats"><b><?= (int) $f['posts_count'] ?></b> posts<br><b><?= (int) $f['topics_count'] ?></b> topics</div>
     <div class="forum-last">
       <?php if (!empty($f['last_topic_id'])): ?>
-        <small class="muted">Last post by <b><?php if (!empty($f['last_user_id'])): ?><a href="<?= e(\RetroBB\Core\Slug::memberUrl(['id' => $f['last_user_id'], 'username' => $f['last_user'] ?? 'user'])) ?>"><?= e($f['last_user'] ?? '?') ?></a><?php else: ?><?= e($f['last_user'] ?? '?') ?><?php endif; ?></b> in <a href="/topic/<?= e($f['last_slug'] ?: 'topic') ?>.t<?= (int) $f['last_topic_id'] ?>"><?= e($f['last_title'] ?? 'View') ?></a><?php if (!empty($f['last_at'])): ?><br><?= e(time_ago($f['last_at'])) ?><?php endif; ?></small>
+        <small class="muted">Last post by <b><?php if (!empty($f['last_user_id'])): ?><a href="<?= e(\RetroBB\Core\Slug::memberUrl(['id' => $f['last_user_id'], 'username' => $f['last_user'] ?? 'user'])) ?>"><?= e($f['last_user'] ?? '?') ?></a><?php else: ?><?= e($f['last_user'] ?? '?') ?><?php endif; ?></b> in <a href="<?= e(url('/topic/' . ($f['last_slug'] ?: 'topic') . '.t' . (int) $f['last_topic_id'])) ?>"><?= e($f['last_title'] ?? 'View') ?></a><?php if (!empty($f['last_at'])): ?><br><?= e(time_ago($f['last_at'])) ?><?php endif; ?></small>
       <?php else: ?><small>No posts yet</small><?php endif; ?>
     </div>
   </div>

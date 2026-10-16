@@ -9,4 +9,14 @@ return [
     'mysql_db' => getenv('RETROBB_MYSQL_DB') ?: 'retrobb',
     'mysql_user' => getenv('RETROBB_MYSQL_USER') ?: 'retrobb',
     'mysql_pass' => getenv('RETROBB_MYSQL_PASS') ?: '',
+    // Subpath deployment (reverse proxy): '/forum' serves the board under
+    // that prefix while the bare paths keep working. Env wins when set.
+    // Leave '' for a normal standalone install.
+    'base_path' => getenv('RETROBB_BASE_PATH') ?: '',
+    // Canonical-host enforcement (e.g. subdomain → hub-subpath
+    // consolidation): 301s foreign-Host requests to board_url. Off by
+    // default. Requests carrying the trusted proxy header are exempt
+    // (presence = "already routed by the proxy" — yours must send it).
+    'force_board_host' => (bool) (getenv('RETROBB_FORCE_BOARD_HOST') ?: false),
+    'trusted_proxy_header' => getenv('RETROBB_PROXY_HEADER') ?: '',
 ];

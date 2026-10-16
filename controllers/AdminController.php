@@ -21,6 +21,16 @@ class AdminController
         }
     }
 
+    /** Super-only: staff management and site-critical actions. */
+    private function needSuper(): void
+    {
+        if (!Auth::isSuper()) {
+            http_response_code(403);
+            View::render('errors/403', ['pageTitle' => 'Forbidden']);
+            exit;
+        }
+    }
+
     private function cats(): array
     {
         $pdo = Db::pdo();
@@ -52,19 +62,21 @@ class AdminController
             'stats' => \RetroBB\Models\Board::stats(),
             'openReports' => \RetroBB\Models\Report::openCount(),
             'activeBans' => $active,
+            'installPresent' => is_file(dirname(__DIR__) . '/public/install.php'),
+            'update' => update_check(),
             'pageTitle' => 'AdminCP — ' . board_name(),
         ]);
     }
 
     public function settingsPage(): void
     {
-        $this->guard();
+        $this->needSuper();
         View::render('admin/settings', ['settings' => $this->settingsRows(), 'pageTitle' => 'Settings — AdminCP']);
     }
 
     public function featuresPage(): void
     {
-        $this->guard();
+        $this->needSuper();
         View::render('admin/features', ['settings' => $this->settingsRows(), 'pageTitle' => 'Features — AdminCP']);
     }
 
@@ -106,12 +118,13 @@ class AdminController
 
     public function saveSettings(): void
     {
-        $this->guard();
+        $this->needSuper();
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             redirect('/admin');
         }
-        $allowed = ['board_name', 'board_tagline', 'posts_per_page', 'topics_per_page',
-            'flood_seconds', 'edit_window_mins', 'delete_window_mins', 'captcha_provider', 'captcha_sitekey', 'captcha_secret', 'mail_from'];
+        $allowed = ['board_name', 'board_tagline', 'board_url', 'posts_per_page', 'topics_per_page',
+            'flood_seconds', 'edit_window_mins', 'delete_window_mins', 'captcha_provider', 'captcha_sitekey', 'captcha_secret', 'mail_from',
+            'avatar_max_kb', 'avatar_max_width', 'avatar_max_height'];
         $pdo = Db::pdo();
         foreach ($allowed as $k) {
             if (isset($_POST[$k])) {
@@ -122,7 +135,16 @@ class AdminController
                 if (in_array($k, ['flood_seconds', 'edit_window_mins', 'delete_window_mins'], true)) {
                     $v = (string) max(0, min(3600, (int) $v));
                 }
+                if ($k === 'avatar_max_kb') {
+                    $v = (string) max(10, min(2048, (int) $v));
+                }
+                if (in_array($k, ['avatar_max_width', 'avatar_max_height'], true)) {
+                    $v = (string) max(16, min(2000, (int) $v));
+                }
                 if ($k === 'captcha_provider' && !in_array($v, ['honeypot', 'builtin', 'turnstile', 'hcaptcha', 'recaptcha'], true)) {
+                    continue;
+                }
+                if ($k === 'board_url' && $v !== '' && !preg_match('#^https?://[^/]+#i', $v)) {
                     continue;
                 }
                 // Native upsert (MySQL reports rows-changed, so UPDATE-then-check misfires).
@@ -134,13 +156,13 @@ class AdminController
 
     public function saveFeatures(): void
     {
-        $this->guard();
+        $this->needSuper();
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             redirect('/admin');
         }
         $pdo = Db::pdo();
         $upsert = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
-        foreach (['feature_alerts', 'feature_mentions', 'feature_reactions', 'feature_pms', 'skin_selector'] as $k) {
+        foreach (['feature_alerts', 'feature_mentions', 'feature_reactions', 'feature_pms', 'feature_avatars_upload', 'feature_avatars_link', 'skin_selector'] as $k) {
             $upsert->execute([$k, isset($_POST[$k]) ? '1' : '0']);
         }
         foreach (['theme_light', 'theme_dark', 'theme_auto'] as $k) {
@@ -217,7 +239,7 @@ class AdminController
 
     public function setGroup(int $id): void
     {
-        $this->guard();
+        $this->needSuper();
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             redirect('/admin');
         }
@@ -227,6 +249,27 @@ class AdminController
         }
         User::setGroup($id, (string) ($_POST['group'] ?? 'member'));
         \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'setgroup', 'user', $id, '-> ' . (string) ($_POST['group'] ?? 'member'));
+        redirect('/admin/users');
+    }
+
+    /** Grant/revoke the super tier. Supers manage supers, never themselves. */
+    public function superToggle(int $id): void
+    {
+        $this->needSuper();
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin');
+        }
+        $me = Auth::user();
+        if ($me && (int) $me['id'] === $id) {
+            redirect('/admin/users');
+        }
+        $target = User::find($id);
+        if (!$target || ($target['user_group'] ?? '') !== 'admin') {
+            redirect('/admin/users');
+        }
+        $on = !((int) ($target['is_super'] ?? 0) === 1);
+        User::setSuper($id, $on);
+        \RetroBB\Core\Modlog::log((int) $me['id'], $on ? 'super_grant' : 'super_revoke', 'user', $id, $target['username']);
         redirect('/admin/users');
     }
 
@@ -256,14 +299,14 @@ class AdminController
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             redirect('/admin');
         }
-        \RetroBB\Models\Moderation::unban($banId, (int) Auth::user()['id']);
+        \RetroBB\Models\Moderation::unban($banId, (int) Auth::user()['id'], (string) ($_POST['reason'] ?? ''));
         redirect('/admin/bans');
     }
 
     /** One-click database updates after a file upgrade (mirrors bin/migrate.php). */
     public function runMigrate(): void
     {
-        $this->guard();
+        $this->needSuper();
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             redirect('/admin');
         }

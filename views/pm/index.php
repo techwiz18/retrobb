@@ -1,5 +1,5 @@
 <?php /** @var array $items */ /** @var int $total */ /** @var int $page */ /** @var int $pages */ /** @var array $tabs */ ?>
-<div class="breadcrumb"><a href="/">Index</a> &raquo; Private messages</div>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; Private messages</div>
 <div class="maintitle">Inbox (<?= (int) $total ?>)</div>
 <?php \RetroBB\Core\View::partial('pm/_tabs', ['tabs' => $tabs, 'active' => 'inbox']); ?>
 <?php if (!$items): ?>
@@ -8,7 +8,7 @@
 <div class="recent-list">
 <?php foreach ($items as $m): ?>
   <div class="recent-row"><span>
-    <?= empty($m['read_at']) ? '<b>' : '' ?><a href="/pm/<?= (int) $m['id'] ?>"><?= e($m['subject']) ?></a><?= empty($m['read_at']) ? '</b>' : '' ?>
+    <?= empty($m['read_at']) ? '<b>' : '' ?><a href="<?= e(url('/pm/' . (int) $m['id'])) ?>"><?= e($m['subject']) ?></a><?= empty($m['read_at']) ? '</b>' : '' ?>
     <br><small class="muted">from <?= e($m['sender_name']) ?> · <?= e($m['created_at']) ?><?= empty($m['read_at']) ? ' · <b>unread</b>' : '' ?></small>
   </span></div>
 <?php endforeach; ?>

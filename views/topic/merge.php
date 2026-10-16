@@ -1,5 +1,5 @@
 <?php /** @var array $topic */ /** @var string $q */ /** @var array $candidates */ ?>
-<div class="breadcrumb"><a href="/">Index</a> &raquo; <a href="<?= e(\RetroBB\Core\Slug::topicUrl($topic)) ?>"><?= e($topic['title']) ?></a> &raquo; Merge</div>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(\RetroBB\Core\Slug::topicUrl($topic)) ?>"><?= e($topic['title']) ?></a> &raquo; Merge</div>
 <div class="maintitle">Merge “<?= e($topic['title']) ?>” into…</div>
 <p class="muted">Pick the topic that survives. All posts from this topic move over, then this topic is removed.</p>
 <form method="get" class="form" style="margin-bottom:12px">

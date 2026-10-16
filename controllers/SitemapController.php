@@ -13,16 +13,15 @@ class SitemapController
         header('Content-Type: application/xml; charset=utf-8');
         $pdo = Db::pdo();
         echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
-        echo '<?xml-stylesheet href="/sitemap.xsl" type="text/xsl"?>' . "\n";
+        echo '<?xml-stylesheet href="' . \e(\url('/sitemap.xsl')) . '" type="text/xsl"?>' . "\n";
         echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
-        $host = canonical_url('');
         $forums = $pdo->query('SELECT id, name FROM forums')->fetchAll();
         foreach ($forums as $f) {
-            echo '<url><loc>' . e($host . rtrim(Slug::forumUrl($f), '/')) . '</loc></url>' . "\n";
+            echo '<url><loc>' . e(canonical_url(rtrim(Slug::forumUrl($f), '/'))) . '</loc></url>' . "\n";
         }
         $topics = $pdo->query('SELECT id, title FROM topics ORDER BY last_post_at DESC LIMIT 500')->fetchAll();
         foreach ($topics as $t) {
-            echo '<url><loc>' . e($host . rtrim(Slug::topicUrl($t), '/')) . '</loc></url>' . "\n";
+            echo '<url><loc>' . e(canonical_url(rtrim(Slug::topicUrl($t), '/'))) . '</loc></url>' . "\n";
         }
         echo '</urlset>';
     }
@@ -32,6 +31,7 @@ class SitemapController
     {
         header('Content-Type: application/xslt+xml; charset=utf-8');
         $t = theme();
+        $home = \e(\url('/'));
         // Explicit dark follows the toggle; auto falls back to the OS media query in the XSL.
         $dark = $t === 'dark';
         $bg = $dark ? '#14161b' : '#dfe3ee';
@@ -66,7 +66,7 @@ class SitemapController
       </head>
       <body><div class="wrap">
         <h1>RetroBB Sitemap</h1>
-        <p class="note">This XML sitemap is for search engines — <a href="/">back to the board index</a>.</p>
+        <p class="note">This XML sitemap is for search engines — <a href="{$home}">back to the board index</a>.</p>
         <ul>
           <xsl:for-each select="s:urlset/s:url">
             <li><a href="{s:loc}"><xsl:value-of select="s:loc"/></a></li>

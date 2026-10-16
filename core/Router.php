@@ -26,25 +26,48 @@ class Router
     public function dispatch(string $method, string $path): void
     {
         $method = strtoupper($method);
-        foreach ($this->routes as [$m, $pattern, $handler]) {
-            if ($m !== $method && !($m === 'GET' && $method === 'HEAD')) {
-                continue;
+        // Subpath fallback: try the base-stripped path FIRST so app segments
+        // under the prefix (/forum/members, /forum/search, ...) reach their
+        // real handlers instead of the greedy /forum/<slug> route; genuine
+        // forum URLs still win because their stripped form (/<slug>.fN)
+        // matches no route and we fall through to the raw path. Last resort:
+        // re-attach the base — a reverse proxy that strips /forum uniformly
+        // forwards /forum/<slug>.fN as /<slug>.fN, which matches nothing bare
+        // but is a real forum URL once re-prefixed. It runs last so bare app
+        // routes (/members, /topic/x, ...) always win over it.
+        $candidates = [];
+        $base = \base_path();
+        if ($base !== '' && ($path === $base || str_starts_with($path, $base . '/'))) {
+            $stripped = substr($path, strlen($base)) ?: '/';
+            if ($stripped !== $path) {
+                $candidates[] = $stripped;
             }
-            if (preg_match($pattern, $path, $matches)) {
-                array_shift($matches);
-                // Route captures are strings; cast pure digits to int so
-                // strict_types=1 controller signatures (int $id) work.
-                $matches = array_map(
-                    fn($m) => is_string($m) && preg_match('/^\d+$/', $m) ? (int) $m : $m,
-                    array_values($matches)
-                );
-                if (is_array($handler)) {
-                    [$class, $fn] = $handler;
-                    (new $class)->$fn(...array_values($matches));
-                } else {
-                    $handler(...array_values($matches));
+        }
+        $candidates[] = $path;
+        if ($base !== '' && $path !== '/' && $path !== $base && !str_starts_with($path, $base . '/')) {
+            $candidates[] = $base . $path;
+        }
+        foreach ($candidates as $try) {
+            foreach ($this->routes as [$m, $pattern, $handler]) {
+                if ($m !== $method && !($m === 'GET' && $method === 'HEAD')) {
+                    continue;
                 }
-                return;
+                if (preg_match($pattern, $try, $matches)) {
+                    array_shift($matches);
+                    // Route captures are strings; cast pure digits to int so
+                    // strict_types=1 controller signatures (int $id) work.
+                    $matches = array_map(
+                        fn($m) => is_string($m) && preg_match('/^\d+$/', $m) ? (int) $m : $m,
+                        array_values($matches)
+                    );
+                    if (is_array($handler)) {
+                        [$class, $fn] = $handler;
+                        (new $class)->$fn(...array_values($matches));
+                    } else {
+                        $handler(...array_values($matches));
+                    }
+                    return;
+                }
             }
         }
         http_response_code(404);
@@ -64,6 +87,11 @@ class Router
         if ($path === '') {
             $path = '/';
         }
+        // NOTE: do NOT strip base_path() here. App routes like /forum/<slug>.fN
+        // legitimately start with the base prefix (/forum), so stripping would
+        // break them (currentPath '/forum/x.f1' -> '/x.f1' matches nothing).
+        // dispatch() tries raw first, then the stripped fallback — that is the
+        // only place base-stripping belongs.
         return $path;
     }
 }

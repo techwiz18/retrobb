@@ -1,5 +1,5 @@
 <?php /** @var array $items */ /** @var int $total */ /** @var int $page */ /** @var int $pages */ /** @var array $tabs */ /** @var int $me */ ?>
-<div class="breadcrumb"><a href="/">Index</a> &raquo; <a href="/pm">Messages</a> &raquo; Trash</div>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(url('/pm')) ?>">Messages</a> &raquo; Trash</div>
 <div class="maintitle">Trash (<?= (int) $total ?>)</div>
 <?php \RetroBB\Core\View::partial('pm/_tabs', ['tabs' => $tabs, 'active' => 'trash']); ?>
 <p class="muted">Deleted messages stay here until both sides deleted them — then they're gone for good.</p>

@@ -58,17 +58,27 @@ check('test member registered', 'Log out' in body, '')
 vm = re.search(r'/members/([a-z0-9\-]+)\.u(\d+)', body)
 vslug, vid = vm.group(1), vm.group(2)
 vemail = 'vuln%s@example.com' % suffix
-_, _, html, _ = get(mem, '/topic/what-was-your-first-forum.t2')
+# discover live ids (seed churns them): first forum, its first topic, first post
+_, _, hhome, _ = get(mem, '/')
+fm = re.search(r'/forum/([a-z0-9\-]+)\.f(\d+)', hhome)
+fslug, fid = fm.group(1), fm.group(2)
+_, _, hforum, _ = get(mem, '/forum/%s.f%s' % (fslug, fid))
+tm = re.search(r'/topic/([a-z0-9\-]+)\.t(\d+)', hforum)
+tslug, tid = (tm.group(1), tm.group(2)) if tm else ('topic', '1')
+_, _, htopic, _ = get(mem, '/topic/%s.t%s' % (tslug, tid))
+pm = re.search(r'#p(\d+)', htopic)
+pid = pm.group(1) if pm else '1'
+_, _, html, _ = get(mem, '/topic/%s.t%s' % (tslug, tid))
 tokM = csrf(html)
 
 print('--- A. ACCESS CONTROL as member ---')
 # mod-only POSTs with valid member csrf -> must be 403
 for name, path, fields in [
-    ('pin as member', '/topic/2/pinned', {}),
-    ('lock as member', '/topic/2/locked', {}),
-    ('delete topic as member', '/topic/2/delete', {}),
-    ('move as member', '/topic/2/move', {'forum_id': '1'}),
-    ('merge as member', '/topic/2/merge', {'target': '1'}),
+    ('pin as member', '/topic/%s/pinned' % tid, {}),
+    ('lock as member', '/topic/%s/locked' % tid, {}),
+    ('delete topic as member', '/topic/%s/delete' % tid, {}),
+    ('move as member', '/topic/%s/move' % tid, {'forum_id': fid}),
+    ('merge as member', '/topic/%s/merge' % tid, {'target': '1'}),
     ('handle report as member', '/mod/report/1/handle', {'status': 'resolved'}),
     ('warn as member', '/members/1/warn', {'reason': 'x' * 10}),
     ('ban as member', '/members/1/ban', {'reason': 'x' * 10, 'days': '1'}),
@@ -81,15 +91,15 @@ for name, path, fields in [
     check('blocked: ' + name, code in (403, 419), 'got %s' % code)
 # mod-only GETs
 for name, path in [('mod queue as member', '/mod/reports'), ('admin page as member', '/admin/users'),
-                   ('merge form as member', '/topic/2/merge')]:
+                   ('merge form as member', '/topic/%s/merge' % tid)]:
     code, _, body, _ = get(mem, path)
     check('blocked: ' + name, code in (403,) or 'Forbidden' in body, 'got %s' % code)
 # edit form for someone else's post: must bounce back to the topic, never render the form
-code, curl, body, _ = get(mem, '/post/1/edit')
+code, curl, body, _ = get(mem, '/post/%s/edit' % pid)
 check('blocked: edit admin post as member', 'maintitle">Edit post' not in body, 'at %s' % curl)
 # logged-out POST with no csrf -> 419/redirect-login, never applied
 anon = session()
-code, body, _ = raw(anon, 'POST', '/topic/2/pinned', {})
+code, body, _ = raw(anon, 'POST', '/topic/%s/pinned' % tid, {})
 check('anon pin rejected', code in (403, 419), 'got %s' % code)
 # board name unchanged after member attempt
 _, _, html, _ = get(admin, '/')
@@ -105,16 +115,24 @@ xss_posts = [
     '[b]<script>alert(6)</script>[/b]',
 ]
 payload = '\n'.join(xss_posts)
-_, _, html, _ = get(mem, '/new-topic/3')
-code, body, _ = raw(mem, 'POST', '/new-topic/3', {'csrf': csrf(html), 'title': '<script>alert(7)</script>', 'body': payload})
-_, _, fhtml, _ = get(mem, '/forum/test-zone.f3')
+_, _, html, _ = get(mem, '/new-topic/%s' % fid)
+code, body, _ = raw(mem, 'POST', '/new-topic/%s' % fid, {'csrf': csrf(html), 'title': '<script>alert(7)</script>', 'body': payload})
+_, _, fhtml, _ = get(mem, '/forum/%s.f%s' % (fslug, fid))
 links = re.findall(r'/topic/([^"]+)\.t(\d+)">([^<]*)</a>', fhtml)
 ours = [l for l in links if 'script' in l[2]]
 print('our xss topic link found:', bool(ours))
 if ours:
     turl = '/topic/%s.t%s' % (ours[0][0], ours[0][1])
     _, _, thtml, _ = get(mem, turl)
-    check('no <script> in rendered topic', '<script>' not in thtml)
+    # NOTE: the page legitimately contains <script src> + plugin inline
+    # scripts, and escaped payloads keep their "alert(N)" text — so assert
+    # on escaping (encoded present, raw executable absent), not substrings.
+    for n in range(1, 7):
+        check('payload %d neutralized' % n, 'alert(%d)' % n not in thtml or '&lt;' in thtml)
+    check('script tags encoded', '&lt;script&gt;' in thtml)
+    check('no raw script execution', '<script>alert' not in thtml)
+    check('no raw img inject', '<img src=x' not in thtml)
+    check('no raw onerror attr', 'onerror="alert' not in thtml)
     check('no javascript: href', 'href="javascript:' not in thtml.lower())
     check('event handlers escaped', ' onerror="' not in thtml and ' onclick="' not in thtml)
     check('title escaped', '&lt;script&gt;' in thtml)
@@ -124,17 +142,19 @@ else:
 _, _, html, _ = get(mem, '/settings/profile')
 _ = raw(mem, 'POST', '/settings/profile', {'csrf': csrf(html), 'form': 'profile', 'email': vemail, 'bio': '</div><script>alert(9)</script>'})
 _, _, phtml, _ = get(mem, '/members/%s.u%s' % (vslug, vid))
-check('bio escaped', '<script>' not in phtml and '&lt;/div&gt;' in phtml)
+check('bio escaped', '<script>alert(9)' not in phtml and '&lt;script&gt;alert(9)&lt;/script&gt;' in phtml)
 
 print('--- C. SQLi probes ---')
-_, _, html, _ = get(admin, '/topic/1/merge?q=%27%20OR%201%3D1--')
+_, _, html, _ = get(admin, '/topic/%s/merge?q=%%27%%20OR%%201%%3D1--' % tid)
 check('merge search no error dump', 'Fatal error' not in html and 'Exception' not in html)
 code, _, body, _ = get(mem, '/topic/x.t999999')
 check('missing topic 404 not 500', code == 404, 'got %s' % code)
 code, _, body, _ = get(mem, "/topic/x.t1'OR'1'='1")
 check('sqli slug 404', code == 404, 'got %s' % code)
-code, curl, body, _ = get(mem, '/viewtopic.php?t=1%20OR%201%3D1')
+code, curl, body, _ = get(mem, '/viewtopic.php?t=%s%%20OR%%201%%3D1' % tid)
 check('legacy redirect safe', '/topic/' in curl and 'Fatal' not in body, 'at %s' % curl)
+code, curl, body, _ = get(mem, '/viewtopic.php?t=999999')
+check('legacy missing topic lands home', curl.rstrip('/') == base or curl.endswith('/'), 'at %s' % curl)
 code, body, _ = raw(mem, 'POST', '/login', {'csrf': tokM, 'login': "' OR '1'='1", 'password': 'x', 'next': '/'})
 check('sqli login fails cleanly', 'Invalid login' in body)
 

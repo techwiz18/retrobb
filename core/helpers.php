@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 // Global helpers (no namespace for brevity in views).
 
+/** Current package version. Bump on release; -dev/-beta suffixes sort below releases. */
+const RETROBB_VERSION = '0.5.0-beta.1';
+
 function e(?string $s): string
 {
     return htmlspecialchars((string) $s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -10,7 +13,25 @@ function e(?string $s): string
 
 function redirect(string $url, int $code = 302): void
 {
-    header('Location: ' . $url, true, $code);
+    // Choke point: never emit an off-site redirect, no matter what a caller
+    // passes. Absolute URLs survive only when they point back at this host
+    // (canonical-host 301s) or the configured board host; everything else
+    // (protocol-relative, backslashes, schemes) collapses to '/'.
+    if (preg_match('#^[a-z][a-z0-9+.-]*://#i', $url)) {
+        $h = strtolower((string) parse_url($url, PHP_URL_HOST));
+        $mine = strtolower(explode(':', (string) ($_SERVER['HTTP_HOST'] ?? ''))[0]);
+        $boardHost = '';
+        $boardUrl = setting('board_url', '');
+        if ($boardUrl !== '' && preg_match('#^https?://#i', $boardUrl)) {
+            $boardHost = strtolower((string) parse_url($boardUrl, PHP_URL_HOST));
+        }
+        if ($h === '' || ($h !== $mine && $h !== $boardHost)) {
+            $url = '/';
+        }
+    } elseif (str_starts_with($url, '//') || str_contains($url, '\\') || preg_match('#^[a-z][a-z0-9+.-]*:#i', $url)) {
+        $url = '/';
+    }
+    header('Location: ' . url($url), true, $code);
     exit;
 }
 
@@ -47,6 +68,132 @@ function setting(string $key, string $default = ''): string
 function board_name(): string
 {
     return setting('board_name', 'RetroBB');
+}
+
+/**
+ * Subpath deployment prefix (reverse-proxy setups): leading /, no trailing
+ * slash, '' when the board serves from the domain root. Env wins over
+ * config.php; never written by the installer.
+ */
+function base_path(): string
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+    $raw = getenv('RETROBB_BASE_PATH');
+    if ($raw === false) {
+        try {
+            $cfg = require dirname(__DIR__) . '/config.php';
+            $raw = $cfg['base_path'] ?? '';
+        } catch (\Throwable) {
+            $raw = '';
+        }
+    }
+    $normal = '/' . trim((string) $raw, '/');
+    $cache = $normal === '/' ? '' : $normal;
+    return $cache;
+}
+
+/**
+ * True when the request already addresses the canonical URL. Compares
+ * base-relative paths (subpath deploys) and ignores pagination suffixes,
+ * so both /topic/x and /forum/topic/x match without redirect loops.
+ */
+function is_canonical(string $canonical): bool
+{
+    $path = \RetroBB\Core\Router::currentPath();
+    $base = strtok($path, '?');
+    $base = (string) preg_replace('#/page-\d+$#', '', $base);
+    // Strip the subpath prefix from BOTH sides: currentPath() is raw now
+    // (dispatch handles the fallback), so /forum/topic/x must compare equal
+    // to its stripped form without redirect-looping, while genuine
+    // /forum/<slug>.fN routes still match their canonical exactly.
+    if (($b = base_path()) !== '' && ($base === $b || str_starts_with($base, $b . '/'))) {
+        $stripped = substr($base, strlen($b)) ?: '/';
+        // Only accept the stripped form when it is a real app path — a bare
+        // '/<slug>.fN' is never canonical (forum routes live under /forum/).
+        // Compare against both raw and stripped to avoid loops.
+        if ($stripped !== $base) {
+            $canon = $canonical;
+            if (str_starts_with($canon, $b . '/')) {
+                $canon = substr($canon, strlen($b));
+            }
+            return $base === $canonical || $stripped === $canon;
+        }
+    }
+    $canon = $canonical;
+    if (($b = base_path()) !== '' && str_starts_with($canon, $b . '/')) {
+        $canon = substr($canon, strlen($b));
+    }
+    return $base === $canonical || $base === $canon;
+}
+
+/**
+ * Single choke point for every URL the app emits. Absolute URLs pass
+ * through; anything already carrying the prefix is left alone (idempotent),
+ * so Referer-derived paths stay valid.
+ */
+function url(string $path): string
+{
+    if (preg_match('#^https?://#i', $path)) {
+        return $path;
+    }
+    $base = base_path();
+    if ($base !== '' && ($path === $base || str_starts_with($path, $base . '/'))) {
+        return $path;
+    }
+    return $base . '/' . ltrim($path, '/');
+}
+
+/**
+ * Latest-release check against GitHub. Cached 24h in settings; never fatal
+ * (offline hosts, disabled URL wrappers, and API hiccups all degrade to
+ * 'unknown'). Returns [latest|null, upToDate|null].
+ */
+function update_check(): array
+{
+    $cached = setting('update_latest', '');
+    $at = (int) setting('update_checked_at', '0');
+    if ($cached !== '' && $at > time() - 86400) {
+        return [$cached, version_compare(ltrim(RETROBB_VERSION, 'v'), ltrim($cached, 'v'), '>=')];
+    }
+    $latest = null;
+    $ctx = stream_context_create(['http' => ['timeout' => 5, 'header' => "User-Agent: RetroBB\r\nAccept: application/json\r\n"]]);
+    foreach (['file_get_contents', 'curl'] as $method) {
+        try {
+            if ($method === 'file_get_contents' && ini_get('allow_url_fopen')) {
+                $json = @file_get_contents('https://api.github.com/techwiz18/retrobb/releases/latest', false, $ctx);
+                $data = $json ? json_decode($json, true) : null;
+                if (is_array($data) && !empty($data['tag_name'])) {
+                    $latest = (string) $data['tag_name'];
+                    break;
+                }
+            } elseif ($method === 'curl' && function_exists('curl_init')) {
+                $ch = curl_init('https://api.github.com/techwiz18/retrobb/releases/latest');
+                curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5, CURLOPT_USERAGENT => 'RetroBB', CURLOPT_HTTPHEADER => ['Accept: application/json']]);
+                $json = curl_exec($ch);
+                curl_close($ch);
+                $data = $json ? json_decode($json, true) : null;
+                if (is_array($data) && !empty($data['tag_name'])) {
+                    $latest = (string) $data['tag_name'];
+                    break;
+                }
+            }
+        } catch (\Throwable) {
+        }
+    }
+    if ($latest !== null) {
+        try {
+            $pdo = \RetroBB\Core\Db::pdo();
+            $up = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
+            $up->execute(['update_latest', $latest]);
+            $up->execute(['update_checked_at', (string) time()]);
+        } catch (\Throwable) {
+        }
+        return [$latest, version_compare(ltrim(RETROBB_VERSION, 'v'), ltrim($latest, 'v'), '>=')];
+    }
+    return [$cached !== '' ? $cached : null, null];
 }
 
 /** Board-wide feature flag. Unknown features default ON (opt-out model). */
@@ -104,6 +251,19 @@ function canonical_url(string $path): string
     // Prefer the configured board URL when the owner set one at install.
     $base = rtrim(setting('board_url', ''), '/');
     if ($base !== '' && preg_match('#^https?://#i', $base)) {
+        // board_url may itself carry the subpath (https://hub/forum after
+        // cutover) while app paths already include the base prefix — never
+        // double it, but still add it for paths that lack it (e.g. mail
+        // links built from bare paths).
+        $parts = parse_url($base);
+        $prefix = rtrim($parts['path'] ?? '', '/');
+        if ($prefix !== '' && ($path === $prefix || str_starts_with($path, $prefix . '/'))) {
+            $origin = ($parts['scheme'] ?? 'http') . '://' . ($parts['host'] ?? '');
+            if (isset($parts['port'])) {
+                $origin .= ':' . $parts['port'];
+            }
+            return $origin . $path;
+        }
         return $base . $path;
     }
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
@@ -137,4 +297,104 @@ function time_ago(string $datetime): string
         return $d . ' day' . ($d > 1 ? 's' : '') . ' ago';
     }
     return $t->format('M j, Y g:ia');
+}
+
+/** Parse a php.ini shorthand byte value (128M, 8M, 512K). 0 = unlimited. */
+function php_shorthand_bytes(string $v): int
+{
+    $v = trim($v);
+    if ($v === '' || $v === '-1') {
+        return 0;
+    }
+    $unit = strtolower(substr($v, -1));
+    $num = (float) $v;
+    if (ctype_digit($unit)) {
+        return (int) $num;
+    }
+    return (int) ($num * match ($unit) {
+        'g' => 1024 * 1024 * 1024,
+        'm' => 1024 * 1024,
+        'k' => 1024,
+        default => 1,
+    });
+}
+
+/**
+ * Effective avatar limits: admin caps clamped by what the host allows
+ * (upload_max_filesize / post_max_size win — the admin UI says so).
+ * @return array{bytes:int, width:int, height:int}
+ */
+function avatar_limits(): array
+{
+    $bytes = max(10, min(2048, (int) setting('avatar_max_kb', '100'))) * 1024;
+    foreach ([ini_get('upload_max_filesize'), ini_get('post_max_size')] as $h) {
+        $cap = is_string($h) ? php_shorthand_bytes($h) : 0;
+        if ($cap > 0) {
+            $bytes = min($bytes, $cap);
+        }
+    }
+    return [
+        'bytes' => $bytes,
+        'width' => max(16, min(2000, (int) setting('avatar_max_width', '200'))),
+        'height' => max(16, min(2000, (int) setting('avatar_max_height', '200'))),
+    ];
+}
+
+/**
+ * Whether uploaded avatars can be resized server-side (PHP GD). Shared
+ * hosts without GD fall back to rejecting over-dimension uploads.
+ */
+function avatar_resize_available(): bool
+{
+    return extension_loaded('gd') && function_exists('imagecreatetruecolor')
+        && function_exists('imagecopyresampled') && function_exists('imagecreatefromjpeg')
+        && function_exists('imagecreatefrompng') && function_exists('imagecreatefromgif')
+        && function_exists('imagejpeg') && function_exists('imagepng') && function_exists('imagegif');
+}
+
+/**
+ * Avatar <img> for uploads/links, initial-letter fallback otherwise.
+ * Missing keys (pre-avatar schema) safely fall back to the initial.
+ * $size: 'post' (caps), 'profile' (caps), 'mini' (half caps, 24–64px list
+ * thumb). Bool kept for back-compat (true = profile).
+ */
+function avatar_html(array $user, bool|string $size = 'post'): string
+{
+    $kind = $user['avatar_kind'] ?? 'none';
+    $src = '';
+    if ($kind === 'upload' && isset($user['avatar_file']) && preg_match('#^[A-Za-z0-9_-]+\.(jpg|jpeg|png|gif)$#', (string) $user['avatar_file'])) {
+        $src = url('/avatars/' . $user['avatar_file']);
+    } elseif ($kind === 'link' && isset($user['avatar_url']) && preg_match('#^https?://[^/]+/.+#i', (string) $user['avatar_url']) && preg_match('#\.(jpe?g|png|gif|webp|avif)(\?.*)?$#i', (string) $user['avatar_url'])) {
+        $src = $user['avatar_url'];
+    }
+    if ($size === true) {
+        $size = 'profile';
+    } elseif ($size === false) {
+        $size = 'post';
+    }
+    $cls = $size === 'profile' ? 'avatarimg avatar-lg' : 'avatarimg';
+    // Display size follows the admin's max dimensions (uploads are shrunk
+    // to fit on the way in) — identical in posts and on profiles; minis
+    // render at half caps for dense lists like the members index.
+    // Width + aspect-ratio (never fixed height) so narrow columns and the
+    // max-width guard can shrink without distortion.
+    $lim = avatar_limits();
+    $w = (int) $lim['width'];
+    $h = (int) $lim['height'];
+    if ($size === 'mini') {
+        $w = max(24, min(64, (int) floor($w / 2)));
+        $h = max(24, min(64, (int) floor($h / 2)));
+    }
+    // Images render at the configured size with aspect preserved (the
+    // postbit column scales from the same caps, so nothing spills); the
+    // max-width guard only bites on viewports narrower than the layout.
+    if ($src !== '') {
+        return '<img class="' . $cls . '" style="width:' . $w . 'px;aspect-ratio:' . $w . '/' . $h . '" src="' . e($src) . '" alt="" loading="lazy">';
+    }
+    $name = (string) ($user['username'] ?? '?');
+    $hue = abs(crc32($name)) % 360;
+    $initial = mb_strtoupper(mb_substr($name, 0, 1));
+    $lg = $size === 'profile' ? ' avatar-lg' : '';
+    $box = 'width:' . $w . 'px;aspect-ratio:' . $w . '/' . $h;
+    return '<span class="avatar' . $lg . '" style="' . $box . ';font-size:' . (int) round(min($w, $h) * 0.46) . 'px;background:hsl(' . $hue . ',45%,55%)">' . e($initial) . '</span>';
 }

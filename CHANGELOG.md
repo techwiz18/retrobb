@@ -1,5 +1,38 @@
 # Changelog — RetroBB by techwiz.dad. Format follows keep-a-changelog loosely.
 
+## [0.5.0-beta.1] — 2026-10-15 (pre-release)
+Moderation, avatars, subpath deployment, and a security pass. Tinkerers
+welcome; back up before upgrading.
+
+### Added
+- ModCP bans page (mod-visible, admins included) with active / ended /
+  expired states; unban notes on both mod and admin paths.
+- Staff shields: nobody warns admins, mods can't ban staff, all group
+  changes and site settings gated to the new super-admin tier (first admin
+  bootstrapped, grant/revoke in AdminCP → Users).
+- Avatars via upload (JPG/PNG/GIF, byte-validated, GD auto-resize when
+  available) or link, with admin caps for size, dimensions, and per-mode
+  toggles; display follows the caps in posts, profiles, and members.
+- Subpath deployment (`RETROBB_BASE_PATH`) for reverse-proxy setups, with
+  canonical-host enforcement and proxy-header exemption.
+- Installer hardening: silent bounce for outsiders, super-admin + password
+  + emailed code step-up for reinstalls, dashboard delete-installer notice.
+- Login brute-force throttle (IP-backed), native DB prepares, secure
+  session cookies under HTTPS, session rotation on password change.
+- Version stamp plus cached latest-release check on the dashboard.
+- Mobile: long titles/URLs wrap, stacked stats left-align, balanced footer.
+
+### Changed
+- Stock palette tracks the shared hub design tokens (all skins × themes,
+  contrast-checked); active skin/theme now marked in the switcher.
+- Forum topbar/category bars render from theme variables; footer unboxed.
+- Release zips no longer ship the hello-world example or site plugins.
+
+### Upgrading
+- Run the database updates after upload (AdminCP → Dashboard, or
+  `php bin/migrate.php`): migrations 013–016 add the super flag, avatar
+  columns, login throttle table, and hot-path indexes. Back up first.
+
 ## [0.4.0-beta.3] — 2026-10-11 (pre-release)
 Follow-up: deleting posts and topics hands each author their post count
 back (floored at zero). No migration changes — drop over any 0.4 beta,
@@ -82,8 +115,10 @@ Social batch plus board control. Tinkerers welcome; not production-hardened yet.
 - More visual breakup across forum appearance (experiment).
 - Forgot-password flow (email reset tokens).
 - Mass actions on topics/posts (bulk move/delete/lock/pin from forum and mod views).
+- Soft deletions (recoverable hides instead of hard deletes) → v0.5.
 - Sub-forums (nested forum hierarchy; importers currently flatten).
 - Optional homepage link in the nav (for boards with a dedicated home page) → v0.6.
+- MFA via TOTP (opt-in per user, enforceable for staff roles) → v0.5.
 - Query batching pass (mention lookups, PM tab counts, board subselects).
 - Login throttle that survives cookie drops (persistent/IP-based).
 - Reply alerts to all thread participants (currently the starter only).

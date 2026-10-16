@@ -7,6 +7,7 @@ require_once $root . '/core/Db.php';
 require_once $root . '/core/helpers.php';
 require_once $root . '/core/Slug.php';
 require_once $root . '/core/BBCode.php';
+require_once $root . '/core/Mentions.php';
 require_once $root . '/core/Hooks.php';
 
 use RetroBB\Core\BBCode;

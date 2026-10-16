@@ -36,6 +36,7 @@ require_once $root . '/controllers/HomeController.php';
 require_once $root . '/controllers/ForumController.php';
 require_once $root . '/controllers/TopicController.php';
 require_once $root . '/controllers/ReportController.php';
+require_once $root . '/controllers/ModController.php';
 require_once $root . '/controllers/AuthController.php';
 require_once $root . '/controllers/ProfileController.php';
 require_once $root . '/controllers/AdminController.php';
@@ -49,6 +50,11 @@ require_once $root . '/controllers/PmController.php';
 use RetroBB\Core\Auth;
 use RetroBB\Core\Plugins;
 use RetroBB\Core\Router;
+
+// Never print fatals to visitors (paths, SQL, versions); the handler above
+// logs them server-side instead. error_log is untouched, so docker logs
+// and the PHP error log keep working.
+@ini_set('display_errors', '0');
 
 // Last-resort error page: never leak a stack trace to visitors.
 set_exception_handler(function (Throwable $e) {
@@ -76,10 +82,16 @@ Auth::validateSession();
 // runs first but only touches the DB when a session cookie is present.)
 // NOTE: plain require, never require_once — config.php returns a value,
 // and require_once would hand us `true` on second inclusion.
-if (!is_file($root . '/config.php') && !str_starts_with($_SERVER['REQUEST_URI'] ?? '/', '/install')) {
+// currentPath() is raw (base prefix intact) — accept /install* with or
+// without the subpath prefix so /forum/install.php doesn't loop.
+$reqPath = Router::currentPath();
+$bp = base_path();
+$reqStripped = ($bp !== '' && ($reqPath === $bp || str_starts_with($reqPath, $bp . '/')))
+    ? (substr($reqPath, strlen($bp)) ?: '/') : $reqPath;
+$onInstall = str_starts_with($reqPath, '/install') || str_starts_with($reqStripped, '/install');
+if (!is_file($root . '/config.php') && !$onInstall) {
     // Fresh upload: no config yet, so there is nothing to connect to.
-    header('Location: /install.php');
-    exit;
+    redirect('/install.php');
 }
 require $root . '/config.php';
 $needsInstall = false;
@@ -88,13 +100,50 @@ try {
 } catch (Throwable) {
     $needsInstall = true;
 }
-if ($needsInstall && !str_starts_with($_SERVER['REQUEST_URI'] ?? '/', '/install')) {
-    header('Location: /install.php');
-    exit;
+if ($needsInstall && !$onInstall) {
+    redirect('/install.php');
 }
 
 Plugins::load();
 \RetroBB\Core\Hooks::do_action('boot');
+
+// Canonical-host enforcement (e.g. subdomain → hub-subpath consolidation).
+// Off unless enabled via config.php / RETROBB_FORCE_BOARD_HOST. When on,
+// requests whose Host differs from board_url's host get a 301 to the board
+// URL — except requests carrying the trusted proxy header (the reverse
+// proxy must send it; presence means "I already routed this"). Lives in
+// PHP rather than .htaccess so site owners never lose it to a re-upload,
+// and canonical_url() keeps prefixed paths from doubling (/forum/x stays
+// /forum/x instead of becoming /forum/forum/x).
+$forceHost = getenv('RETROBB_FORCE_BOARD_HOST');
+if ($forceHost === false) {
+    try {
+        $cfgHost = require $root . '/config.php';
+        $forceHost = !empty($cfgHost['force_board_host']) ? '1' : '';
+    } catch (Throwable) {
+        $forceHost = '';
+    }
+}
+if (PHP_SAPI !== 'cli' && $forceHost !== '' && $forceHost !== '0' && isset($_SERVER['HTTP_HOST'])) {
+    $boardUrl = setting('board_url', '');
+    $parts = ($boardUrl !== '' && preg_match('#^https?://#i', $boardUrl)) ? parse_url($boardUrl) : null;
+    $proxyName = getenv('RETROBB_PROXY_HEADER');
+    if ($proxyName === false) {
+        try {
+            $cfgProxy = require $root . '/config.php';
+            $proxyName = $cfgProxy['trusted_proxy_header'] ?? '';
+        } catch (Throwable) {
+            $proxyName = '';
+        }
+    }
+    $proxied = $proxyName !== '' && !empty($_SERVER['HTTP_' . strtoupper(str_replace('-', '_', (string) $proxyName))]);
+    $curHost = strtolower(explode(':', (string) $_SERVER['HTTP_HOST'])[0]);
+    if ($parts !== null && !$proxied && strcasecmp($curHost, strtolower($parts['host'] ?? '')) !== 0) {
+        $target = canonical_url(Router::currentPath());
+        $qs = (string) ($_SERVER['QUERY_STRING'] ?? '');
+        redirect($target . ($qs !== '' ? '?' . $qs : ''), 301);
+    }
+}
 
 $r = new Router();
 $r->get('#^/$#', [\RetroBB\Controllers\HomeController::class, 'index']);
@@ -137,6 +186,7 @@ $r->post('#^/topic/(\d+)/(pinned|locked)$#', [\RetroBB\Controllers\TopicControll
   $r->post('#^/mod/report/(\d+)/handle$#', [\RetroBB\Controllers\ReportController::class, 'handle']);
   $r->post('#^/mod/report/(\d+)/delete-post$#', [\RetroBB\Controllers\ReportController::class, 'deletePost']);
   $r->post('#^/mod/report/(\d+)/warn-author$#', [\RetroBB\Controllers\ReportController::class, 'warnAuthor']);
+  $r->get('#^/mod/bans$#', [\RetroBB\Controllers\ModController::class, 'bans']);
 $r->get('#^/register$#', [\RetroBB\Controllers\AuthController::class, 'registerForm']);
 $r->post('#^/register$#', [\RetroBB\Controllers\AuthController::class, 'registerSubmit']);
 $r->get('#^/login$#', [\RetroBB\Controllers\AuthController::class, 'loginForm']);
@@ -169,6 +219,7 @@ $r->post('#^/admin/settings$#', [\RetroBB\Controllers\AdminController::class, 's
 $r->post('#^/admin/add-forum$#', [\RetroBB\Controllers\AdminController::class, 'addForum']);
 $r->post('#^/admin/add-category$#', [\RetroBB\Controllers\AdminController::class, 'addCategory']);
 $r->post('#^/admin/user/(\d+)/group$#', [\RetroBB\Controllers\AdminController::class, 'setGroup']);
+$r->post('#^/admin/user/(\d+)/super$#', [\RetroBB\Controllers\AdminController::class, 'superToggle']);
 $r->post('#^/admin/category/(\d+)/move/(up|down)$#', [\RetroBB\Controllers\AdminController::class, 'moveCategory']);
 $r->get('#^/admin/category/(\d+)/edit$#', [\RetroBB\Controllers\AdminController::class, 'editCategoryForm']);
 $r->post('#^/admin/category/(\d+)/rename$#', [\RetroBB\Controllers\AdminController::class, 'renameCategory']);
@@ -185,7 +236,7 @@ $r->get('#^/search$#', [\RetroBB\Controllers\SearchController::class, 'index']);
 // skin switcher + legacy compat
 $r->get('#^/skin/([a-z0-9]+)$#', function (string $s) {
     if (feature('skin_selector') && in_array($s, ['classic', 'midnight', 'silver'], true)) {
-        setcookie('retrobb_skin', $s, time() + 86400 * 365, '/');
+        setcookie('retrobb_skin', $s, time() + 86400 * 365, base_path() ?: '/');
     }
     // Referer is client-controlled: only follow local paths, never "//host".
     $back = $_SERVER['HTTP_REFERER'] ?? '/';
@@ -193,19 +244,22 @@ $r->get('#^/skin/([a-z0-9]+)$#', function (string $s) {
     if (!str_starts_with($bp, '/') || str_starts_with($bp, '//')) {
         $bp = '/';
     }
-    redirect($bp);
+    // Tell the sync bridge (hub-shell) this landing carries a fresh explicit
+    // choice: typed/bookmarked switcher URLs skip the click seeder, so the
+    // bridge must trust the server here, not stale localStorage.
+    redirect($bp . (str_contains($bp, '?') ? '&' : '?') . 'picked=skin');
 });
 // theme switcher (light / dark / auto-follows-OS)
 $r->get('#^/theme/(light|dark|auto)$#', function (string $t) {
     if (in_array($t, allowed_themes(), true)) {
-        setcookie('retrobb_theme', $t, time() + 86400 * 365, '/');
+        setcookie('retrobb_theme', $t, time() + 86400 * 365, base_path() ?: '/');
     }
     $back = $_SERVER['HTTP_REFERER'] ?? '/';
     $bp = parse_url($back, PHP_URL_PATH) ?: '/';
     if (!str_starts_with($bp, '/') || str_starts_with($bp, '//')) {
         $bp = '/';
     }
-    redirect($bp);
+    redirect($bp . (str_contains($bp, '?') ? '&' : '?') . 'picked=theme');
 });
 $r->get('#^/viewtopic\.php$#', function () {
     $t = (int) ($_GET['t'] ?? 0);

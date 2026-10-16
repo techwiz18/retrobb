@@ -28,6 +28,103 @@ $force = isset($_GET['force']);
 // admins legitimately install into pre-created (even used) databases — but it
 // requires explicit confirmation on the owner step.
 $installed = is_file($lock) && !$force;
+// Re-installing over a live board (?force=1) requires a super-admin session.
+// Anything else bounces to the index with no explanation: the existence of
+// a privileged path is itself need-to-know. Locked out? Delete install.php
+// + storage/installed.lock via your hosting panel instead.
+if (is_file($lock) && $force) {
+    $forceUser = \RetroBB\Core\Auth::user();
+    if ($forceUser === null || !\RetroBB\Core\Auth::isSuper()) {
+        redirect('/');
+    }
+}
+
+// Step-up auth for reinstalls: even a super-admin session must re-prove
+// itself with password + an emailed code before the wizard runs. (A future
+// TOTP step slots in beside the emailed code here.)
+$needVerify = is_file($lock) && $force;
+$verifiedAt = (int) ($_SESSION['rb_reinstall_ok'] ?? 0);
+if ($needVerify && $verifiedAt <= time() - 900) {
+    require_once $root . '/models/User.php';
+    require_once $root . '/core/Passwords.php';
+    require_once $root . '/core/Mail.php';
+    $me = \RetroBB\Core\Auth::user();
+    $vErrors = [];
+    $vSent = false;
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+        if (!\RetroBB\Core\Csrf::verify($_POST['csrf'] ?? null)) {
+            $vErrors[] = 'Session expired — try again.';
+        } else {
+            $fresh = \RetroBB\Models\User::find((int) $me['id']);
+            $vForm = (string) ($_POST['vform'] ?? '');
+            if ($vForm === 'send') {
+                $last = (int) ($_SESSION['rb_reinstall_sent'] ?? 0);
+                if (time() - $last < 60) {
+                    $vErrors[] = 'A code was just sent — wait a minute before asking again.';
+                } elseif (empty($fresh['email'])) {
+                    $vErrors[] = 'Your account has no email address on file.';
+                } else {
+                    $code = (string) random_int(100000, 999999);
+                    $_SESSION['rb_reinstall_code'] = ['hash' => hash('sha256', $code), 'exp' => time() + 600, 'tries' => 0];
+                    $_SESSION['rb_reinstall_sent'] = time();
+                    try {
+                        \RetroBB\Core\Mail::send(
+                            $fresh['email'],
+                            'Reinstall confirmation for ' . board_name(),
+                            "Someone asked to re-run the installer on '" . board_name() . "'.\n\n"
+                            . 'Your confirmation code is: ' . $code . "\n\n"
+                            . "It expires in 10 minutes. If it wasn't you, change your password at once."
+                        );
+                    } catch (\Throwable) {
+                        $vErrors[] = 'Could not send mail — check the board mail settings.';
+                    }
+                    if (!$vErrors) {
+                        $vSent = true;
+                    }
+                }
+            } elseif ($vForm === 'confirm') {
+                $st = $_SESSION['rb_reinstall_code'] ?? null;
+                $pwOk = $fresh && \RetroBB\Core\Passwords::verify((string) ($_POST['password'] ?? ''), $fresh);
+                $codeOk = is_array($st) && (int) ($st['exp'] ?? 0) >= time() && (int) ($st['tries'] ?? 99) < 5
+                    && hash_equals((string) ($st['hash'] ?? ''), hash('sha256', (string) ($_POST['code'] ?? '')));
+                if (!$pwOk) {
+                    $vErrors[] = 'Password does not match.';
+                } elseif (!$codeOk) {
+                    if (is_array($st)) {
+                        $st['tries'] = (int) ($st['tries'] ?? 99) + 1;
+                        $_SESSION['rb_reinstall_code'] = $st;
+                    }
+                    $vErrors[] = 'That code is wrong or expired — send a fresh one.';
+                } else {
+                    unset($_SESSION['rb_reinstall_code']);
+                    $_SESSION['rb_reinstall_ok'] = time();
+                    redirect('install.php?step=database&force=1');
+                }
+            }
+        }
+    }
+    $csrf = \RetroBB\Core\Csrf::field();
+    echo '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+        . '<title>Confirm reinstall — RetroBB</title></head><body style="font:14px Verdana,sans-serif;max-width:560px;margin:40px auto;padding:0 16px">'
+        . '<h1>Confirm reinstall</h1>'
+        . '<p>Re-running the installer can overwrite this board. Prove it is you: get an emailed code, then enter it with your password.</p>';
+    foreach ($vErrors as $ve) {
+        echo '<p style="color:#a00">' . e($ve) . '</p>';
+    }
+    if ($vSent) {
+        echo '<p style="color:#060">Code sent — check your inbox.</p>';
+    }
+    echo '<form method="post" action="install.php?force=1">' . $csrf
+        . '<input type="hidden" name="vform" value="send">'
+        . '<button type="submit">Email me a code</button></form><br>'
+        . '<form method="post" action="install.php?force=1">' . $csrf
+        . '<input type="hidden" name="vform" value="confirm">'
+        . '<label>Password<br><input type="password" name="password" autocomplete="current-password"></label><br><br>'
+        . '<label>Email code (6 digits)<br><input name="code" inputmode="numeric" maxlength="6" style="width:120px"></label><br><br>'
+        . '<button type="submit">Confirm and continue</button></form>'
+        . '</body></html>';
+    exit;
+}
 
 $steps = ['database', 'board', 'features', 'owner'];
 $step = isset($_GET['step']) ? (string) $_GET['step'] : 'welcome';
@@ -293,6 +390,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
         }
         if (!$errors) {
             // --- write config.php (var_export keeps user input injection-safe) ---
+            // base_path is never set here: an existing value carries over so
+            // reinstalls can't silently unprefix a subpath board.
+            $oldCfg = [];
+            if (is_file($root . '/config.php')) {
+                try {
+                    $oldCfg = require $root . '/config.php';
+                    if (!is_array($oldCfg)) {
+                        $oldCfg = [];
+                    }
+                } catch (\Throwable) {
+                    $oldCfg = [];
+                }
+            }
             $cfg = [
                 'mysql_host' => $values['mysql_host'],
                 'mysql_port' => (int) $values['mysql_port'] ?: 3306,
@@ -300,6 +410,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
                 'mysql_user' => $values['mysql_user'],
                 'mysql_pass' => $values['mysql_pass'],
             ];
+            if (isset($oldCfg['base_path']) && is_string($oldCfg['base_path']) && trim($oldCfg['base_path']) !== '') {
+                $cfg['base_path'] = $oldCfg['base_path'];
+            }
             file_put_contents($root . '/config.php', "<?php\ndeclare(strict_types=1);\n\n// Generated by the RetroBB installer — safe to edit by hand.\nreturn " . var_export($cfg, true) . ";\n");
             Db::reset();
 
@@ -337,7 +450,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
             if (!$res['ok']) {
                 $errors[] = $res['errors'][0];
             } else {
-                Db::pdo()->prepare("UPDATE users SET user_group='admin' WHERE id=?")->execute([$res['id']]);
+                Db::pdo()->prepare("UPDATE users SET user_group='admin', is_super=1 WHERE id=?")->execute([$res['id']]);
                 // Every fresh board starts with one placeholder category +
                 // forum and a welcome thread (skipped for used databases).
                 try {
@@ -399,19 +512,19 @@ if (!$installed && isset($step_order[$step]) && ($_SERVER['REQUEST_METHOD'] ?? '
 <!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Install RetroBB</title>
-<link rel="stylesheet" href="/assets/style-retro.css">
+<link rel="stylesheet" href="<?= e(url('/assets/style-retro.css')) ?>">
 <style>
 .steps{display:flex;gap:6px;margin:12px 0}.step{flex:1;text-align:center;font-size:12px;padding:6px;border:1px solid var(--border);border-radius:3px;background:var(--bar-bg);color:var(--muted)}.step.on{background:linear-gradient(180deg,var(--title-b),var(--title-a));color:#fff;font-weight:bold}.step.done{background:var(--row2);color:var(--muted)}.installbox{max-width:640px;margin:0 auto}.reqok{color:#080}.reqbad{color:#a00}
 .swatches{display:flex;gap:8px;margin:8px 0 12px}
 </style>
 </head><body class="skin-classic theme-auto">
-<div class="page-wrap"><div class="topbar"><div class="logo"><a href="/"><svg class="floppy" viewBox="0 0 32 32" aria-hidden="true" style="width:22px;height:22px;vertical-align:-4px"><rect x="3" y="4" width="26" height="25" rx="2" fill="#3A6EA5"/><rect x="9" y="4" width="14" height="9" fill="#c9d2e4"/><rect x="19" y="4" width="4" height="9" fill="#232c40"/><rect x="6" y="17" width="20" height="9" rx="1" fill="#f4f6fb"/><rect x="9" y="20" width="14" height="2" fill="#98a5b3"/></svg> RetroBB</a> <span class="tagline">installation</span></div></div>
+<div class="page-wrap"><div class="topbar"><div class="logo"><a href="<?= e(url('/')) ?>"><svg class="floppy" viewBox="0 0 32 32" aria-hidden="true" style="width:22px;height:22px;vertical-align:-4px"><rect x="3" y="4" width="26" height="25" rx="2" fill="#3A6EA5"/><rect x="9" y="4" width="14" height="9" fill="#c9d2e4"/><rect x="19" y="4" width="4" height="9" fill="#232c40"/><rect x="6" y="17" width="20" height="9" rx="1" fill="#f4f6fb"/><rect x="9" y="20" width="14" height="2" fill="#98a5b3"/></svg> RetroBB</a> <span class="tagline">installation</span></div></div>
 <main><div class="installbox">
 <?php if ($step === 'done'): ?>
   <?= step_bar('done') ?>
   <div class="maintitle">Welcome aboard! 🎉</div>
   <div class="flash-ok">Your board is installed. Log in with the admin account you just created.</div>
-  <p><a class="btn" href="/">Visit your new board</a></p>
+  <p><a class="btn" href="<?= e(url('/')) ?>">Visit your new board</a></p>
   <?php if (!empty($installDisabled)): ?>
   <p class="muted">Housekeeping handled: this setup file has disabled itself (<code>install.disabled.php</code>) so it can't be re-run.</p>
   <?php else: ?>
@@ -419,7 +532,7 @@ if (!$installed && isset($step_order[$step]) && ($_SERVER['REQUEST_METHOD'] ?? '
   <?php endif; ?>
 <?php elseif ($installed): ?>
   <div class="maintitle">Already installed</div>
-  <p>This board already has an owner account. <a href="/">Visit the board</a>.</p>
+  <p>This board already has an owner account. <a href="<?= e(url('/')) ?>">Visit the board</a>.</p>
 <?php elseif ($step === 'welcome'): ?>
   <div class="maintitle">Before we begin…</div>
   <div class="recent-list">
@@ -517,5 +630,5 @@ if (!$installed && isset($step_order[$step]) && ($_SERVER['REQUEST_METHOD'] ?? '
   </form>
 <?php endif; ?>
 </div></main>
-<footer class="footer"><div>RetroBB installer · <a href="/">back to board</a></div></footer>
+<footer class="footer"><div>RetroBB installer · <a href="<?= e(url('/')) ?>">back to board</a></div></footer>
 </div></body></html>

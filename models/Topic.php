@@ -24,15 +24,29 @@ class Topic
         $cnt->execute([$topicId]);
         $total = (int) $cnt->fetch()['c'];
         $offset = max(0, ($page - 1) * $perPage);
-        $st = $pdo->prepare(
-            'SELECT p.*, u.username, u.user_group, u.posts_count AS user_posts, u.created_at AS user_since
-             FROM posts p JOIN users u ON u.id=p.user_id
-             WHERE p.topic_id=? ORDER BY p.id ASC LIMIT ? OFFSET ?'
-        );
-        $st->bindValue(1, $topicId, \PDO::PARAM_INT);
-        $st->bindValue(2, $perPage, \PDO::PARAM_INT);
-        $st->bindValue(3, $offset, \PDO::PARAM_INT);
-        $st->execute();
+        try {
+            $st = $pdo->prepare(
+                'SELECT p.*, u.username, u.user_group, u.posts_count AS user_posts, u.created_at AS user_since,
+                         u.avatar_kind, u.avatar_url, u.avatar_file
+                 FROM posts p JOIN users u ON u.id=p.user_id
+                 WHERE p.topic_id=? ORDER BY p.id ASC LIMIT ? OFFSET ?'
+            );
+            $st->bindValue(1, $topicId, \PDO::PARAM_INT);
+            $st->bindValue(2, $perPage, \PDO::PARAM_INT);
+            $st->bindValue(3, $offset, \PDO::PARAM_INT);
+            $st->execute();
+        } catch (\Throwable) {
+            // Pre-avatar schema: same rows without avatar columns (helper falls back).
+            $st = $pdo->prepare(
+                'SELECT p.*, u.username, u.user_group, u.posts_count AS user_posts, u.created_at AS user_since
+                 FROM posts p JOIN users u ON u.id=p.user_id
+                 WHERE p.topic_id=? ORDER BY p.id ASC LIMIT ? OFFSET ?'
+            );
+            $st->bindValue(1, $topicId, \PDO::PARAM_INT);
+            $st->bindValue(2, $perPage, \PDO::PARAM_INT);
+            $st->bindValue(3, $offset, \PDO::PARAM_INT);
+            $st->execute();
+        }
         return ['posts' => $st->fetchAll(), 'total' => $total];
     }
 

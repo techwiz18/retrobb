@@ -1,7 +1,7 @@
 <?php /** @var string $q */ /** @var array $terms */ /** @var array $topics */ /** @var int $total */ /** @var int $page */ /** @var int $pages */ /** @var string|null $error */ ?>
-<div class="breadcrumb"><a href="/">Index</a> &raquo; Search</div>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; Search</div>
 <div class="maintitle">Search</div>
-<form method="get" action="/search" class="form">
+<form method="get" action="<?= e(url('/search')) ?>" class="form">
   <input name="q" value="<?= e($q) ?>" maxlength="100" style="width:70%" placeholder="Two or more characters…">
   <button class="btn" type="submit">Search</button>
 </form>

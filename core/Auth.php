@@ -19,11 +19,16 @@ class Auth
             return false;
         }
         // Harden the session cookie (no JS access, same-site only).
+        // Path follows the install: subpath boards scope it to the prefix.
+        // Secure goes on automatically under HTTPS (never force it: plain-HTTP
+        // dev installs would silently lose their sessions).
+        $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
         session_set_cookie_params([
             'lifetime' => 0,
-            'path' => '/',
+            'path' => \base_path() ?: '/',
             'httponly' => true,
             'samesite' => 'Lax',
+            'secure' => $https,
         ]);
         session_start();
         return true;
@@ -45,6 +50,10 @@ class Auth
             'id' => (int) $user['id'],
             'username' => $user['username'],
             'user_group' => $user['user_group'],
+            // Pre-tier schemas lack the column: super_known=false keeps old
+            // behavior (every admin acts super) until migrate runs.
+            'is_super' => (int) ($user['is_super'] ?? 0),
+            'super_known' => array_key_exists('is_super', $user),
         ];
     }
 
@@ -53,6 +62,14 @@ class Auth
         self::startSession();
         unset($_SESSION['user']);
         session_regenerate_id(true);
+    }
+
+    /** New session id, same data: call after privilege changes (password change). */
+    public static function rotate(): void
+    {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
     }
 
     public static function check(): bool
@@ -72,6 +89,19 @@ class Auth
         return $u !== null && in_array($u['user_group'], ['admin', 'mod'], true);
     }
 
+    /** Unrestricted tier: flagged super admins (first admin bootstrapped). */
+    public static function isSuper(): bool
+    {
+        $u = self::user();
+        if ($u === null || $u['user_group'] !== 'admin') {
+            return false;
+        }
+        if (!($u['super_known'] ?? false)) {
+            return true;
+        }
+        return ($u['is_super'] ?? 0) === 1;
+    }
+
     /** Refresh group in session after admin change. */
     public static function refresh(array $freshUser): void
     {
@@ -79,6 +109,8 @@ class Auth
         if (isset($_SESSION['user']) && (int) $_SESSION['user']['id'] === (int) $freshUser['id']) {
             $_SESSION['user']['user_group'] = $freshUser['user_group'];
             $_SESSION['user']['username'] = $freshUser['username'];
+            $_SESSION['user']['is_super'] = (int) ($freshUser['is_super'] ?? 0);
+            $_SESSION['user']['super_known'] = array_key_exists('is_super', $freshUser);
         }
     }
 
@@ -107,6 +139,8 @@ class Auth
         }
         $_SESSION['user']['username'] = $fresh['username'];
         $_SESSION['user']['user_group'] = $fresh['user_group'];
+        $_SESSION['user']['is_super'] = (int) ($fresh['is_super'] ?? 0);
+        $_SESSION['user']['super_known'] = array_key_exists('is_super', $fresh);
         try {
             $ban = \RetroBB\Models\Moderation::activeBan($id);
         } catch (\Throwable) {

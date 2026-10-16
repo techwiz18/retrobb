@@ -1,5 +1,5 @@
 <?php /** @var array $items */ /** @var int $total */ /** @var int $page */ /** @var int $pages */ ?>
-<div class="breadcrumb"><a href="/">Index</a> &raquo; Alerts</div>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; Alerts</div>
 <div class="maintitle">Alerts (<?= (int) $total ?>)</div>
 <?php if (!$items): ?>
 <p class="muted">No alerts yet. Mentions, replies and reactions will show up here.</p>

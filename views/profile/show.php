@@ -1,13 +1,12 @@
 <?php /** @var array $profile */ /** @var array $recent */ /** @var array $warnings */ /** @var array|null $activeBan */ ?>
-<?php $hue = abs(crc32($profile['username'])) % 360; $initial = mb_strtoupper(mb_substr($profile['username'], 0, 1)); ?>
-<div class="breadcrumb"><a href="/">Index</a> &raquo; <a href="/members">Members</a> &raquo; <?= e($profile['username']) ?></div>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(url('/members')) ?>">Members</a> &raquo; <?= e($profile['username']) ?></div>
 <div class="profile-card">
-  <span class="avatar avatar-lg" style="background:hsl(<?= $hue ?>,45%,55%)"><?= e($initial) ?></span>
+  <?= avatar_html($profile, true) ?>
   <div class="profile-id">
     <div class="profile-name"><?= e($profile['username']) ?></div>
     <div><span class="group group-<?= e($profile['user_group']) ?>"><?= e($profile['user_group']) ?></span>
     <?php $me2 = \RetroBB\Core\Auth::user(); ?>
-    <?php if ($me2 && (int) $me2['id'] === (int) $profile['id']): ?> <a class="smallbtn" href="/settings/profile">Edit profile</a><?php elseif ($me2 && feature('pms')): ?> <a class="smallbtn" href="/pm/new?to=<?= e(urlencode($profile['username'])) ?>">Message</a><?php endif; ?></div>
+    <?php if ($me2 && (int) $me2['id'] === (int) $profile['id']): ?> <a class="smallbtn" href="/settings/profile">Edit profile</a><?php elseif ($me2 && feature('pms')): ?> <a class="smallbtn" href="<?= e(url('/pm/new?to=' . urlencode($profile['username']))) ?>">Message</a><?php endif; ?></div>
     <?php $bioText = is_string($profile['bio'] ?? null) ? trim($profile['bio']) : ''; ?>
     <?php if ($bioText !== '' && strtolower($bioText) !== 'null'): ?><div class="profile-bio"><?= nl2br(e($profile['bio'])) ?></div><?php endif; ?>
     <?php if (strtolower($bioText) === 'null'): ?><?php error_log('RetroBB: literal-null bio rendered for user ' . (int) $profile['id']); ?><?php endif; ?>
@@ -22,7 +21,7 @@
 <div class="recent-list">
 <?php foreach ($recent as $r): ?>
   <div class="recent-row">
-    <a href="/topic/<?= e($r['slug'] ?: 'topic') ?>.t<?= (int) $r['id'] ?>"><?= e($r['title']) ?></a>
+    <a href="<?= e(url('/topic/' . ($r['slug'] ?: 'topic') . '.t' . (int) $r['id'])) ?>"><?= e($r['title']) ?></a>
     <span class="recent-date"><?= e(time_ago($r['created_at'])) ?></span>
   </div>
 <?php endforeach; ?>
@@ -32,7 +31,7 @@
 <div class="maintitle">Warnings (<?= count($warnings) ?>)</div>
 <div class="recent-list">
 <?php foreach ($warnings as $w): ?>
-  <div class="recent-row"><span><?= e($w['reason']) ?><?php if (!empty($w['topic_id'])): ?> — <a href="/topic/x.t<?= (int) $w['topic_id'] ?><?= !empty($w['post_id']) ? '#p' . (int) $w['post_id'] : '' ?>">view reported post</a><?php endif; ?><br><small class="muted">by <?= e($w['warned_by_name']) ?></small></span><span class="recent-date"><?= e(time_ago($w['created_at'])) ?></span></div>
+  <div class="recent-row"><span><?= e($w['reason']) ?><?php if (!empty($w['topic_id'])): ?> — <a href="<?= e(url('/topic/x.t' . (int) $w['topic_id'] . (!empty($w['post_id']) ? '#p' . (int) $w['post_id'] : ''))) ?>">view reported post</a><?php endif; ?><br><small class="muted">by <?= e($w['warned_by_name']) ?></small></span><span class="recent-date"><?= e(time_ago($w['created_at'])) ?></span></div>
 <?php endforeach; ?>
 </div>
 <?php endif; ?>
@@ -42,12 +41,12 @@
 <?php if (\RetroBB\Core\Auth::isMod() && \RetroBB\Core\Auth::user()['id'] !== (int) $profile['id']): ?>
 <div class="maintitle">Moderate <?= e($profile['username']) ?></div>
 <div class="admin-grid">
-<form method="post" action="/members/<?= (int) $profile['id'] ?>/warn" class="form">
+<form method="post" action="<?= e(url('/members/' . (int) $profile['id'] . '/warn')) ?>" class="form">
   <?= \RetroBB\Core\Csrf::field() ?>
   <label>Warn reason<br><input type="text" name="reason" maxlength="500" required style="width:100%"></label><br><br>
   <button class="smallbtn" type="submit">Issue warning</button>
 </form>
-<form method="post" action="/members/<?= (int) $profile['id'] ?>/ban" class="form" onsubmit="return confirm('Ban this user?')">
+<form method="post" action="<?= e(url('/members/' . (int) $profile['id'] . '/ban')) ?>" class="form" onsubmit="return confirm('Ban this user?')">
   <?= \RetroBB\Core\Csrf::field() ?>
   <label>Ban reason<br><input type="text" name="reason" maxlength="500" required style="width:100%"></label><br><br>
   <label>Days (blank = permanent)<br><input type="number" name="days" min="1" max="3650" style="width:120px"></label><br><br>

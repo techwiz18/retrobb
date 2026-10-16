@@ -67,13 +67,24 @@ class User
     public static function all(int $limit = 100): array
     {
         $limit = max(1, min(1000, $limit));
-        return Db::pdo()->query('SELECT id, username, user_group, posts_count, created_at FROM users ORDER BY created_at ASC LIMIT ' . $limit)->fetchAll();
+        try {
+            return Db::pdo()->query('SELECT id, username, user_group, is_super, avatar_kind, avatar_url, avatar_file, posts_count, created_at FROM users ORDER BY created_at ASC LIMIT ' . $limit)->fetchAll();
+        } catch (\Throwable) {
+            // Pre-tier schema without is_super.
+            return Db::pdo()->query('SELECT id, username, user_group, posts_count, created_at FROM users ORDER BY created_at ASC LIMIT ' . $limit)->fetchAll();
+        }
     }
 
     public static function setGroup(int $id, string $group): void
     {
         $group = in_array($group, ['admin', 'mod', 'member'], true) ? $group : 'member';
         Db::pdo()->prepare('UPDATE users SET user_group=? WHERE id=?')->execute([$group, $id]);
+    }
+
+    /** Grant/revoke the super-admin tier (super-only callers). Demotion keeps group. */
+    public static function setSuper(int $id, bool $on): void
+    {
+        Db::pdo()->prepare('UPDATE users SET is_super=? WHERE id=?')->execute([$on ? 1 : 0, $id]);
     }
 
     /** Update a member's own editable fields. Returns [ok, error?]. */
@@ -92,6 +103,14 @@ class User
         Db::pdo()->prepare('UPDATE users SET email=?, bio=? WHERE id=?')
             ->execute([$email, $bio, $id]);
         return ['ok' => true];
+    }
+
+    /** Persist avatar choice. $kind: none|upload|link. Caller validates. */
+    public static function updateAvatar(int $id, string $kind, string $url, string $file): void
+    {
+        $kind = in_array($kind, ['none', 'upload', 'link'], true) ? $kind : 'none';
+        Db::pdo()->prepare('UPDATE users SET avatar_kind=?, avatar_url=?, avatar_file=? WHERE id=?')
+            ->execute([$kind, mb_substr($url, 0, 500), mb_substr($file, 0, 64), $id]);
     }
 
     /** Change password after verifying the current one. Returns [ok, error?]. */

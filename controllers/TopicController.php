@@ -38,9 +38,7 @@ class TopicController
         $canonical = Slug::topicUrl($topic);
         $path = \RetroBB\Core\Router::currentPath();
         $base = explode('?', $path)[0];
-        // strip /page-N suffix for canonical check
-        $baseNoPage = (string) preg_replace('#/page-\d+$#', '', $base);
-        if ($baseNoPage !== $canonical) {
+        if (!\is_canonical($canonical)) {
             redirect($canonical, 301);
         }
         // Views count once per session: refreshes and post-action redirects don't inflate.
