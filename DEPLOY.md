@@ -19,11 +19,14 @@ merging `main`; this session deploys them.
    stop: a live edit needs folding into the repo first, not overwriting.
 4. Run database updates: AdminCP → Dashboard → Run database updates
    (super admin only), or `php bin/migrate.php` via SSH.
-5. Smoke checks (all through `https://techwiz.dad/forum/`):
-   - index renders, a forum page renders (not 404), a topic renders
-   - `sitemap.xml` locs carry the single `/forum/` prefix, no doubling
-   - CSS loads styled (not raw HTML look), login page renders
-6. If anything breaks: restore the database dump, check out the previous
+5. Delete `public/install.php` if the upload restored it — it must never
+   sit on a live board, and it is never run for updates (migrations cover
+   that, step 4). The dashboard warns while it exists.
+6. Smoke checks (all through `https://techwiz.dad/forum/`):
+    - index renders, a forum page renders (not 404), a topic renders
+    - `sitemap.xml` locs carry the single `/forum/` prefix, no doubling
+    - CSS loads styled (not raw HTML look), login page renders
+7. If anything breaks: restore the database dump, check out the previous
    tag/release, re-run smoke checks.
 
 ## First-time cPanel setup
