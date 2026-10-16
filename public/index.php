@@ -180,6 +180,7 @@ $r->post('#^/topic/(\d+)/(pinned|locked)$#', [\RetroBB\Controllers\TopicControll
   $r->post('#^/pm/new$#', [\RetroBB\Controllers\PmController::class, 'newSubmit']);
   $r->get('#^/pm/(\d+)$#', [\RetroBB\Controllers\PmController::class, 'show']);
   $r->post('#^/pm/(\d+)/delete$#', [\RetroBB\Controllers\PmController::class, 'delete']);
+  $r->get('#^/mod$#', [\RetroBB\Controllers\ModController::class, 'index']);
   $r->get('#^/mod/reports$#', [\RetroBB\Controllers\ReportController::class, 'queue']);
   $r->get('#^/mod/report/(\d+)/resolve$#', [\RetroBB\Controllers\ReportController::class, 'resolveForm']);
   $r->get('#^/mod/report/(\d+)/warn$#', [\RetroBB\Controllers\ReportController::class, 'warnForm']);
