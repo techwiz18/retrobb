@@ -1,0 +1,16 @@
+# cPanel Git deploy task for branch `live` only.
+# Target docroot (confirm before pushing): /home/taylerseye/forum.techwiz.dad/
+#
+# Copy-only: extracts the runtime file set from HEAD over the docroot. No
+# --delete, no rm. Untracked files already in the docroot (uploads, error_log,
+# etc.) are never touched.
+#
+# Runtime set mirrors scripts/package-release.sh FILES, so dev tooling
+# (AGENTS.md, README.md, CHANGELOG.md, DEPLOY.md, docs/, docker/, scripts/,
+# .gitignore, .gitattributes, .cpanel.yml) is never copied.
+# Extra excludes below are a second layer: config.php, storage/,
+# public/avatars/ (uploads), public/install.php (never on a live board).
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/taylerseye/forum.techwiz.dad/
+    - /bin/sh -c 'git archive HEAD public core controllers models views migrations plugins bin config.example.php .htaccess index.php LICENSE | tar -x -C "$DEPLOYPATH" --exclude=config.php --exclude=storage --exclude=public/avatars --exclude=public/install.php --exclude=".git*"'
