@@ -11,7 +11,7 @@ class Topic
 {
     public static function find(int $id): ?array
     {
-        $st = Db::pdo()->prepare('SELECT t.*, u.username AS author, f.name AS forum_name FROM topics t JOIN users u ON u.id=t.user_id JOIN forums f ON f.id=t.forum_id WHERE t.id=?');
+        $st = Db::pdo()->prepare('SELECT t.*, u.username AS author, u.user_group AS author_group, f.name AS forum_name FROM topics t JOIN users u ON u.id=t.user_id JOIN forums f ON f.id=t.forum_id WHERE t.id=?');
         $st->execute([$id]);
         $r = $st->fetch();
         return $r ?: null;

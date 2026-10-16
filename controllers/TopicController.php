@@ -181,9 +181,24 @@ class TopicController
             return;
         }
         $topic = Topic::find($id);
-        Topic::delete($id);
+        if ($topic && (int) ($topic['user_id'] ?? 0) !== (int) Auth::user()['id']
+            && ($topic['author_group'] ?? 'member') !== 'member' && !Auth::isSuper()) {
+            $_SESSION['flash_error'] = 'Only super admins can delete staff topics.';
+            redirect(Slug::topicUrl($topic));
+        }
         \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'delete', 'topic', $id, $topic ? mb_substr($topic['title'], 0, 150) : '');
         redirect($topic ? Slug::forumUrl(['id' => $topic['forum_id'], 'name' => $topic['forum_name']]) : '/');
+    }
+
+    /** Staff-authored posts need a super actor (mods exempt for own posts). */
+    private function staffPostBlocked(array $post, string $verb): ?string
+    {
+        $me = Auth::user();
+        if ($me && (int) ($post['user_id'] ?? 0) !== (int) $me['id']
+            && ($post['user_group'] ?? 'member') !== 'member' && !Auth::isSuper()) {
+            return 'Only super admins can ' . $verb . ' staff posts.';
+        }
+        return null;
     }
 
     private function needMod(): bool
@@ -398,6 +413,9 @@ class TopicController
         if (!$me) {
             redirect('/login');
         }
+        if ($err = $this->staffPostBlocked($post, 'edit')) {
+            return $err;
+        }
         if (Auth::isMod()) {
             return true;
         }
@@ -417,6 +435,9 @@ class TopicController
         $me = Auth::user();
         if (!$me) {
             redirect('/login');
+        }
+        if ($err = $this->staffPostBlocked($post, 'delete')) {
+            return $err;
         }
         if (Auth::isMod()) {
             return true;

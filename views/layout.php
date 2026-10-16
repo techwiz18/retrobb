@@ -33,6 +33,7 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
         <?php $pc = $showPms ? \RetroBB\Models\Pm::unreadCount((int) $user['id']) : 0; ?>
         <span class="dropwrap"><a href="<?= e(\RetroBB\Core\Slug::memberUrl($user)) ?>"><?= e($user['username']) ?></a> <button type="button" class="dropbtn" id="userdrop-btn" aria-haspopup="true" aria-expanded="false" title="Your account">▾<?php if ($ac + $pc > 0): ?> <span class="pill"><?= $ac + $pc ?></span><?php endif; ?></button><span class="dropmenu" id="userdrop-menu"><a href="<?= e(url('/settings/profile')) ?>">Edit profile</a><?php if ($showAlerts): ?><a href="<?= e(url('/alerts')) ?>">Alerts<?php if ($ac > 0): ?> <span class="pill"><?= $ac ?></span><?php endif; ?></a><?php endif; ?><?php if ($showPms): ?><a href="<?= e(url('/pm')) ?>">Messages<?php if ($pc > 0): ?> <span class="pill"><?= $pc ?></span><?php endif; ?></a><?php endif; ?></span></span>
         <?php if ($user['user_group'] === 'admin'): ?> <a class="pill" href="<?= e(url('/admin')) ?>">AdminCP</a><?php endif; ?>
+        <?php if (\RetroBB\Core\Auth::isMod()): ?> <a class="pill" href="<?= e(url('/mod')) ?>">ModCP</a><?php endif; ?>
         <form method="post" action="<?= e(url('/logout')) ?>" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="linkbtn" type="submit">Log out</button></form>
       <?php else: ?>
         <a href="<?= e(url('/login')) ?>">Log in</a> · <a href="<?= e(url('/register')) ?>"><b>Register</b></a>
