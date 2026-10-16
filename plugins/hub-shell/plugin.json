@@ -1,6 +1,0 @@
-{
-  "name": "hub-shell",
-  "version": "0.1.0",
-  "description": "Site-specific header/footer shared with the techwiz.dad hub. Deployed to the live board only; excluded from release zips.",
-  "author": "techwiz.dad"
-}
