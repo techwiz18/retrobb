@@ -138,13 +138,16 @@ need a running board on `http://localhost:8080`. PHP 8.1–8.4 supported.
 
 ## 🗺 What's next
 
-- v0.4 (current beta): search, importers (phpBB/SMF), forgot-password flow
-- v0.5 — moderation & admin: permission system (general + per-forum groups),
-  mass actions on topics/posts, soft deletions, drag-and-drop ordering,
-  plugin management UI, maintenance mode, email verification, MFA (TOTP,
-  enforceable for staff)
-- v0.6 — structure & look: sub-forums, appearance customization, visual breakup,
-  optional homepage link in the nav
+- v0.4: search, importers (phpBB/SMF), forgot-password flow
+- v0.5 (current beta) — moderation & admin: ModCP bans page, staff shields,
+  super-admin tier, unban notes, ban expiry states; avatars (upload or link,
+  admin caps, auto-resize); subpath deployment behind a reverse proxy;
+  security pass (installer gates, login throttle, redirect choke point);
+  version stamp + update check; mobile wrapping fixes
+- v0.6 — moderation remainder (per-forum permissions, mass actions, soft
+  deletions, MFA, email verification, maintenance mode) + structure & look:
+  sub-forums, appearance customization, visual breakup, optional homepage
+  link in the nav
 - v0.7 — platform: plugin directory, API, translations
 - v1.0: the masses-ready release 🎉
 
