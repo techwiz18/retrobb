@@ -11,9 +11,10 @@ storage/*.sql.gz
 # Dev-only mail mirror flag + log (reset links — must never ship).
 storage/dev-mail.php
 storage/mail.log
-# User avatar uploads (hashed names; ship the dir, never its contents).
+# User avatar uploads (hashed names; ship the dir and guards, never uploads).
 public/avatars/*
 !public/avatars/.gitkeep
+!public/avatars/.htaccess
 # Built release zips (regenerate with scripts/package-release.sh).
 dist/
 # Local config (copy config.example.php to config.php and adjust).

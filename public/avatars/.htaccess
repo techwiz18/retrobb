@@ -1,0 +1,6 @@
+# Avatar uploads: no listings, no script execution. Defense in depth —
+# stored names are already forced to safe image extensions by the app.
+Options -Indexes
+<FilesMatch "\.(php|phtml|phar|cgi|pl|py|sh|rb)$">
+  Require all denied
+</FilesMatch>

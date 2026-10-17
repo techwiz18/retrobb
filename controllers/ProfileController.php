@@ -222,7 +222,7 @@ class ProfileController
         }
         if ($kind === 'link') {
             $url = mb_substr(trim((string) ($_POST['avatar_url'] ?? '')), 0, 500);
-            if (!preg_match('#^https?://[^/]+/.+#i', $url) || !preg_match('#\.(jpe?g|png|gif|webp|avif)(\?.*)?$#i', $url)) {
+            if (!avatar_link_ok($url)) {
                 return 'Give a direct https link ending in .jpg, .png, .gif, .webp or .avif.';
             }
             self::dropAvatarFile((string) ($user['avatar_file'] ?? ''));

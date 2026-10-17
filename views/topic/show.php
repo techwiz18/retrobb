@@ -57,7 +57,7 @@
 </div>
 <?php \RetroBB\Core\Hooks::render_template_hook('postbit_after', ['post' => $p]); ?>
 <?php endforeach; ?>
-<?php \RetroBB\Core\View::partial('partials/pagination', ['page' => $page, 'pages' => $pages]); ?>
+<?php \RetroBB\Core\View::partial('partials/pagination', ['page' => $page, 'pages' => $pages, 'base' => \RetroBB\Core\Slug::topicUrl($topic)]); ?>
 
 <div id="reply" class="replybox">
 <?php if (\RetroBB\Core\Auth::check()): ?>

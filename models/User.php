@@ -78,7 +78,15 @@ class User
     public static function setGroup(int $id, string $group): void
     {
         $group = in_array($group, ['admin', 'mod', 'member'], true) ? $group : 'member';
-        Db::pdo()->prepare('UPDATE users SET user_group=? WHERE id=?')->execute([$group, $id]);
+        // Leaving admin-hood drops the super tier with it: no silent
+        // resurrection on a later re-promotion (superToggle re-grants).
+        $dropSuper = $group === 'admin' ? '' : ', is_super=0';
+        try {
+            Db::pdo()->prepare('UPDATE users SET user_group=?' . $dropSuper . ' WHERE id=?')->execute([$group, $id]);
+        } catch (\Throwable) {
+            // Pre-tier schema without is_super.
+            Db::pdo()->prepare('UPDATE users SET user_group=? WHERE id=?')->execute([$group, $id]);
+        }
     }
 
     /** Grant/revoke the super-admin tier (super-only callers). Demotion keeps group. */
