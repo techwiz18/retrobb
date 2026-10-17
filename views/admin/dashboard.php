@@ -15,6 +15,7 @@
   <a class="dash-card" href="<?= e(url('/admin/users')) ?>"><b>👥 Users (<?= (int) $stats['users'] ?>)</b><small>Groups &amp; roles</small></a>
   <a class="dash-card" href="<?= e(url('/admin/modlog')) ?>"><b>📜 Mod log</b><small>Every moderation action</small></a>
   <?php if ($dashSuper): ?><a class="dash-card" href="<?= e(url('/admin/import')) ?>"><b>📥 Import</b><small>From phpBB / SMF</small></a><?php endif; ?>
+  <?php if ($dashSuper): ?><a class="dash-card" href="<?= e(url('/admin/plugins')) ?>"><b>🧩 Plugins</b><small>Enable / disable extensions</small></a><?php endif; ?>
 </div>
 <div class="statsbar"><b><?= (int) $stats['topics'] ?></b> topics · <b><?= (int) $stats['posts'] ?></b> posts · <b><?= (int) $stats['users'] ?></b> members · newest: <b><?= e($stats['newest']) ?></b></div>
 <?php if (isset($_GET['migrated'])): ?><div class="flash-ok">Database updates ran clean.</div><?php endif; ?>
