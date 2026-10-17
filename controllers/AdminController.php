@@ -104,6 +104,75 @@ class AdminController
         View::render('admin/users', ['users' => User::all(50), 'pageTitle' => 'Users — AdminCP']);
     }
 
+    /** Plugin management: enable/disable drop-in plugins. Code runs as the
+     *  site owner, so this page is super-only. */
+    public function pluginsPage(): void
+    {
+        $this->needSuper();
+        View::render('admin/plugins', ['plugins' => $this->pluginList(), 'pageTitle' => 'Plugins — AdminCP']);
+    }
+
+    /** @return array{name,version,description,author,enabled}[] */
+    private function pluginList(): array
+    {
+        $pdo = Db::pdo();
+        try {
+            $rows = $pdo->query('SELECT name, enabled FROM plugins')->fetchAll();
+            $enabled = [];
+            foreach ($rows as $r) {
+                $enabled[$r['name']] = (int) $r['enabled'];
+            }
+        } catch (\Throwable) {
+            $enabled = [];
+        }
+        $out = [];
+        foreach (glob(dirname(__DIR__) . '/plugins/*', GLOB_ONLYDIR) ?: [] as $dir) {
+            $name = basename($dir);
+            $meta = ['version' => '', 'description' => '', 'author' => ''];
+            $json = @file_get_contents($dir . '/plugin.json');
+            if (is_string($json)) {
+                $decoded = json_decode($json, true);
+                if (is_array($decoded)) {
+                    $meta = array_merge($meta, $decoded);
+                }
+            }
+            $out[] = [
+                'name' => $name,
+                'version' => (string) ($meta['version'] ?? ''),
+                'description' => (string) ($meta['description'] ?? ''),
+                'author' => (string) ($meta['author'] ?? ''),
+                'enabled' => $enabled[$name] ?? 1,
+            ];
+        }
+        usort($out, fn($a, $b) => strcmp($a['name'], $b['name']));
+        return $out;
+    }
+
+    public function pluginToggle(string $name): void
+    {
+        $this->needSuper();
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin');
+        }
+        $name = preg_replace('/[^A-Za-z0-9_-]/', '', $name);
+        if ($name === '' || !is_dir(dirname(__DIR__) . '/plugins/' . $name)) {
+            redirect('/admin/plugins');
+        }
+        try {
+            $pdo = Db::pdo();
+            $cur = $pdo->prepare('SELECT enabled FROM plugins WHERE name=?');
+            $cur->execute([$name]);
+            $row = $cur->fetch();
+            $next = $row ? 1 - (int) $row['enabled'] : 0;
+            $pdo->prepare('INSERT INTO plugins (name, enabled) VALUES (?, ?) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled)')
+                ->execute([$name, $next]);
+            \RetroBB\Core\Modlog::log((int) Auth::user()['id'], $next ? 'plugin_enable' : 'plugin_disable', 'plugin', 0, $name);
+        } catch (\Throwable) {
+            $_SESSION['flash_error'] = 'Could not save plugin state.';
+        }
+        redirect('/admin/plugins');
+    }
+
     public function modlogPage(): void
     {
         $this->guard();
