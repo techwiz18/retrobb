@@ -71,16 +71,26 @@ then run `php bin/migrate.php --seed`.
 
 ## 🧭 First steps after installing
 
-1. **Change the admin password** — click your name → Edit profile.
-2. **Make your boards** — AdminCP → Structure: add categories and forums, then
-   order them with the ↑ ↓ buttons.
-3. **Pick your look** — the footer switcher changes skins instantly; set the
-    default in AdminCP → Features.
-4. **Turn on spam protection** — AdminCP → Spam protection (start with the
-   built-in human check; add Turnstile/hCaptcha keys when you go public).
-5. **Appoint moderators** — AdminCP → Users → set someone to `mod`.
-6. **Back up** — dump your MySQL database regularly (`mysqldump retrobb >
-   backup.sql`), and keep a copy of `config.php` somewhere safe.
+1. **Change the admin password.** Click your name in the top bar → *Edit profile*
+   → Change password. On the command-line test drive the seeded account is
+   `admin` / `admin123`, so do this first.
+2. **Make your boards.** AdminCP → **Structure**: add categories and forums,
+   then order them with the ↑ ↓ buttons.
+3. **Set your Board URL.** AdminCP → **Settings** → Board URL. Optional, but
+   leave it blank and the dashboard nags you: it drives canonical links, the
+   sitemap, and the fallback mail sender.
+4. **Set a mail sender.** AdminCP → **Settings** → Mail sender. Password resets
+   need it. RetroBB sends with PHP's plain `mail()`, so some hosts want it set
+   explicitly.
+5. **Pick your look.** The switcher in the top bar changes your own skin
+   instantly; set the board default in AdminCP → **Features** (Classic,
+   Midnight, Silver — plus Light/Dark/Auto themes).
+6. **Turn on spam protection.** AdminCP → **Spam protection**. Start with the
+   built-in human check; add Turnstile / hCaptcha / reCAPTCHA keys when you go
+   public.
+7. **Appoint moderators.** AdminCP → **Users** → set someone's group to `mod`.
+8. **Back up.** Dump MySQL regularly (`mysqldump retrobb > backup.sql`) and keep
+   a copy of `config.php` somewhere safe.
 
 ---
 
@@ -97,8 +107,10 @@ AdminCP → Import walks you through a test run before anything is written.
 MyBB is not supported yet; say so in
 [issues](https://github.com/techwiz18/retrobb/issues) if you need it.
 
-**Does it work on phones?** Yes — the retro look collapses into a mobile layout
-automatically.
+**Does it work on phones?** Partly. A mobile layout kicks in at 760px and
+covers the basics, but responsiveness is still being worked on — topic titles
+can run too wide on narrow screens
+([#1](https://github.com/techwiz18/retrobb/issues/1)).
 
 **How do I update?** Back up first (database dump + a copy of `config.php`),
 then delete everything **except** `config.php`, `storage/`, `plugins/`, and
@@ -144,21 +156,31 @@ need a running board on `http://localhost:8080`. PHP 8.1+ (tested on 8.1 and 8.3
 
 ## 🗺 What's next
 
-- v0.4: search, importers (phpBB/SMF), forgot-password flow — shipped
-- v0.5: moderation & admin — ModCP bans page and home, staff shields,
-  super-admin tier, unban notes, ban expiry states; avatars (upload or link,
-  admin caps, auto-resize); subpath deployment behind a reverse proxy;
-  security pass (installer gates, login throttle, redirect choke point);
-  version stamp + update check; mobile wrapping fixes
-- v0.5.1: security/performance follow-up — server-side session expiry,
-  search guardrails, paginated members/bans, sitemap caching —
-  **0.5.0-beta.2** is the current beta
-- v0.6 — moderation remainder (per-forum permissions, mass actions, soft
-  deletions, MFA, email verification, maintenance mode) + structure & look:
-  sub-forums, appearance customization, visual breakup, optional homepage
-  link in the nav
-- v0.7 — platform: plugin directory, API, translations
-- v1.0: the masses-ready release 🎉
+**Shipped**
+
+- **v0.4** — search across titles and bodies, phpBB 3.x / SMF 2.x importers,
+  forgot-password account recovery
+- **v0.5** — moderation & admin: ModCP bans page, staff shields, super-admin
+  tier, unban notes, ban expiry states; avatars (upload or link, admin caps,
+  auto-resize); subpath deployment behind a reverse proxy; security pass
+  (installer hardening, login throttle, secure session cookies, single redirect
+  choke point); version stamp + update check; mobile wrapping fixes
+
+**Current pre-release — `0.5.0-beta.2`**
+
+A security and performance follow-up on top of v0.5: server-side session
+awareness, a search page cap, paginated members and bans lists, sitemap caching
+with 304s, a dashboard warning when Board URL is blank, and faster login and
+mention lookups. No migrations — drop-in upgrade.
+
+**Planned**
+
+- **v0.6** — moderation remainder (per-forum permissions, mass actions, soft
+  deletions, MFA via TOTP, email verification, maintenance mode) plus structure
+  and look: sub-forums, appearance customization beyond the shipped skins,
+  more visual breakup, optional homepage link in the nav
+- **v0.7** — platform: plugin directory, API, translations
+- **v1.0** — the stable, masses-ready release 🎉
 
 Vote on features in [issues](https://github.com/techwiz18/retrobb/issues).
 
@@ -168,7 +190,10 @@ MIT — see [LICENSE](LICENSE).
 
 ## 🙏 Acknowledgments
 
-RetroBB is human-directed and human-reviewed, but most of the code, docs, and
-testing was pair-programmed with an AI assistant — **Muse Spark** (via
-[OpenCode](https://opencode.ai)). If you deploy it, treat it like any
-community project: review changes, keep backups, report issues.
+RetroBB is human-directed and human-reviewed: the design calls, the scope, and
+every merge decision are mine. Most of the code, docs, and test coverage were
+pair-programmed with AI assistants through [OpenCode](https://opencode.ai) —
+primarily **Muse Spark**, with other models used for audit and review passes.
+
+That makes it a young project, so treat it like one: review what changes before
+you trust it, keep backups, and report what breaks.
