@@ -1,9 +1,15 @@
 # Changelog — RetroBB by techwiz.dad. Format follows keep-a-changelog loosely.
 
 ## [0.5.0-beta.2] — 2026-10-18 (pre-release)
-Security and performance follow-up to 0.5.0-beta.1. Sessions now expire on the
-server, and the scans and listings that a busy board hits hardest are bounded.
-No migration changes — drop the files over any 0.5 beta.
+Security and performance follow-up to 0.5.0-beta.1, plus the first batch of
+moderation fixes. Sessions now expire on the server, and the scans and
+listings that a busy board hits hardest are bounded. No migration changes —
+drop the files over any 0.5 beta.
+
+### Added
+- AdminCP plugin page: enable or disable installed plugins, super-admin only.
+- ModCP home page and navigation, so the mod queue, bans, and reports have a
+  front door instead of being reachable only by direct URL.
 
 ### Changed
 - Sessions expire server-side: 30 minutes idle, 7 days absolute. Configurable
@@ -20,6 +26,23 @@ No migration changes — drop the files over any 0.5 beta.
   answers conditional requests with `304 Not Modified`.
 - AdminCP dashboard warns when `board_url` is blank, since canonical links
   and password-reset emails otherwise build from the request `Host` header.
+- Login, registration, mention, and import lookups no longer wrap the column
+  in `LOWER()`. The collation is already case-insensitive, so the wrapper only
+  forced a full table scan and ignored the unique indexes.
+
+### Fixed
+- Topic pagination stuck past page 2: page links used `?page=N`, which the
+  `/topic/…/page-N` route never matched.
+- Links dropped the deployment subpath when the board runs under one
+  (e.g. `/forum`): pagination, the profile Edit button, and password-reset
+  links in mail.
+- Thread deletion now removes its posts, so post counts refund correctly.
+- Super-admin flag could resurrect when a demoted user was re-promoted.
+- CAPTCHA secret was readable by non-super admins on the spam page.
+- Installer trusted a stale session, and `?force=0` did not re-run setup.
+- Linked avatars accepted beacons disguised behind an image extension.
+- `public/avatars/` had no `.htaccess` guard against script execution.
+- Topic merge search treated `%` and `_` in the query as SQL wildcards.
 
 ## [0.5.0-beta.1] — 2026-10-15 (pre-release)
 Moderation, avatars, subpath deployment, and a security pass. Tinkerers
