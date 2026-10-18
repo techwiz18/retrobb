@@ -75,6 +75,41 @@ class User
         }
     }
 
+    /** Total member count for pagination (cheap COUNT(*), no row payload). */
+    public static function count(): int
+    {
+        try {
+            return (int) Db::pdo()->query('SELECT COUNT(*) c FROM users')->fetch()['c'];
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    /**
+     * One page of the members index. ORDER BY id keeps the paging stable
+     * (created_at ties on seeded rows would otherwise shuffle between pages).
+     */
+    public static function paginate(int $page = 1, int $perPage = 50): array
+    {
+        $page = max(1, $page);
+        $perPage = max(1, min(200, $perPage));
+        $offset = ($page - 1) * $perPage;
+        try {
+            $st = Db::pdo()->prepare('SELECT id, username, user_group, is_super, avatar_kind, avatar_url, avatar_file, posts_count, created_at FROM users ORDER BY id ASC LIMIT ? OFFSET ?');
+            $st->bindValue(1, $perPage, \PDO::PARAM_INT);
+            $st->bindValue(2, $offset, \PDO::PARAM_INT);
+            $st->execute();
+            return $st->fetchAll();
+        } catch (\Throwable) {
+            // Pre-tier schema without is_super.
+            $st = Db::pdo()->prepare('SELECT id, username, user_group, posts_count, created_at FROM users ORDER BY id ASC LIMIT ? OFFSET ?');
+            $st->bindValue(1, $perPage, \PDO::PARAM_INT);
+            $st->bindValue(2, $offset, \PDO::PARAM_INT);
+            $st->execute();
+            return $st->fetchAll();
+        }
+    }
+
     public static function setGroup(int $id, string $group): void
     {
         $group = in_array($group, ['admin', 'mod', 'member'], true) ? $group : 'member';

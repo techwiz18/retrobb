@@ -19,4 +19,8 @@ return [
     // (presence = "already routed by the proxy" — yours must send it).
     'force_board_host' => (bool) (getenv('RETROBB_FORCE_BOARD_HOST') ?: false),
     'trusted_proxy_header' => getenv('RETROBB_PROXY_HEADER') ?: '',
+    // Session lifetimes in seconds. Idle is how long a session survives
+    // without a request; absolute is the hard age limit. 0 disables either.
+    'session_idle_seconds' => (int) (getenv('RETROBB_SESSION_IDLE') ?: 1800),
+    'session_absolute_seconds' => (int) (getenv('RETROBB_SESSION_ABSOLUTE') ?: 604800),
 ];

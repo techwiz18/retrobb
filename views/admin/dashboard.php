@@ -1,9 +1,10 @@
-<?php /** @var array $stats */ /** @var int $openReports */ /** @var int $activeBans */ /** @var bool $installPresent */ /** @var array $update */ ?>
+<?php /** @var array $stats */ /** @var int $openReports */ /** @var int $activeBans */ /** @var bool $installPresent */ /** @var array $update */ /** @var bool $canonicalUnset */ ?>
 <div class="maintitle">AdminCP — Dashboard</div>
 <?php \RetroBB\Core\View::partial('admin/_nav', ['active' => 'dashboard']); ?>
 <?php [$latest, $upToDate] = $update + [null, null]; ?>
 <div class="statsbar">Running <b>RetroBB <?= e(RETROBB_VERSION) ?></b><?php if ($latest !== null): ?> · latest release: <b><?= e($latest) ?></b><?php if ($upToDate === true): ?> (up to date)<?php elseif ($upToDate === false): ?> — <a href="https://github.com/techwiz18/retrobb/releases"><b>update available</b></a><?php endif; ?><?php else: ?> · <span class="muted">could not check for updates</span><?php endif; ?></div>
 <?php if (!empty($installPresent)): ?><div class="flash-error"><b>Security:</b> <code>public/install.php</code> is still on the server — anyone reaching it can probe your install. Delete it via your hosting panel. A future reinstall also needs <code>storage/installed.lock</code> removed.</div><?php endif; ?>
+<?php if (!empty($canonicalUnset)): ?><div class="flash-error"><b>Recommended:</b> no <a href="<?= e(url('/admin/settings')) ?>">Board URL</a> is set, so canonical links and password-reset emails are built from whatever Host each request claims. Set your board's real address (or enable host enforcement in <code>config.php</code>) so a spoofed Host can't leak into them.</div><?php endif; ?>
 <?php if ($openReports > 0): ?><div class="flash-error"><a href="<?= e(url('/mod/reports')) ?>"><b><?= $openReports ?> open report<?= $openReports === 1 ? '' : 's' ?></b> in the mod queue</a></div><?php endif; ?>
 <div class="dash-grid">
   <?php $dashSuper = \RetroBB\Core\Auth::isSuper(); ?>

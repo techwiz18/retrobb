@@ -12,7 +12,7 @@ class SearchController
     {
         $q = trim((string) ($_GET['q'] ?? ''));
         $terms = Search::terms($q);
-        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $page = max(1, min(Search::MAX_PAGE, (int) ($_GET['page'] ?? 1)));
         $data = ['topics' => [], 'total' => 0];
         $error = null;
         if ($q !== '' && !$terms) {
@@ -20,7 +20,7 @@ class SearchController
         } elseif ($terms) {
             $data = Search::query($terms, $page);
         }
-        $pages = max(1, (int) ceil($data['total'] / 15));
+        $pages = Search::pageCount($data['total']);
         View::render('search/index', [
             'q' => mb_substr($q, 0, 100), 'terms' => $terms,
             'topics' => $data['topics'], 'total' => $data['total'],
