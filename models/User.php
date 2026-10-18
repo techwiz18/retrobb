@@ -8,6 +8,35 @@ use PDO;
 
 class User
 {
+    private static ?bool $ciLookup = null;
+
+    /**
+     * Are username/email comparisons already case-insensitive under the
+     * column collation? On every supported install they are (the schema is
+     * utf8mb4_unicode_ci and migrate.php heals older tables to it), so
+     * wrapping both sides in LOWER() is dead weight: MySQL cannot use the
+     * UNIQUE index and each login becomes a full table scan.
+     *
+     * Detected once per request. A _bin/_cs collation falls back to the
+     * LOWER() form, so a hand-built schema can never silently stop matching
+     * "Admin" against "admin" — correctness first, speed second.
+     */
+    public static function lookupIsCaseInsensitive(): bool
+    {
+        if (self::$ciLookup !== null) {
+            return self::$ciLookup;
+        }
+        try {
+            $coll = (string) Db::pdo()->query(
+                "SELECT COLLATION_NAME FROM information_schema.COLUMNS\n"
+                . " WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND COLUMN_NAME='username' LIMIT 1"
+            )->fetchColumn();
+        } catch (\Throwable) {
+            $coll = '';
+        }
+        return self::$ciLookup = $coll !== '' && (bool) preg_match('/_ci$/i', $coll);
+    }
+
     public static function find(int $id): ?array
     {
         $st = Db::pdo()->prepare('SELECT * FROM users WHERE id=?');
@@ -19,7 +48,12 @@ class User
     public static function findByLogin(string $login): ?array
     {
         // Case-insensitive so "Admin" and "admin" are the same account.
-        $st = Db::pdo()->prepare('SELECT * FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?) LIMIT 1');
+        // The collation already does that on supported installs, which keeps
+        // this on the UNIQUE indexes; LOWER() is only the fallback.
+        $sql = self::lookupIsCaseInsensitive()
+            ? 'SELECT * FROM users WHERE username=? OR email=? LIMIT 1'
+            : 'SELECT * FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?) LIMIT 1';
+        $st = Db::pdo()->prepare($sql);
         $st->execute([$login, $login]);
         $r = $st->fetch();
         return $r ?: null;
@@ -49,7 +83,9 @@ class User
             return ['ok' => false, 'errors' => $errors];
         }
         // Case-insensitive uniqueness on top of the UNIQUE indexes.
-        $chk = Db::pdo()->prepare('SELECT id FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?) LIMIT 1');
+        $chk = Db::pdo()->prepare(self::lookupIsCaseInsensitive()
+            ? 'SELECT id FROM users WHERE username=? OR email=? LIMIT 1'
+            : 'SELECT id FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?) LIMIT 1');
         $chk->execute([$username, $email]);
         if ($chk->fetch()) {
             return ['ok' => false, 'errors' => ['Username or email already taken.']];
@@ -136,7 +172,9 @@ class User
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return ['ok' => false, 'error' => 'Invalid email address.'];
         }
-        $chk = Db::pdo()->prepare('SELECT id FROM users WHERE LOWER(email)=LOWER(?) AND id != ? LIMIT 1');
+        $chk = Db::pdo()->prepare(self::lookupIsCaseInsensitive()
+            ? 'SELECT id FROM users WHERE email=? AND id != ? LIMIT 1'
+            : 'SELECT id FROM users WHERE LOWER(email)=LOWER(?) AND id != ? LIMIT 1');
         $chk->execute([$email, $id]);
         if ($chk->fetch()) {
             return ['ok' => false, 'error' => 'That email is already in use.'];
