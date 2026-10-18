@@ -1,5 +1,26 @@
 # Changelog — RetroBB by techwiz.dad. Format follows keep-a-changelog loosely.
 
+## [0.5.0-beta.2] — 2026-10-18 (pre-release)
+Security and performance follow-up to 0.5.0-beta.1. Sessions now expire on the
+server, and the scans and listings that a busy board hits hardest are bounded.
+No migration changes — drop the files over any 0.5 beta.
+
+### Changed
+- Sessions expire server-side: 30 minutes idle, 7 days absolute. Configurable
+  with `session_idle_seconds` / `session_absolute_seconds` in `config.php`
+  (or `RETROBB_SESSION_IDLE` / `RETROBB_SESSION_ABSOLUTE`); `0` disables
+  either limit. Existing sessions adopt the clock on their next request
+  instead of being logged out by the upgrade.
+- Search stops at 50 pages. Deep `OFFSET`s over a leading-wildcard scan cost
+  more than the results are worth.
+- Members index pages at 50 per page instead of loading 200 accounts per hit.
+- PM drafts tab counts with `COUNT(*)` instead of fetching 50 full rows.
+- Ban history pages at 50 per page in both ModCP and AdminCP.
+- Sitemap sends `Cache-Control` (one hour), `ETag`, and `Last-Modified`, and
+  answers conditional requests with `304 Not Modified`.
+- AdminCP dashboard warns when `board_url` is blank, since canonical links
+  and password-reset emails otherwise build from the request `Host` header.
+
 ## [0.5.0-beta.1] — 2026-10-15 (pre-release)
 Moderation, avatars, subpath deployment, and a security pass. Tinkerers
 welcome; back up before upgrading.

@@ -12,7 +12,20 @@ class ProfileController
 {
     public function index(): void
     {
-        View::render('profile/index', ['users' => User::all(200), 'pageTitle' => 'Members — ' . board_name()]);
+        // Members is a public, unbounded list: page it instead of loading
+        // (and rendering) every account on one screen.
+        $perPage = 50;
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $pages = max(1, (int) ceil(User::count() / $perPage));
+        if ($page > $pages) {
+            $page = $pages;
+        }
+        View::render('profile/index', [
+            'users' => User::paginate($page, $perPage),
+            'page' => $page,
+            'pages' => $pages,
+            'pageTitle' => 'Members — ' . board_name(),
+        ]);
     }
 
     public function show(string $segment): void

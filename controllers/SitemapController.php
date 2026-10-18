@@ -12,6 +12,32 @@ class SitemapController
     {
         header('Content-Type: application/xml; charset=utf-8');
         $pdo = Db::pdo();
+
+        // Crawlers re-fetch sitemaps constantly; the content only changes when
+        // a topic or forum does. Cache for an hour and answer conditional GETs
+        // with 304 instead of rebuilding both result sets every hit.
+        $lastMod = 0;
+        try {
+            $row = $pdo->query('SELECT MAX(last_post_at) m FROM topics')->fetch();
+            if (!empty($row['m'])) {
+                $lastMod = (int) strtotime((string) $row['m']);
+            }
+        } catch (\Throwable) {
+        }
+        if ($lastMod <= 0) {
+            $lastMod = time();
+        }
+        header('Cache-Control: public, max-age=3600');
+        header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $lastMod) . ' GMT');
+        header('ETag: "sitemap-' . $lastMod . '"');
+        $ifMod = (string) ($_SERVER['HTTP_IF_MODIFIED_SINCE'] ?? '');
+        $ifNone = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
+        if (($ifMod !== '' && (int) strtotime($ifMod) >= $lastMod)
+            || ($ifNone !== '' && trim($ifNone, '"') === 'sitemap-' . $lastMod)) {
+            http_response_code(304);
+            return;
+        }
+
         echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
         echo '<?xml-stylesheet href="' . \e(\url('/sitemap.xsl')) . '" type="text/xsl"?>' . "\n";
         echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";

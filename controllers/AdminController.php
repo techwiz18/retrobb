@@ -51,19 +51,17 @@ class AdminController
     public function index(): void
     {
         $this->guard();
-        $bans = \RetroBB\Models\Moderation::banList(100);
-        $active = 0;
-        foreach ($bans as $b) {
-            if (empty($b['lifted_at']) && (empty($b['expires_at']) || strtotime($b['expires_at']) > time())) {
-                $active++;
-            }
-        }
+        $active = \RetroBB\Models\Moderation::activeBanCount();
         View::render('admin/dashboard', [
             'stats' => \RetroBB\Models\Board::stats(),
             'openReports' => \RetroBB\Models\Report::openCount(),
             'activeBans' => $active,
             'installPresent' => is_file(dirname(__DIR__) . '/public/install.php'),
             'update' => update_check(),
+            // With no board_url, canonicals (and password-reset links) build
+            // from the request Host header — poisonable if the origin is
+            // reachable directly. Warn unless host enforcement covers it.
+            'canonicalUnset' => setting('board_url', '') === '' && !config_value('force_board_host', false),
             'pageTitle' => 'AdminCP — ' . board_name(),
         ]);
     }
@@ -95,7 +93,18 @@ class AdminController
     public function bansPage(): void
     {
         $this->guard();
-        View::render('admin/bans', ['bans' => \RetroBB\Models\Moderation::banList(100), 'pageTitle' => 'Bans — AdminCP']);
+        $perPage = 50;
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $pages = max(1, (int) ceil(\RetroBB\Models\Moderation::banCount() / $perPage));
+        if ($page > $pages) {
+            $page = $pages;
+        }
+        View::render('admin/bans', [
+            'bans' => \RetroBB\Models\Moderation::banPage($page, $perPage),
+            'page' => $page,
+            'pages' => $pages,
+            'pageTitle' => 'Bans — AdminCP',
+        ]);
     }
 
     public function usersPage(): void

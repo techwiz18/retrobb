@@ -12,6 +12,13 @@ use RetroBB\Core\Db;
  */
 class Search
 {
+    /**
+     * Hard ceiling on pages a search can page through. Beyond a few hundred
+     * rows the results are noise anyway, and every extra page is another
+     * deep OFFSET over a leading-wildcard scan.
+     */
+    public const MAX_PAGE = 50;
+
     /** Split a query into up to 5 usable terms. Returns [] when unusable. */
     public static function terms(string $q): array
     {
@@ -40,6 +47,8 @@ class Search
         if (!$terms) {
             return ['topics' => [], 'total' => 0];
         }
+        // Cap the page: deep OFFSETs on a LIKE scan cost more than they return.
+        $page = max(1, min(self::MAX_PAGE, $page));
         $where = [];
         $whereParams = [];
         foreach ($terms as $t) {
@@ -77,5 +86,12 @@ class Search
         $st->bindValue($i++, $offset, \PDO::PARAM_INT);
         $st->execute();
         return ['topics' => $st->fetchAll(), 'total' => $total];
+    }
+
+    /** How many pages exist for a result set, never above the hard cap. */
+    public static function pageCount(int $total, int $perPage = 15): int
+    {
+        $pages = (int) ceil($total / max(1, $perPage));
+        return max(1, min(self::MAX_PAGE, $pages));
     }
 }

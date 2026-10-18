@@ -27,7 +27,7 @@ class PmController
         return [
             'unread' => Pm::unreadCount($me),
             'sent' => Pm::sentCount($me),
-            'drafts' => count(Pm::drafts($me)),
+            'drafts' => Pm::draftsCount($me),
             'trash' => Pm::trashCount($me),
         ];
     }

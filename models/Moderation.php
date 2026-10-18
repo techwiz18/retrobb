@@ -145,4 +145,46 @@ class Moderation
             'SELECT b.*, u.username, a.username AS banned_by_name FROM bans b JOIN users u ON u.id=b.user_id JOIN users a ON a.id=b.banned_by ORDER BY b.id DESC LIMIT ' . $limit
         )->fetchAll();
     }
+
+    /** Total ban rows (for paging the mod/admin ban history). */
+    public static function banCount(): int
+    {
+        try {
+            return (int) Db::pdo()->query('SELECT COUNT(*) c FROM bans')->fetch()['c'];
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    /**
+     * How many bans are in force right now. Counting from banList()'s window
+     * only saw the newest 100 rows, so busy boards under-reported.
+     */
+    public static function activeBanCount(): int
+    {
+        try {
+            $st = Db::pdo()->prepare(
+                'SELECT COUNT(*) c FROM bans WHERE lifted_at IS NULL AND (expires_at IS NULL OR expires_at > ?)'
+            );
+            $st->execute([date('Y-m-d H:i:s')]);
+            return (int) ($st->fetch()['c'] ?? 0);
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
+    /** One page of ban history, newest first. */
+    public static function banPage(int $page = 1, int $perPage = 50): array
+    {
+        $page = max(1, $page);
+        $perPage = max(1, min(200, $perPage));
+        $offset = ($page - 1) * $perPage;
+        $st = Db::pdo()->prepare(
+            'SELECT b.*, u.username, a.username AS banned_by_name FROM bans b JOIN users u ON u.id=b.user_id JOIN users a ON a.id=b.banned_by ORDER BY b.id DESC LIMIT ? OFFSET ?'
+        );
+        $st->bindValue(1, $perPage, \PDO::PARAM_INT);
+        $st->bindValue(2, $offset, \PDO::PARAM_INT);
+        $st->execute();
+        return $st->fetchAll();
+    }
 }

@@ -1,4 +1,4 @@
-<?php /** @var array $bans */ ?>
+<?php /** @var array $bans */ /** @var int $page */ /** @var int $pages */ ?>
 <div class="maintitle">AdminCP — Bans</div>
 <?php \RetroBB\Core\View::partial('admin/_nav', ['active' => 'bans']); ?>
 <div class="recent-list">
@@ -15,3 +15,4 @@ $active = !$lifted && !$expired;
 <?php endforeach; ?>
 <?php if (!$bans): ?><div class="empty">No bans on record.</div><?php endif; ?>
 </div>
+<?php \RetroBB\Core\View::partial('partials/pagination', ['page' => $page, 'pages' => $pages]); ?>

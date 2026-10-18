@@ -26,15 +26,9 @@ class ModController
         if (!$this->needMod()) {
             return;
         }
-        $active = 0;
-        foreach (Moderation::banList(100) as $b) {
-            if (empty($b['lifted_at']) && (empty($b['expires_at']) || strtotime($b['expires_at']) > time())) {
-                $active++;
-            }
-        }
         View::render('mod/index', [
             'openReports' => \RetroBB\Models\Report::openCount(),
-            'activeBans' => $active,
+            'activeBans' => Moderation::activeBanCount(),
             'pageTitle' => 'ModCP',
         ]);
     }
@@ -45,8 +39,16 @@ class ModController
         if (!$this->needMod()) {
             return;
         }
+        $perPage = 50;
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $pages = max(1, (int) ceil(Moderation::banCount() / $perPage));
+        if ($page > $pages) {
+            $page = $pages;
+        }
         View::render('mod/bans', [
-            'bans' => Moderation::banList(100),
+            'bans' => Moderation::banPage($page, $perPage),
+            'page' => $page,
+            'pages' => $pages,
             'pageTitle' => 'ModCP — Bans',
         ]);
     }

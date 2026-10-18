@@ -1,4 +1,4 @@
-<?php /** @var array $bans */ ?>
+<?php /** @var array $bans */ /** @var int $page */ /** @var int $pages */ ?>
 <div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(url('/mod/reports')) ?>">Mod queue</a> &raquo; Bans</div>
 <div class="maintitle">ModCP — Bans</div>
 <?php \RetroBB\Core\View::partial('mod/_nav', ['active' => 'bans']); ?>
@@ -24,3 +24,4 @@ if (!empty($b['expires_at']) && !empty($b['created_at'])) {
 <?php endforeach; ?>
 <?php if (!$bans): ?><div class="empty">No bans on record.</div><?php endif; ?>
 </div>
+<?php \RetroBB\Core\View::partial('partials/pagination', ['page' => $page, 'pages' => $pages]); ?>

@@ -224,6 +224,22 @@ class Pm
         }
     }
 
+    /**
+     * Just the number of drafts. The tab strip only needs the count, and
+     * fetching up to 50 full bodies to call count() on them wasted a query
+     * payload on every PM page.
+     */
+    public static function draftsCount(int $userId): int
+    {
+        try {
+            $st = Db::pdo()->prepare('SELECT COUNT(*) c FROM pm_drafts WHERE user_id=?');
+            $st->execute([$userId]);
+            return (int) ($st->fetch()['c'] ?? 0);
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
     public static function findDraft(int $id, int $userId): ?array
     {
         try {

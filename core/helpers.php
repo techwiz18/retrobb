@@ -4,7 +4,7 @@ declare(strict_types=1);
 // Global helpers (no namespace for brevity in views).
 
 /** Current package version. Bump on release; -dev/-beta suffixes sort below releases. */
-const RETROBB_VERSION = '0.5.0-beta.1';
+const RETROBB_VERSION = '0.5.0-beta.2';
 
 function e(?string $s): string
 {
@@ -93,6 +93,25 @@ function base_path(): string
     $normal = '/' . trim((string) $raw, '/');
     $cache = $normal === '/' ? '' : $normal;
     return $cache;
+}
+
+/**
+ * Read one scalar from config.php. Cached per request; a missing or
+ * unreadable config yields the default instead of throwing (pre-install
+ * requests boot before there is a database).
+ */
+function config_value(string $key, mixed $default = null): mixed
+{
+    static $cfg = null;
+    if ($cfg === null) {
+        try {
+            $loaded = require dirname(__DIR__) . '/config.php';
+            $cfg = is_array($loaded) ? $loaded : [];
+        } catch (\Throwable) {
+            $cfg = [];
+        }
+    }
+    return $cfg[$key] ?? $default;
 }
 
 /**

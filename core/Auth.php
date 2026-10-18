@@ -42,10 +42,32 @@ class Auth
         return $_SESSION['user'] ?? null;
     }
 
+    /**
+     * Idle + absolute session limits in seconds (0 disables one). Config wins,
+     * env overrides it, sane defaults cover an untouched install.
+     *
+     * @return array{0:int,1:int} [idle, absolute]
+     */
+    private static function sessionLimits(): array
+    {
+        $envIdle = getenv('RETROBB_SESSION_IDLE');
+        $envAbs = getenv('RETROBB_SESSION_ABSOLUTE');
+        $idle = ($envIdle === false || $envIdle === '')
+            ? (int) \config_value('session_idle_seconds', 1800)
+            : (int) $envIdle;
+        $abs = ($envAbs === false || $envAbs === '')
+            ? (int) \config_value('session_absolute_seconds', 604800)
+            : (int) $envAbs;
+        return [max(0, $idle), max(0, $abs)];
+    }
+
     public static function login(array $user): void
     {
         self::startSession();
         session_regenerate_id(true);
+        // Start both clocks here: validateSession() enforces them from now on.
+        $_SESSION['auth_at'] = time();
+        $_SESSION['seen_at'] = time();
         $_SESSION['user'] = [
             'id' => (int) $user['id'],
             'username' => $user['username'],
@@ -60,7 +82,7 @@ class Auth
     public static function logout(): void
     {
         self::startSession();
-        unset($_SESSION['user']);
+        unset($_SESSION['user'], $_SESSION['auth_at'], $_SESSION['seen_at']);
         session_regenerate_id(true);
     }
 
@@ -127,6 +149,23 @@ class Auth
         if (empty($_SESSION['user'])) {
             return;
         }
+        $now = time();
+        // Sessions minted before limits existed adopt the clock once, then
+        // age normally — an upgrade must not log everyone out mid-session.
+        if (!isset($_SESSION['auth_at'])) {
+            $_SESSION['auth_at'] = $now;
+            $_SESSION['seen_at'] = $now;
+        }
+        [$idleLimit, $absLimit] = self::sessionLimits();
+        $started = (int) $_SESSION['auth_at'];
+        $seen = (int) ($_SESSION['seen_at'] ?? $started);
+        if (($absLimit > 0 && $now - $started > $absLimit)
+            || ($idleLimit > 0 && $now - $seen > $idleLimit)) {
+            self::logout();
+            $_SESSION['flash_error'] = 'Your session expired. Please log in again.';
+            return;
+        }
+        $_SESSION['seen_at'] = $now;
         $id = (int) $_SESSION['user']['id'];
         try {
             $fresh = \RetroBB\Models\User::find($id);
