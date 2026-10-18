@@ -208,7 +208,7 @@ class Topic
             'SELECT t.id, t.title, t.slug, f.name AS forum_name FROM topics t JOIN forums f ON f.id=t.forum_id WHERE t.id != ? AND t.title LIKE ? ORDER BY t.last_post_at DESC LIMIT ?'
         );
         $st->bindValue(1, $excludeId, \PDO::PARAM_INT);
-        $st->bindValue(2, '%' . $q . '%', \PDO::PARAM_STR);
+        $st->bindValue(2, '%' . addcslashes($q, '%_\\') . '%', \PDO::PARAM_STR);
         $st->bindValue(3, $limit, \PDO::PARAM_INT);
         $st->execute();
         return $st->fetchAll();

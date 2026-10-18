@@ -23,7 +23,7 @@ use RetroBB\Core\Slug;
 \RetroBB\Core\Auth::startSession();
 
 $lock = $root . '/storage/installed.lock';
-$force = isset($_GET['force']);
+$force = !empty($_GET['force']);
 // The lock is the install marker. A populated database alone is NOT a block —
 // admins legitimately install into pre-created (even used) databases — but it
 // requires explicit confirmation on the owner step.
@@ -34,7 +34,20 @@ $installed = is_file($lock) && !$force;
 // + storage/installed.lock via your hosting panel instead.
 if (is_file($lock) && $force) {
     $forceUser = \RetroBB\Core\Auth::user();
-    if ($forceUser === null || !\RetroBB\Core\Auth::isSuper()) {
+    // Re-read the row: a stale session (demoted/banned since login) must
+    // not pass on cached credentials. Pre-tier schemas keep legacy behavior.
+    $freshForce = null;
+    if ($forceUser !== null) {
+        try {
+            require_once $root . '/models/User.php';
+            $freshForce = \RetroBB\Models\User::find((int) $forceUser['id']);
+        } catch (\Throwable) {
+            $freshForce = null;
+        }
+    }
+    $forceOk = $freshForce !== null && ($freshForce['user_group'] ?? '') === 'admin'
+        && (!array_key_exists('is_super', $freshForce) || (int) $freshForce['is_super'] === 1);
+    if (!$forceOk) {
         redirect('/');
     }
 }

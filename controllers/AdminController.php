@@ -82,7 +82,7 @@ class AdminController
 
     public function spamPage(): void
     {
-        $this->guard();
+        $this->needSuper();
         View::render('admin/spam', ['settings' => $this->settingsRows(), 'pageTitle' => 'Spam protection — AdminCP']);
     }
 
@@ -214,6 +214,7 @@ class AdminController
                     continue;
                 }
                 if ($k === 'board_url' && $v !== '' && !preg_match('#^https?://[^/]+#i', $v)) {
+                    $_SESSION['flash_error'] = 'Board URL was not saved — use a full address like https://example.com (path must match the install subpath, if any).';
                     continue;
                 }
                 // Native upsert (MySQL reports rows-changed, so UPDATE-then-check misfires).

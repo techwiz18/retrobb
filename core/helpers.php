@@ -140,7 +140,10 @@ function url(string $path): string
         return $path;
     }
     $base = base_path();
-    if ($base !== '' && ($path === $base || str_starts_with($path, $base . '/'))) {
+    // Compare the path portion only: '?picked=…' style queries must not
+    // defeat the already-prefixed check (that doubled /forum once).
+    $onlyPath = explode('?', $path, 2)[0];
+    if ($base !== '' && ($onlyPath === $base || str_starts_with($onlyPath, $base . '/'))) {
         return $path;
     }
     return $base . '/' . ltrim($path, '/');
@@ -268,6 +271,13 @@ function canonical_url(string $path): string
     }
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    // No board_url: fall back to the deployment subpath so bare paths (mail
+    // links like /reset-password) still resolve under a prefix. App paths
+    // already carrying it are left alone (idempotent, like url()).
+    $bp = base_path();
+    if ($bp !== '' && $path !== $bp && !str_starts_with(explode('?', $path, 2)[0], $bp . '/')) {
+        $path = $bp . '/' . ltrim($path, '/');
+    }
     return $scheme . '://' . $host . $path;
 }
 
@@ -353,6 +363,20 @@ function avatar_resize_available(): bool
 }
 
 /**
+ * Is this a direct image link? The extension must terminate the PATH —
+ * query-string tricks (?x=.jpg) and fragments (#x.jpg) don't count, so a
+ * "linked avatar" can't hide a tracking/beacon URL behind an extension.
+ */
+function avatar_link_ok(string $url): bool
+{
+    if (!preg_match('#^https?://[^/]+/.+#i', $url)) {
+        return false;
+    }
+    $path = parse_url($url, PHP_URL_PATH) ?? '';
+    return (bool) preg_match('#\.(jpe?g|png|gif|webp|avif)$#i', $path);
+}
+
+/**
  * Avatar <img> for uploads/links, initial-letter fallback otherwise.
  * Missing keys (pre-avatar schema) safely fall back to the initial.
  * $size: 'post' (caps), 'profile' (caps), 'mini' (half caps, 24–64px list
@@ -364,7 +388,7 @@ function avatar_html(array $user, bool|string $size = 'post'): string
     $src = '';
     if ($kind === 'upload' && isset($user['avatar_file']) && preg_match('#^[A-Za-z0-9_-]+\.(jpg|jpeg|png|gif)$#', (string) $user['avatar_file'])) {
         $src = url('/avatars/' . $user['avatar_file']);
-    } elseif ($kind === 'link' && isset($user['avatar_url']) && preg_match('#^https?://[^/]+/.+#i', (string) $user['avatar_url']) && preg_match('#\.(jpe?g|png|gif|webp|avif)(\?.*)?$#i', (string) $user['avatar_url'])) {
+    } elseif ($kind === 'link' && isset($user['avatar_url']) && avatar_link_ok((string) $user['avatar_url'])) {
         $src = $user['avatar_url'];
     }
     if ($size === true) {

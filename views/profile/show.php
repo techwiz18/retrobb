@@ -6,7 +6,7 @@
     <div class="profile-name"><?= e($profile['username']) ?></div>
     <div><span class="group group-<?= e($profile['user_group']) ?>"><?= e($profile['user_group']) ?></span>
     <?php $me2 = \RetroBB\Core\Auth::user(); ?>
-    <?php if ($me2 && (int) $me2['id'] === (int) $profile['id']): ?> <a class="smallbtn" href="/settings/profile">Edit profile</a><?php elseif ($me2 && feature('pms')): ?> <a class="smallbtn" href="<?= e(url('/pm/new?to=' . urlencode($profile['username']))) ?>">Message</a><?php endif; ?></div>
+    <?php if ($me2 && (int) $me2['id'] === (int) $profile['id']): ?> <a class="smallbtn" href="<?= e(url('/settings/profile')) ?>">Edit profile</a><?php elseif ($me2 && feature('pms')): ?> <a class="smallbtn" href="<?= e(url('/pm/new?to=' . urlencode($profile['username']))) ?>">Message</a><?php endif; ?></div>
     <?php $bioText = is_string($profile['bio'] ?? null) ? trim($profile['bio']) : ''; ?>
     <?php if ($bioText !== '' && strtolower($bioText) !== 'null'): ?><div class="profile-bio"><?= nl2br(e($profile['bio'])) ?></div><?php endif; ?>
     <?php if (strtolower($bioText) === 'null'): ?><?php error_log('RetroBB: literal-null bio rendered for user ' . (int) $profile['id']); ?><?php endif; ?>
