@@ -85,7 +85,11 @@ class Mentions
             return null;
         }
         try {
-            $st = Db::pdo()->prepare('SELECT id, username FROM users WHERE LOWER(username)=LOWER(?) LIMIT 1');
+            // Same collation check as User::findByLogin: skip LOWER() when the
+            // column is already case-insensitive so the UNIQUE index is used.
+            $st = Db::pdo()->prepare(\RetroBB\Models\User::lookupIsCaseInsensitive()
+                ? 'SELECT id, username FROM users WHERE username=? LIMIT 1'
+                : 'SELECT id, username FROM users WHERE LOWER(username)=LOWER(?) LIMIT 1');
             while ($name !== '') {
                 $st->execute([$name]);
                 $row = $st->fetch();

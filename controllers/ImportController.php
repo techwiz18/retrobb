@@ -285,7 +285,9 @@ class ImportController
         }
         $name = 'Guest';
         $email = 'guest@example.invalid';
-        $chk = Db::pdo()->prepare('SELECT id FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?) LIMIT 1');
+        $chk = Db::pdo()->prepare(\RetroBB\Models\User::lookupIsCaseInsensitive()
+            ? 'SELECT id FROM users WHERE username=? OR email=? LIMIT 1'
+            : 'SELECT id FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?) LIMIT 1');
         $chk->execute([$name, $email]);
         if ($chk->fetch()) {
             $name = 'Guest_imported';
@@ -299,7 +301,9 @@ class ImportController
     {
         $name = $name !== '' ? mb_substr($name, 0, 50) : 'imported-user-' . $oldId;
         $email = $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) ? mb_substr($email, 0, 190) : '';
-        $chk = Db::pdo()->prepare('SELECT id FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?) LIMIT 1');
+        $chk = Db::pdo()->prepare(\RetroBB\Models\User::lookupIsCaseInsensitive()
+            ? 'SELECT id FROM users WHERE username=? OR email=? LIMIT 1'
+            : 'SELECT id FROM users WHERE LOWER(username)=LOWER(?) OR LOWER(email)=LOWER(?) LIMIT 1');
         $try = $name;
         for ($i = 0; $i < 50; $i++) {
             $tryEmail = $i === 0 ? $email : '';
