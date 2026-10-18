@@ -88,9 +88,10 @@ it. No catch.
 **Do I need to know code?** No. If you can unzip a file and use cPanel, you can
 run RetroBB. The code part is only for people who want to build plugins.
 
-**Can I move my old phpBB/SMF/MyBB board over?** Not yet — importers are on the
-[roadmap](#-whats-next). Tell us which one you need in
-[issues](https://github.com/techwiz18/retrobb/issues).
+**Can I move my old phpBB/SMF/MyBB board over?** phpBB and SMF, yes —
+AdminCP → Import walks you through a test run before anything is written.
+MyBB is not supported yet; say so in
+[issues](https://github.com/techwiz18/retrobb/issues) if you need it.
 
 **Does it work on phones?** Yes — the retro look collapses into a mobile layout
 automatically.
@@ -131,19 +132,20 @@ Hooks::add_filter('post_body_html', fn($html) => $html); // transform post HTML
 ```
 
 **Contributing:** bug reports and pull requests welcome. The `scripts/`
-folder has the test suites (`vulntest.py` covers 33 security checks) — they
+folder has the test suites (`vulntest.py` covers 43 security checks) — they
 need a running board on `http://localhost:8080`. PHP 8.1–8.4 supported.
 
 ---
 
 ## 🗺 What's next
 
-- v0.4: search, importers (phpBB/SMF), forgot-password flow
-- v0.5 (current beta) — moderation & admin: ModCP bans page, staff shields,
+- v0.4: search, importers (phpBB/SMF), forgot-password flow — shipped
+- v0.5: moderation & admin — ModCP bans page and home, staff shields,
   super-admin tier, unban notes, ban expiry states; avatars (upload or link,
   admin caps, auto-resize); subpath deployment behind a reverse proxy;
   security pass (installer gates, login throttle, redirect choke point);
-  version stamp + update check; mobile wrapping fixes
+  version stamp + update check; mobile wrapping fixes — **0.5.0-beta.2** is
+  the current beta
 - v0.6 — moderation remainder (per-forum permissions, mass actions, soft
   deletions, MFA, email verification, maintenance mode) + structure & look:
   sub-forums, appearance customization, visual breakup, optional homepage
