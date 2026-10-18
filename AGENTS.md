@@ -52,10 +52,16 @@ Pure-PHP forum (no framework). MIT. Production code + tests must stay green.
   uploads 100×100 while the test DB caps at 90×90, and the image has no GD, so
   the code correctly rejects instead of resizing. Only treat it as a failure
   if the caps are larger than the fixture.
+- **Never leave a clone shallow.** The deploy checkout at
+  `/media/dan/data/ai/RetroBB-Live` was a shallow clone (`.git/shallow` grafted
+  at its tip), which made `live` look like an orphan branch: `git merge origin/main`
+  failed with "refusing to merge unrelated histories" and the tempting fix,
+  `--allow-unrelated-histories`, would have given `live` a second root. Run
+  `git fetch --unshallow` on any fresh clone; check with `ls .git/shallow`.
 
 ## Current state (2026-10-18)
 
-- **`v0.5.0-beta.2`** on `main` (`03ba805`) and merged into `live` (`ce2337b`).
+- **`v0.5.0-beta.2`** on `main` (`30292a6`) and merged into `live` (`cd03728`).
   Beta.2 is a security/performance pass: server-side session expiry, search
   page cap, paginated members/bans, `COUNT(*)` drafts, sitemap caching +
   304s, blank-`board_url` dashboard warning, and `LOWER()`-free login/mention
