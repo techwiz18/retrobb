@@ -43,10 +43,31 @@ Pure-PHP forum (no framework). MIT. Production code + tests must stay green.
 - `install.php` self-renames to `install.disabled.php` on success; restore the
   name to re-test the wizard.
 - Never commit/push without `git status` plus a remote check inside THIS repo.
+- **Check the branch before every commit.** `git checkout live` for a deploy
+  merge leaves you on `live`; a follow-up `git add`/`commit` then lands the
+  feature commit on the deploy branch and `main` silently misses it. Run
+  `git branch --show-current` immediately before committing, not just before
+  pushing.
+- `avatartest`'s "valid upload ok: False" is normal in the dev container: it
+  uploads 100×100 while the test DB caps at 90×90, and the image has no GD, so
+  the code correctly rejects instead of resizing. Only treat it as a failure
+  if the caps are larger than the fixture.
 
-## Current state (2026-10-10)
+## Current state (2026-10-18)
 
-- Pre-release `v0.3.0-beta.1` published (`main`). `dev/0.4-search` in progress:
-  search built, importers built (uncommitted), forgot-password up next.
-- Open threads: reworked roadmap in README (v0.4→v0.7); changelog Ideas is the
-  raw backlog.
+- **`v0.5.0-beta.2`** on `main` (`03ba805`) and merged into `live` (`ce2337b`).
+  Beta.2 is a security/performance pass: server-side session expiry, search
+  page cap, paginated members/bans, `COUNT(*)` drafts, sitemap caching +
+  304s, blank-`board_url` dashboard warning, and `LOWER()`-free login/mention
+  lookups. No migrations.
+- `live` = `main` + site-only files (`.cpanel.yml`, `DEPLOY.md`,
+  `plugins/hub-shell/`). Deploy = push `live`, then cPanel **Update from
+  Remote → Deploy**; the operator clicks that, not the agent.
+- Open issues: **#1** mobile responsiveness, **#2** state-changing GETs
+  (import-run is the real one), **#8** trusted-proxy header binding (the
+  `board_url` half shipped in beta.2).
+- Remaining roadmap work is in README (v0.4→v0.7); changelog Ideas is the raw
+  backlog.
+- Suites: `smoke`, `vulntest` (43 checks), `supertest`, `avatartest`,
+  `queuecheck`, `themecheck`, `modflow`, and `backlogcheck` (new, covers the
+  beta.2 behaviour).
