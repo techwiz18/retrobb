@@ -71,3 +71,28 @@ Pure-PHP forum (no framework). MIT. Production code + tests must stay green.
 - Suites: `smoke`, `vulntest` (43 checks), `supertest`, `avatartest`,
   `queuecheck`, `themecheck`, `modflow`, and `backlogcheck` (new, covers the
   beta.2 behaviour).
+- **`scripts/branchcheck.py` enforces the main/live invariant** (see
+  *Branch discipline* below). Run `--remote` after any push; a pre-push hook
+  is installed with `--install-hook`.
+
+## Branch discipline
+
+`live` is `main` plus site-only files. Two rules, both checked by
+`python3 scripts/branchcheck.py`:
+
+1. **deploy completeness** — `git rev-list live..main` is empty. Every fix on
+   `main` reached the deploy branch.
+2. **nothing stranded** — every non-merge commit in `main..live` touches only
+   the site-only whitelist (`.cpanel.yml`, `DEPLOY.md`,
+   `plugins/hub-shell/`). Catches a product change committed on `live` that
+   `main` never received.
+
+These are commit-reachability rules, deliberately not a file diff: a diff
+cannot tell "main is one commit ahead, merge pending" (normal) from "live has
+work main never got" (drift).
+
+The pre-push hook blocks a dirty `live` push on either rule and a `main` push
+on rule 2 only — checking rule 1 when pushing `main` would block the normal
+flow. Bypass one push with `--no-verify`. New site-only files under
+`plugins/hub-shell/` need no script edit; adding one elsewhere means adding it
+to `SITE_ONLY`.
