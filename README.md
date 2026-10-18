@@ -54,10 +54,14 @@ MIT licensed. Made with nostalgia by [techwiz.dad](https://techwiz.dad).
 ```bash
 git clone https://github.com/techwiz18/retrobb.git
 cd retrobb
+cp config.example.php config.php   # then edit it with your MySQL details
 php bin/migrate.php --seed
-php -S localhost:8000 -t public/
-# open http://localhost:8000 — the installer walks you through setup
+php -S localhost:8000 -t public public/router.php
+# open http://localhost:8000
 ```
+The trailing `public/router.php` matters: without it the built-in server
+404s pretty URLs like `/topic/...`. Migrations need `config.php` to exist,
+so copy it first.
 
 **Prefer the command line?** Copy `config.example.php` to `config.php` and fill
 in your MySQL details (or set the `RETROBB_MYSQL_*` environment variables),
@@ -97,11 +101,12 @@ MyBB is not supported yet; say so in
 automatically.
 
 **How do I update?** Back up first (database dump + a copy of `config.php`),
-then delete everything **except** `config.php`, `storage/`, and `plugins/`
-(your own plugins live there) and upload the new release. Then update the
-database, either with one click in AdminCP → Dashboard (“Database updates”)
-or via SSH with `php bin/migrate.php`. Your posts, users, and settings stay
-put: migrations only ever add, and the settings seeder never overwrites.
+then delete everything **except** `config.php`, `storage/`, `plugins/`, and
+`public/avatars/` — your plugins, uploaded avatars, and stored data live in
+those. Upload the new release over what remains, then update the database:
+one click in AdminCP → Dashboard (“Database updates”), or `php bin/migrate.php`
+over SSH. Your posts, users, and settings stay put: migrations only ever add,
+and the settings seeder never overwrites.
 
 **Something broke?** Check that `storage/` is writable by the web server, and
 look at the PHP error log. Still stuck?
@@ -133,7 +138,7 @@ Hooks::add_filter('post_body_html', fn($html) => $html); // transform post HTML
 
 **Contributing:** bug reports and pull requests welcome. The `scripts/`
 folder has the test suites (`vulntest.py` covers 43 security checks) — they
-need a running board on `http://localhost:8080`. PHP 8.1–8.4 supported.
+need a running board on `http://localhost:8080`. PHP 8.1+ (tested on 8.1 and 8.3).
 
 ---
 
@@ -144,8 +149,10 @@ need a running board on `http://localhost:8080`. PHP 8.1–8.4 supported.
   super-admin tier, unban notes, ban expiry states; avatars (upload or link,
   admin caps, auto-resize); subpath deployment behind a reverse proxy;
   security pass (installer gates, login throttle, redirect choke point);
-  version stamp + update check; mobile wrapping fixes — **0.5.0-beta.2** is
-  the current beta
+  version stamp + update check; mobile wrapping fixes
+- v0.5.1: security/performance follow-up — server-side session expiry,
+  search guardrails, paginated members/bans, sitemap caching —
+  **0.5.0-beta.2** is the current beta
 - v0.6 — moderation remainder (per-forum permissions, mass actions, soft
   deletions, MFA, email verification, maintenance mode) + structure & look:
   sub-forums, appearance customization, visual breakup, optional homepage
