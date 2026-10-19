@@ -154,7 +154,7 @@ Hooks::add_filter('post_body_html', fn($html) => $html); // transform post HTML
 ```
 
 **Contributing:** bug reports and pull requests welcome. The `scripts/`
-folder has the test suites (`vulntest.py` covers 43 security checks) — they
+folder has the test suites (`vulntest.py` covers 46 security checks) — they
 need a running board on `http://localhost:8080`. PHP 8.1+ (tested on 8.1 and 8.3).
 
 ---

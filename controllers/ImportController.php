@@ -94,7 +94,9 @@ class ImportController
         }
         View::render('admin/import', [
             'stage' => 'counts', 'error' => null, 'counts' => $counts, 'source' => $source,
-            'next' => '/admin/import/run?step=users&offset=0&t=' . $_SESSION['import_token'],
+            // Step/offset travel in the POST body, never the URL (issue #2).
+            'next' => ['step' => 'users', 'offset' => 0],
+            'token' => $_SESSION['import_token'],
             'pageTitle' => 'Import — AdminCP',
         ]);
     }
@@ -107,13 +109,18 @@ class ImportController
     public function run(): void
     {
         $this->guard();
+        // POST + CSRF (issue #2): the import token used to ride in the URL,
+        // where it leaked through Referer and server logs.
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin/import');
+        }
         $cfg = $_SESSION['import_cfg'] ?? null;
-        $token = (string) ($_GET['t'] ?? '');
+        $token = (string) ($_POST['t'] ?? '');
         if (!$cfg || !isset($_SESSION['import_token']) || !hash_equals((string) $_SESSION['import_token'], $token)) {
             redirect('/admin/import');
         }
-        $step = (string) ($_GET['step'] ?? 'users');
-        $offset = max(0, (int) ($_GET['offset'] ?? 0));
+        $step = (string) ($_POST['step'] ?? 'users');
+        $offset = max(0, (int) ($_POST['offset'] ?? 0));
         if (!in_array($step, ['users', 'forums', 'topics', 'posts', 'recount'], true)) {
             redirect('/admin/import');
         }
@@ -124,8 +131,8 @@ class ImportController
             View::render('admin/import', ['stage' => 'form', 'error' => $t->getMessage(), 'pageTitle' => 'Import — AdminCP']);
             return;
         }
-        $next = function (string $s, int $o) use ($token): string {
-            return '/admin/import/run?step=' . $s . '&offset=' . $o . '&t=' . urlencode($token);
+        $next = function (string $s, int $o): array {
+            return ['step' => $s, 'offset' => $o];
         };
         try {
             if ($step === 'users') {
@@ -233,11 +240,12 @@ class ImportController
         }
     }
 
-    private function progress(string $step, string $next): void
+    private function progress(string $step, array $next): void
     {
         View::render('admin/import', [
             'stage' => 'run', 'error' => null, 'step' => $step,
             'tally' => $_SESSION['import_tally'] ?? [], 'next' => $next,
+            'token' => $_SESSION['import_token'] ?? '',
             'pageTitle' => 'Import — AdminCP',
         ]);
     }

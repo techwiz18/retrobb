@@ -18,6 +18,8 @@ a { color:var(--link); }
 .linkbtn { background:none; border:0; color:#ffe9a8; cursor:pointer; text-decoration:underline; font-size:12px; }
 .navrow { padding:6px 12px; background:var(--bar-bg); border-bottom:1px solid var(--border); font-size:12px; }
 .skinswitch { float:right; }
+.skinswitch .switchform { display:inline; margin:0; }
+.skinswitch .switchbtn { background:none; border:0; padding:0; font:inherit; color:var(--link); cursor:pointer; text-decoration:underline; }
 main { padding:12px; }
 .maintitle { background:linear-gradient(180deg, var(--title-b), var(--title-a)); color:#fff; font-weight:bold; padding:7px 10px; border:1px solid var(--border); border-radius:3px 3px 0 0; text-shadow:0 1px 0 rgba(0,0,0,.4); margin:12px 0 0; }
 .subtitle { padding:6px 10px; border:1px solid var(--border); border-top:0; background:var(--sub-bg); color:var(--sub-text); }

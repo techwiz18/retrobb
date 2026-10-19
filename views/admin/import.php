@@ -1,4 +1,11 @@
 <?php /** @var string $stage */ /** @var string|null $error */ ?>
+<?php
+// The chunked importer advances by POST, not a URL (issue #2): step/offset/t
+// stay in the body so the session token never lands in Referer or logs.
+$nextStep = is_array($next ?? null) ? (string) ($next['step'] ?? 'users') : 'users';
+$nextOffset = is_array($next ?? null) ? (int) ($next['offset'] ?? 0) : 0;
+$importToken = (string) ($token ?? ($_SESSION['import_token'] ?? ''));
+?>
 <div class="maintitle">AdminCP — Import</div>
 <?php \RetroBB\Core\View::partial('admin/_nav', ['active' => 'import']); ?>
 <?php if (!empty($error)): ?><div class="flash-error"><?= e($error) ?></div><?php endif; ?>
@@ -20,16 +27,22 @@
 <button class="btn" type="submit">Check &amp; count →</button>
 </form>
 <?php elseif ($stage === 'counts'): ?>
-<?php /** @var array $counts */ /** @var string $source */ /** @var string $next */ ?>
+<?php /** @var array $counts */ /** @var string $source */ ?>
 <div class="recent-list">
   <div class="recent-row"><span>Users</span><b><?= (int) $counts['users'] ?></b></div>
   <div class="recent-row"><span>Categories + forums</span><b><?= (int) $counts['forums'] ?></b></div>
   <div class="recent-row"><span>Topics</span><b><?= (int) $counts['topics'] ?></b></div>
   <div class="recent-row"><span>Posts</span><b><?= (int) $counts['posts'] ?></b></div>
 </div>
-<p><a class="btn" href="<?= e($next) ?>">Start <?= $source === 'smf' ? 'SMF' : 'phpBB' ?> import →</a></p>
+<form method="post" action="<?= e(url('/admin/import/run')) ?>" class="imp-next">
+<?= \RetroBB\Core\Csrf::field() ?>
+<input type="hidden" name="step" value="<?= e($nextStep) ?>">
+<input type="hidden" name="offset" value="<?= $nextOffset ?>">
+<input type="hidden" name="t" value="<?= e($importToken) ?>">
+<button class="btn" type="submit">Start <?= $source === 'smf' ? 'SMF' : 'phpBB' ?> import →</button>
+</form>
 <?php elseif ($stage === 'run'): ?>
-<?php /** @var string $step */ /** @var array $tally */ /** @var string $next */ ?>
+<?php /** @var string $step */ /** @var array $tally */ ?>
 <div class="maintitle">Importing: <?= e($step) ?>…</div>
 <div class="recent-list">
   <div class="recent-row"><span>Users</span><b><?= (int) ($tally['users'] ?? 0) ?></b></div>
@@ -38,8 +51,14 @@
   <div class="recent-row"><span>Posts</span><b><?= (int) ($tally['posts'] ?? 0) ?></b></div>
   <div class="recent-row"><span>Skipped</span><b><?= (int) ($tally['skipped'] ?? 0) ?></b></div>
 </div>
-<p><a class="btn" href="<?= e($next) ?>">Continue →</a></p>
-<script>setTimeout(function () { window.location.href = <?= json_encode($next) ?>; }, 800);</script>
+<form method="post" action="<?= e(url('/admin/import/run')) ?>" id="imp-next" class="imp-next">
+<?= \RetroBB\Core\Csrf::field() ?>
+<input type="hidden" name="step" value="<?= e($nextStep) ?>">
+<input type="hidden" name="offset" value="<?= $nextOffset ?>">
+<input type="hidden" name="t" value="<?= e($importToken) ?>">
+<button class="btn" type="submit">Continue →</button>
+</form>
+<script>setTimeout(function () { var f = document.getElementById('imp-next'); if (f) { f.submit(); } }, 800);</script>
 <?php elseif ($stage === 'done'): ?>
 <?php /** @var array $tally */ /** @var string $source */ ?>
 <div class="flash-ok">Import finished.</div>

@@ -46,9 +46,19 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
     <?php endif; ?>
     <?php $allowedThemes = allowed_themes(); ?>
     <?php if (feature('skin_selector') || count($allowedThemes) > 1): ?>
-    <span class="skinswitch"><?php if (feature('skin_selector')): ?>Skin:
-      <?php $curSkin = skin(); foreach (['classic' => 'Classic', 'midnight' => 'Midnight', 'silver' => 'Silver'] as $sk => $label): ?><?php if ($sk === $curSkin): ?><b class="on"><?= $label ?></b><?php else: ?><a href="<?= e(url('/skin/' . $sk)) ?>"><?= $label ?></a><?php endif; ?> <?php endforeach; ?><?php endif; ?><?php if (feature('skin_selector') && count($allowedThemes) > 1): ?> · <?php endif; ?><?php if (count($allowedThemes) > 1): ?>Theme:<?php $curTheme = theme(); foreach ($allowedThemes as $i => $tm): ?><?= $i > 0 ? ' ' : ' ' ?><?php if ($tm === $curTheme): ?><b class="on"><?= ucfirst($tm) ?></b><?php else: ?><a href="<?= e(url('/theme/' . $tm)) ?>"><?= ucfirst($tm) ?></a><?php endif; ?><?php endforeach; ?><?php endif; ?>
-    </span>
+    <div class="skinswitch">
+      <?php // Switchers are POST + CSRF (issue #2): a GET let any page embed the
+            // URL and pin a visitor's skin/theme. They use the sessionless
+            // double-submit token (Csrf::anonField) because guests get no session.
+            // The current value stays a label. ?>
+      <?php if (feature('skin_selector')): ?>Skin:
+        <?php $curSkin = skin(); foreach (['classic' => 'Classic', 'midnight' => 'Midnight', 'silver' => 'Silver'] as $sk => $label): ?><?php if ($sk === $curSkin): ?><b class="on"><?= $label ?></b><?php else: ?><form method="post" action="<?= e(url('/skin/' . $sk)) ?>" class="switchform"><?= \RetroBB\Core\Csrf::anonField() ?><button class="switchbtn" type="submit"><?= $label ?></button></form><?php endif; ?> <?php endforeach; ?>
+      <?php endif; ?>
+      <?php if (feature('skin_selector') && count($allowedThemes) > 1): ?> · <?php endif; ?>
+      <?php if (count($allowedThemes) > 1): ?>Theme:
+        <?php $curTheme = theme(); foreach ($allowedThemes as $i => $tm): ?><?= $i > 0 ? ' ' : ' ' ?><?php if ($tm === $curTheme): ?><b class="on"><?= ucfirst($tm) ?></b><?php else: ?><form method="post" action="<?= e(url('/theme/' . $tm)) ?>" class="switchform"><?= \RetroBB\Core\Csrf::anonField() ?><button class="switchbtn" type="submit"><?= ucfirst($tm) ?></button></form><?php endif; ?><?php endforeach; ?>
+      <?php endif; ?>
+    </div>
     <?php endif; ?>
   </nav>
   <?php endif; ?>

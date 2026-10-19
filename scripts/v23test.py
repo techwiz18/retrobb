@@ -26,6 +26,15 @@ def login(op, u, p):
     _, html = get(op, '/login')
     post(op, '/login', {'csrf': csrf(html), 'login': u, 'password': p})
 
+def anon_csrf(html):
+    m = re.search(r'name="anon_csrf" value="([^"]+)"', html)
+    return m.group(1) if m else None
+
+def set_theme(op, t):
+    # theme switch is POST + sessionless CSRF now (issue #2)
+    _, html = get(op, '/')
+    post(op, '/theme/' + t, {'anon_csrf': anon_csrf(html)})
+
 def views(html):
     m = re.search(r'(\d+) views', html)
     return int(m.group(1)) if m else -1
@@ -79,11 +88,11 @@ print('password restored')
 
 # sitemap xsl follows theme cookie
 dark = session()
-dark.open(base + '/theme/dark')
+set_theme(dark, 'dark')
 xsl = dark.open(base + '/sitemap.xsl').read().decode()
 print('xsl dark:', '#14161b' in xsl)
 light = session()
-light.open(base + '/theme/light')
+set_theme(light, 'light')
 xsl2 = light.open(base + '/sitemap.xsl').read().decode()
 print('xsl light:', '#dfe3ee' in xsl2)
 print('V23 TESTS DONE')

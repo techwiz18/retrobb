@@ -190,6 +190,21 @@ check('cookie HttpOnly', 'httponly' in sc.lower(), sc[:80])
 _, _, _, hdrs = get(session(), '/')
 for h in ['X-Frame-Options', 'X-Content-Type-Options']:
     check('header ' + h, hdrs.get(h) is not None, str(hdrs.get(h)))
+
+print('--- E. STATE-CHANGING GETs (issue #2) ---')
+# import run must not apply on GET (POST + CSRF only)
+code, _, _, _ = get(admin, '/admin/import/run?step=users&offset=0&t=x')
+check('import run GET rejected', code == 404, 'got %s' % code)
+# skin/theme switchers must not set a cookie on GET...
+def set_cookies(hdrs):
+    return '; '.join(hdrs.get_all('Set-Cookie') or [])
+sk = session()
+_, _, _, hdrs = get(sk, '/skin/midnight')
+check('skin switch GET sets no cookie', 'retrobb_skin' not in set_cookies(hdrs), set_cookies(hdrs))
+# ...nor on a POST with no CSRF token
+code, _, hdrs = raw(sk, 'POST', '/skin/midnight', {})
+check('skin switch POST without CSRF sets no cookie', 'retrobb_skin' not in set_cookies(hdrs), 'got %s' % code)
+
 print('RESULT: %d passed, %d failed' % (len(PASS), len(FAIL)))
 if FAIL:
     print('FAILED:', FAIL)
