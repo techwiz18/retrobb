@@ -1,6 +1,10 @@
-"""Temp: super-admin tier checks."""
-import re, urllib.request, urllib.parse, http.cookiejar, urllib.error
-base = 'http://localhost:8080'
+"""Super-admin tier checks. Canonical fixture ids: admin=1 (super),
+PixelMod=2 (mod), dialup_dan=3 (member, the promoted one)."""
+import os, re, sys, urllib.request, urllib.parse, http.cookiejar, urllib.error
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _harness import check, finish
+
+base = os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
 
 def session():
     cj = http.cookiejar.CookieJar()
@@ -11,8 +15,8 @@ def csrf(html):
 
 def login(op, u, p):
     html = op.open(base + '/login').read().decode()
-    data = urllib.parse.urlencode({'csrf': csrf(html), 'login': u, 'password': p}).encode()
-    op.open(urllib.request.Request(base + '/login', data=data))
+    op.open(urllib.request.Request(base + '/login',
+        data=urllib.parse.urlencode({'csrf': csrf(html), 'login': u, 'password': p}).encode()))
 
 def get(op, path):
     try:
@@ -24,46 +28,50 @@ def post(op, formpage, path, fields):
     html = op.open(base + formpage).read().decode()
     fields['csrf'] = csrf(html)
     try:
-        return op.open(urllib.request.Request(base + path, data=urllib.parse.urlencode(fields).encode())).read().decode(), 200
+        return op.open(urllib.request.Request(base + path,
+            data=urllib.parse.urlencode(fields).encode())).read().decode(), 200
     except urllib.error.HTTPError as e:
         return '', e.code
 
-super_s, admin2, mod = session(), session(), session()
+super_s, admin2 = session(), session()
 login(super_s, 'admin', 'admin123')
-# promote TechWiz18 (id 4) to admin (non-super) via super
-b, c = post(super_s, '/admin/users', '/admin/user/4/group', {'group': 'admin'})
-print('promote code:', c)
-login(admin2, 'TechWiz18', 'password123')
+# promote a member to a NON-super admin so the tier gates are testable
+post(super_s, '/admin/users', '/admin/user/3/group', {'group': 'admin'})
+login(admin2, 'dialup_dan', 'password123')
 
-# regular admin gates
-_, c1 = get(admin2, '/admin/settings'); print('admin settings page:', c1, '(want 403)')
-_, c2 = get(admin2, '/admin/import'); print('admin import page:', c2, '(want 403)')
-_, c3 = post(admin2, '/admin/users', '/admin/user/18/group', {'group': 'member'})
-print('admin setGroup:', c3, '(want 403)')
+_, c1 = get(admin2, '/admin/settings')
+check('non-super admin blocked from settings', c1 == 403, c1)
+_, c2 = get(admin2, '/admin/import')
+check('non-super admin blocked from import', c2 == 403, c2)
+_, c3 = post(admin2, '/admin/users', '/admin/user/2/group', {'group': 'member'})
+check('non-super admin cannot set groups', c3 == 403, c3)
 u, _ = get(admin2, '/admin/users')
-print('users hides set forms:', 'Make super' not in u and 'name="group"' not in u)
+check('users page hides super controls', 'Make super' not in u and 'name="group"' not in u)
 d, _ = get(admin2, '/admin')
-print('dashboard hides super cards:', 'Run database updates' not in d and 'Import' not in d)
-q, _ = get(admin2, '/mod/reports'); print('admin keeps queue:', 'Mod queue' in q)
+check('dashboard hides super cards', 'Run database updates' not in d and 'Import' not in d)
+q, _ = get(admin2, '/mod/reports')
+check('non-super admin keeps mod queue', 'Mod queue' in q)
 
-# staff shields
-w, _ = post(admin2, '/members/pixelmod.u18', '/members/18/warn', {'reason': 'admin2 warn mod'})
-print('admin warns mod refused:', 'super admins can warn staff' in w.lower())
-w2, _ = post(super_s, '/members/pixelmod.u18', '/members/18/warn', {'reason': 'super warn mod ok'})
-print('super warns mod allowed:', w2 is not None)
-bw, _ = post(admin2, '/members/pixelmod.u18', '/members/18/ban', {'reason': 'admin2 ban mod', 'days': '1'})
-print('admin bans mod refused:', 'super admins can ban staff' in bw.lower())
+# staff shields: only a super may warn/ban a mod
+w, _ = post(admin2, '/members/pixelmod.u2', '/members/2/warn', {'reason': 'admin2 warn mod'})
+check('non-super admin cannot warn a mod', 'super admins can warn staff' in w.lower())
+_, wc = post(super_s, '/members/pixelmod.u2', '/members/2/warn', {'reason': 'super warn mod ok'})
+check('super can warn a mod', wc == 200, wc)
+bw, _ = post(admin2, '/members/pixelmod.u2', '/members/2/ban', {'reason': 'admin2 ban mod', 'days': '1'})
+check('non-super admin cannot ban a mod', 'super admins can ban staff' in bw.lower())
 
-# super grant + revoke + self-protection
-g, gc = post(super_s, '/admin/users', '/admin/user/4/super', {})
-print('grant super code:', gc)
-s, _ = get(admin2, '/admin/settings'); print('newly-super settings:', s)
-r, rc = post(super_s, '/admin/users', '/admin/user/4/super', {})
-print('revoke super code:', rc)
-s2, sc2 = get(admin2, '/admin/settings'); print('revoked settings:', sc2, '(want 403)')
-selfdemo, sdc = post(super_s, '/admin/users', '/admin/user/1/super', {})
-print('self super-revoke blocked (still super):', 'settings' in super_s.open(base + '/admin/settings').read().decode())
+# grant super + revoke + self-protection
+_, gc = post(super_s, '/admin/users', '/admin/user/3/super', {})
+check('super grants super', gc == 200, gc)
+s, sc = get(admin2, '/admin/settings')
+check('newly-super admin reaches settings', sc == 200 and 'Board name' in s, sc)
+_, rc = post(super_s, '/admin/users', '/admin/user/3/super', {})
+check('super revokes super', rc == 200, rc)
+_, sc2 = get(admin2, '/admin/settings')
+check('revoked admin blocked again', sc2 == 403, sc2)
+post(super_s, '/admin/users', '/admin/user/1/super', {})
+check('self super-revoke blocked', 'Board name' in super_s.open(base + '/admin/settings').read().decode())
 
-# demote back to member for clean state
-post(super_s, '/admin/users', '/admin/user/4/group', {'group': 'member'})
-print('demoted back')
+# clean up the promoted admin
+post(super_s, '/admin/users', '/admin/user/3/group', {'group': 'member'})
+finish()

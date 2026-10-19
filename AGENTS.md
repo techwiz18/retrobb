@@ -16,6 +16,11 @@ Pure-PHP forum (no framework). MIT. Production code + tests must stay green.
 - Run the shell with working directory set to the repo root.
 - Dev scripts live in `scripts/` and run from the repo root: `sh scripts/serve.sh`,
   `python3 scripts/smoke.py`, etc. Test suites accept `RETROBB_TEST_BASE` env.
+- **Run the regression suite deterministically** (issue #9): `sh scripts/testenv.sh`
+  rebuilds a throwaway `retrobb_test` DB (migrate + seed, canonical ids) and serves
+  it on :8081; `python3 scripts/runtests.py` runs every suite against it in any
+  order and exits non-zero on failure. Suites use `scripts/_harness.py` for
+  PASS/FAIL + exit codes. This never touches the dev board (:8080) or `retrobb_live`.
 - If file tools fail on paths, use the shell from the repo root instead.
 
 ## Infrastructure (Docker)
@@ -34,7 +39,12 @@ Pure-PHP forum (no framework). MIT. Production code + tests must stay green.
 ## Test discipline (learned the hard way)
 
 - Write-tests mutate the DB: back up first, restore after, then re-verify.
-  The user's live data is sacred.
+  The user's live data is sacred. (For the regression suite, `scripts/testenv.sh`
+  sidesteps this by using the disposable `retrobb_test` DB.)
+- Suites must be **self-contained**: discover or create the ids they need, and
+  clean up shared state (reports, bans) so they pass in any order. Hardcoding a
+  fixture id or depending on another suite's leftovers is the bug that made the
+  old suites fail against drifted databases (issue #9).
 - The user tests concurrently in their browser — page-text counts race; assert
   on DB truth instead.
 - `require_once` is for class files ONLY. `config.php` returns a value, so it

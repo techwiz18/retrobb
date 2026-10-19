@@ -1,5 +1,8 @@
-import re, urllib.request, urllib.parse, http.cookiejar, urllib.error
-import os as _os; base = _os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
+import os, re, sys, urllib.request, urllib.parse, http.cookiejar, urllib.error
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _harness import check, finish
+
+base = os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
 
 def session():
     cj = http.cookiejar.CookieJar()
@@ -14,9 +17,7 @@ def get(op, path):
         return e.code, url, e.read().decode()
 
 def post(op, path, fields):
-    data = urllib.parse.urlencode(fields, doseq=True).encode()
-    req = urllib.request.Request(base + path, data=data)
-    r = op.open(req)
+    r = op.open(urllib.request.Request(base + path, data=urllib.parse.urlencode(fields, doseq=True).encode()))
     return r.url, r.read().decode()
 
 def csrf(html):
@@ -31,35 +32,33 @@ login(admin, 'admin', 'admin123')
 mod = session()
 login(mod, 'PixelMod', 'password123')
 
-# 1. mod can reach queue now
+# 1. demoting a mod revokes powers mid-session, restoring brings them back
 code, _, _ = get(mod, '/mod/reports')
-print('mod queue before demote:', code)
-# admin demotes to member
+check('mod reaches queue before demote', code == 200, code)
 _, _, html = get(admin, '/admin/users')
 post(admin, '/admin/user/2/group', {'csrf': csrf(html), 'group': 'member'})
 code, _, _ = get(mod, '/mod/reports')
-print('mod queue right after demote:', code, '-> stale powers gone:', code == 403)
-# restore
+check('demoted mod loses queue', code == 403, code)
 _, _, html = get(admin, '/admin/users')
-post(admin, '/admin/user/3/group', {'csrf': csrf(html), 'group': 'mod'})
+post(admin, '/admin/user/2/group', {'csrf': csrf(html), 'group': 'mod'})
 code, _, _ = get(mod, '/mod/reports')
-print('mod queue after restore:', code)
+check('restored mod regains queue', code == 200, code)
 
-# 2. ban while online
+# 2. ban while online boots the session
 victim = session()
 login(victim, 'dialup_dan', 'password123')
 _, _, html = get(victim, '/')
-print('victim logged in:', 'dialup_dan' in html)
+check('victim logged in', 'dialup_dan' in html)
 _, _, html = get(admin, '/members/dialup-dan.u3')
 post(admin, '/members/3/ban', {'csrf': csrf(html), 'reason': 'session test', 'days': '1'})
 _, _, html = get(victim, '/')
-print('banned user booted mid-session:', 'dialup_dan' not in html and 'Log in' in html)
-print('ban reason shown:', 'banned' in html.lower())
-# unban, login works
+check('banned user booted mid-session', 'dialup_dan' not in html and 'Log in' in html)
+check('ban reason shown', 'banned' in html.lower())
+# unban, confirm login works again
 _, _, html = get(admin, '/admin/bans')
 m = re.search(r'/admin/unban/(\d+)', html)
 post(admin, '/admin/unban/' + m.group(1), {'csrf': csrf(html)})
 login(victim, 'dialup_dan', 'password123')
 _, _, html = get(victim, '/')
-print('login works after unban:', 'dialup_dan' in html)
-print('SESSION TESTS DONE')
+check('login works after unban', 'dialup_dan' in html)
+finish()
