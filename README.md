@@ -19,7 +19,8 @@ MIT licensed. Made with nostalgia by [techwiz.dad](https://techwiz.dad).
 
 **The modern comforts**
 - SEO-friendly URLs (`/topic/welcome-to-retrobb.t1`) that survive renames
-- Quiet by default: fast pages, no tracking, no ads, mobile-friendly
+- Quiet by default: fast pages, no tracking, no ads, mobile-friendly basics
+  (a 760px layout — still improving, see [#1](https://github.com/techwiz18/retrobb/issues/1))
 - Alerts, mentions, reactions, and private messages (with drafts, trash,
   and reply threading) — every one toggleable board-wide in AdminCP → Features
 - Real "new post" markers: per-user read tracking, not just recent activity
@@ -29,7 +30,8 @@ MIT licensed. Made with nostalgia by [techwiz.dad](https://techwiz.dad).
   or plug in Cloudflare Turnstile / hCaptcha / reCAPTCHA
 - Moderation done right: reports + mod queue, warnings, temp/perm bans,
   move/split/merge topics, full mod log
-- Community plugins via a simple hooks system (see `plugins/hello-world/`)
+- Community plugins via a simple hooks system (see `plugins/hello-world/` in
+  the repo — the example is not included in release zips)
 
 ---
 
@@ -71,9 +73,12 @@ then run `php bin/migrate.php --seed`.
 
 ## 🧭 First steps after installing
 
-1. **Change the admin password.** Click your name in the top bar → *Edit profile*
-   → Change password. On the command-line test drive the seeded account is
-   `admin` / `admin123`, so do this first.
+1. **Confirm your admin account.** The installer asks for the owner username,
+   email, and password on the last page — that's the account you log in with,
+   and it's already a super admin. (The command-line test drive in Option B is
+   the exception: it seeds `admin` / `admin123`, which you should change
+   immediately.) Either way, if you want a different password later: click your
+   name in the top bar → *Edit profile* → Change password.
 2. **Make your boards.** AdminCP → **Structure**: add categories and forums,
    then order them with the ↑ ↓ buttons.
 3. **Set your Board URL.** AdminCP → **Settings** → Board URL. Optional, but

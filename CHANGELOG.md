@@ -147,6 +147,11 @@ Social batch plus board control. Tinkerers welcome; not production-hardened yet.
 - Installer writes an allowlisted skin; urlencode hrefs and layout class escaped.
 
 ## [Unreleased]
+- Fixed: `php bin/migrate.php --seed` on a fresh database created the demo
+  `admin` account without the super-admin tier, so AdminCP → Settings,
+  Features, and Spam protection returned 403 on a brand-new board until
+  `migrate.php` was run a second time. The super-admin bootstrap now also runs
+  after the demo seed.
 - MySQL 8 / MariaDB 10.6+ is now the only backend (SQLite removed pre-1.0).
   Beta SQLite boards can be rescued with `php bin/import-sqlite.php`.
 - Settings saves use native upserts (fixes unchanged-value saves failing).

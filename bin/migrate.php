@@ -70,18 +70,24 @@ $defaults = [
 ];
 // Super-admin bootstrap for pre-tier boards: the first admin becomes super,
 // but only when nobody holds it yet (never clobber an existing choice).
-try {
-    $supers = (int) $pdo->query('SELECT COUNT(*) c FROM users WHERE is_super=1')->fetch()['c'];
-    if ($supers === 0) {
-        $first = $pdo->query("SELECT id FROM users WHERE user_group='admin' ORDER BY id LIMIT 1")->fetch();
-        if ($first) {
-            $pdo->prepare('UPDATE users SET is_super=1 WHERE id=?')->execute([(int) $first['id']]);
-            echo 'Super admin bootstrapped (user #' . (int) $first['id'] . ").\n";
+// Wrapped in a closure because the demo seed at the end of this file creates
+// the first admin: on a fresh `--seed` database there is no admin to promote
+// until after seeding, so it is called again below.
+$bootstrapSuper = function () use ($pdo): void {
+    try {
+        $supers = (int) $pdo->query('SELECT COUNT(*) c FROM users WHERE is_super=1')->fetch()['c'];
+        if ($supers === 0) {
+            $first = $pdo->query("SELECT id FROM users WHERE user_group='admin' ORDER BY id LIMIT 1")->fetch();
+            if ($first) {
+                $pdo->prepare('UPDATE users SET is_super=1 WHERE id=?')->execute([(int) $first['id']]);
+                echo 'Super admin bootstrapped (user #' . (int) $first['id'] . ").\n";
+            }
         }
+    } catch (Throwable $t) {
+        echo 'Super bootstrap skipped (' . $t->getMessage() . ").\n";
     }
-} catch (Throwable $t) {
-    echo 'Super bootstrap skipped (' . $t->getMessage() . ").\n";
-}
+};
+$bootstrapSuper();
 
 // default settings: seed-only (INSERT IGNORE) so upgrades never clobber
 // an admin's existing values — new keys arrive, old ones stay untouched.
@@ -148,4 +154,8 @@ echo "Migrations done.\n";
 
 if ($seed) {
     require_once $root . '/bin/seed.php';
+    // The seed above may have just created the first admin account; give the
+    // new owner the super tier so AdminCP → Settings/Features/Spam work on a
+    // brand-new board instead of returning 403.
+    $bootstrapSuper();
 }
