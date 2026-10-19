@@ -9,6 +9,28 @@ MIT licensed. Made with nostalgia by [techwiz.dad](https://techwiz.dad).
 
 ---
 
+## 🚦 Status
+
+RetroBB is **beta** software. It can run a real board today, but it is still
+being hardened and has not reached 1.0 — the
+[v1.0 readiness checklist](https://github.com/techwiz18/retrobb/milestone/1)
+tracks what's left. Known gaps:
+
+- **Not built yet:** email verification (registration is only as gated as your
+  CAPTCHA), maintenance mode, per-forum permissions, mass moderation actions,
+  soft (recoverable) deletions, sub-forums, and MFA.
+- **Mobile** responsiveness is a work in progress
+  ([#1](https://github.com/techwiz18/retrobb/issues/1)).
+- **Importers** handle phpBB 3.x and SMF 2.x only (no MyBB). They flatten
+  sub-forums and skip polls, attachments, PMs, bans, avatars, and permissions.
+  Don't run an import twice — re-running adds everything again.
+- **Avatars** need the GD extension to resize; without it, uploads that exceed
+  the size caps are rejected, not scaled.
+- **Back up first.** Upgrades are drop-in (migrations only add and never
+  overwrite your settings), but dump the database and copy `config.php` anyway.
+
+---
+
 ## ✨ What's inside
 
 **The retro stuff**
