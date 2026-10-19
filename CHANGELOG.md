@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 ### Added
+- Continuous integration (`.github/workflows/ci.yml`): on every push and PR it
+  runs the README/source doccheck, the main/live branch invariant, PHP lint,
+  and the full regression suite against a fresh seeded board.
 - Deterministic regression suite. `scripts/testenv.sh` builds a fresh, seeded
   `retrobb_test` board (canonical ids) on an isolated port, and
   `scripts/runtests.py` runs every suite against it in any order and exits

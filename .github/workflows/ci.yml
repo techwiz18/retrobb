@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main, live]
+  pull_request:
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # full history: the branch invariant walks commits.
+          fetch-depth: 0
+
+      - name: Fetch main + live for the branch check
+        run: git fetch --no-tags origin main live || true
+
+      - name: Docs claims (README vs source)
+        run: python3 scripts/doccheck.py
+
+      - name: Branch invariant
+        run: |
+          if ! git rev-parse --verify --quiet origin/main >/dev/null \
+             || ! git rev-parse --verify --quiet origin/live >/dev/null; then
+            echo "origin/main or origin/live unavailable — skipping branch check"
+            exit 0
+          fi
+          # A push to main is legitimately ahead of live until the merge, so
+          # only rule 2 (nothing stranded on live) applies there — same as the
+          # pre-push hook. Pushing live checks both rules.
+          if [ "${GITHUB_REF_NAME:-}" = "live" ]; then
+            python3 scripts/branchcheck.py --remote
+          else
+            python3 scripts/branchcheck.py --remote --rule stranded
+          fi
+
+      - name: PHP lint
+        run: sh scripts/lint.sh
+
+      - name: Build test PHP image (retrobb-php)
+        run: docker build -t retrobb-php -f docker/Dockerfile.cli-mysql .
+
+      - name: Start MySQL
+        run: sh scripts/mysql-up.sh
+
+      - name: Build deterministic test board (:8081, retrobb_test)
+        run: sh scripts/testenv.sh
+
+      - name: Regression suite
+        run: python3 scripts/runtests.py
