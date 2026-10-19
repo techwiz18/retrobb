@@ -1,6 +1,10 @@
-"""Temp: exercise moderation flows on wipe (backup/restore around it)."""
-import re, urllib.request, urllib.parse, http.cookiejar, urllib.error
-import os as _os; base = _os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
+"""Moderation flows. Canonical fixture: admin=1 (super), PixelMod=2 (mod),
+dialup_dan=3 (member/target), Guest_2003=4 (member/reporter)."""
+import os, re, sys, urllib.request, urllib.parse, http.cookiejar, urllib.error
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _harness import check, note, finish
+
+base = os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
 
 def session():
     cj = http.cookiejar.CookieJar()
@@ -11,91 +15,89 @@ def csrf(html):
 
 def login(op, u, p):
     html = op.open(base + '/login').read().decode()
-    data = urllib.parse.urlencode({'csrf': csrf(html), 'login': u, 'password': p}).encode()
-    op.open(urllib.request.Request(base + '/login', data=data))
+    op.open(urllib.request.Request(base + '/login',
+        data=urllib.parse.urlencode({'csrf': csrf(html), 'login': u, 'password': p}).encode()))
 
-def post(op, path, fields):
-    html = op.open(base + path).read().decode() if fields.pop('_getform', None) else None
-    if html is None:
-        # fetch a page carrying a csrf token first
-        html = op.open(base + fields.pop('_formpage')).read().decode()
+def post(op, formpage, path, fields):
+    """Fetch formpage for a CSRF token, then POST path. Returns (body, code)."""
+    html = op.open(base + formpage).read().decode()
     fields['csrf'] = csrf(html)
-    req = urllib.request.Request(base + path, data=urllib.parse.urlencode(fields).encode())
     try:
-        return op.open(req).read().decode(), None
+        r = op.open(urllib.request.Request(base + path, data=urllib.parse.urlencode(fields).encode()))
+        return r.read().decode(), None
     except urllib.error.HTTPError as e:
         return '', e.code
 
-admin, mod, member = session(), session(), session()
+admin, mod, reporter = session(), session(), session()
 login(admin, 'admin', 'admin123')
 login(mod, 'PixelMod', 'password123')
-login(member, 'TechWiz18', 'password123')
+login(reporter, 'Guest_2003', 'password123')
 
-# 1. member reports a post (discover ids: seeds churn them)
-home = member.open(base + '/').read().decode()
-fm = re.search(r'/forum/([a-z0-9\-]+)\.f(\d+)', home)
-fhtml = member.open(base + '/forum/%s.f%s' % (fm.group(1), fm.group(2))).read().decode()
-tm = re.search(r'/topic/([a-z0-9\-]+)\.t(\d+)', fhtml)
-tpath = '/topic/%s.t%s' % (tm.group(1), tm.group(2))
-thtml = member.open(base + tpath).read().decode()
-m = re.search(r'/post/(\d+)/report', thtml)
-pid = m.group(1) if m else '1'
-print('reporting post', pid, 'on', tpath)
-body, code = post(member, f'/post/{pid}/report', {'_formpage': f'/post/{pid}/report', 'reason': 'modflow test report'})
-print('report submit ok:', code is None)
+# report a member's post (topic 2 is dialup_dan's; avoid reporting staff, which
+# the staff shields block).
+thtml = reporter.open(base + '/topic/what-was-your-first-forum.t2').read().decode()
+pid = re.search(r'/post/(\d+)/report', thtml).group(1)
+_, code = post(reporter, f'/post/{pid}/report', f'/post/{pid}/report', {'reason': 'modflow test report'})
+check('member can report a post', code is None, code)
+_, code2 = post(reporter, f'/post/{pid}/report', f'/post/{pid}/report', {'reason': 'second try'})
+note('duplicate report code: %s' % code2)
+_, code3 = post(admin, f'/post/{pid}/report', f'/post/{pid}/report', {'reason': 'admin view'})
+check('admin can report same post', code3 is None, code3)
 
-# duplicate report should be rejected-ish (same reporter+post)
-body2, code2 = post(member, f'/post/{pid}/report', {'_formpage': f'/post/{pid}/report', 'reason': 'second try'})
-print('dup report code:', code2)
-
-# self-report guard: admin reports own post? find admin post or skip (report other post as admin)
-body3, code3 = post(admin, f'/post/{pid}/report', {'_formpage': f'/post/{pid}/report', 'reason': 'admin view'})
-print('admin second reporter ok:', code3 is None)
-
-# 2. queue visible to mod with the report
 q = mod.open(base + '/mod/reports').read().decode()
-print('queue shows reason:', 'modflow test report' in q)
-rid = re.search(r'/mod/report/(\d+)/resolve', q)
-rid = rid.group(1) if rid else None
-print('open report id:', rid)
+check('queue shows report reason', 'modflow test report' in q)
+ridm = re.search(r'/mod/report/(\d+)/resolve', q)
+rid = ridm.group(1) if ridm else None
+check('open report appears in queue', rid is not None)
 
-# 3. resolve without note should bounce (note required)
 if rid:
-    b, c = post(mod, f'/mod/report/{rid}/handle', {'_formpage': f'/mod/report/{rid}/resolve', 'status': 'resolved', 'note': ''})
-    print('resolve-no-note bounced:', 'what action you took' in b)
+    b, _ = post(mod, f'/mod/report/{rid}/resolve', f'/mod/report/{rid}/handle', {'status': 'resolved', 'note': ''})
+    check('resolve without note bounces', 'what action you took' in b)
+    w, _ = post(mod, f'/mod/report/{rid}/warn', f'/mod/report/{rid}/warn-author', {'reason': 'modflow warning'})
+    check('warn-author from queue warns the author', 'Author warned' in w)
 
-# 4. warn flow via queue (member TechWiz18 gets warning)
-if rid:
-    w, wc = post(mod, f'/mod/report/{rid}/warn-author', {'_formpage': f'/mod/report/{rid}/warn', 'reason': 'modflow warning'})
-    print('warn-author code:', wc)
+# direct profile warn + ban of a member
+prof = mod.open(base + '/members/dialup-dan.u3').read().decode()
+check('profile shows member', 'dialup_dan' in prof)
+_, bwc = post(mod, '/members/dialup-dan.u3', '/members/3/warn', {'reason': 'direct modflow warn'})
+check('mod can warn a member directly', bwc is None, bwc)
+_, bbc = post(mod, '/members/dialup-dan.u3', '/members/3/ban', {'reason': 'modflow temp ban', 'days': '1'})
+check('mod can temp-ban a member', bbc is None, bbc)
 
-# 5. direct profile warn + ban
-prof = mod.open(base + '/members/techwiz18.u4').read().decode()
-print('profile shows member:', 'TechWiz18' in prof)
-bw, bwc = post(mod, '/members/4/warn', {'_formpage': '/members/techwiz18.u4', 'reason': 'direct modflow warn'})
-print('direct warn code:', bwc)
-bb, bbc = post(mod, '/members/4/ban', {'_formpage': '/members/techwiz18.u4', 'reason': 'modflow temp ban', 'days': '1'})
-print('temp ban code:', bbc)
+# a banned member cannot log in, and sees why
+blocked = session()
+html = blocked.open(base + '/login').read().decode()
+resp = blocked.open(urllib.request.Request(base + '/login', data=urllib.parse.urlencode(
+    {'csrf': csrf(html), 'login': 'dialup_dan', 'password': 'password123'}).encode())).read().decode()
+check('banned login shows reason', 'banned' in resp.lower())
 
-# 6. banned member login blocked (ban message on the login page)
-m2 = session()
-html = m2.open(base + '/login').read().decode()
-data = urllib.parse.urlencode({'csrf': csrf(html), 'login': 'TechWiz18', 'password': 'password123'}).encode()
-resp = m2.open(urllib.request.Request(base + '/login', data=data)).read().decode()
-print('banned login shows reason:', 'banned' in resp.lower())
-
-# 7. unban the fresh ban (mod path lands on profile, admin path on bans list)
+# unban, then the member can log in again
 bans = mod.open(base + '/mod/bans').read().decode()
-bid = re.search(r'/members/unban/(\d+)', bans)
-bid = bid.group(1) if bid else '1'
-ub, ubc = post(mod, '/members/unban/' + bid, {'_formpage': '/members/techwiz18.u4'})
-print('mod unban ban %s code:' % bid, ubc)
-ml = admin.open(base + '/admin/modlog').read().decode()
-print('modlog has warn:', 'warn' in ml.lower(), '| has ban:', 'ban' in ml.lower(), '| has unban:', 'unban' in ml.lower())
+m = re.search(r'/members/unban/(\d+)', bans)
+check('ban listed in ModCP', m is not None)
+_, ubc = post(mod, '/members/dialup-dan.u3', '/members/unban/' + (m.group(1) if m else '1'), {})
+check('mod can unban', ubc is None, ubc)
+back = session()
+login(back, 'dialup_dan', 'password123')
+check('member can log in after unban', 'dialup_dan' in back.open(base + '/').read().decode())
 
-# 8. member cannot reach queue
+ml = admin.open(base + '/admin/modlog').read().decode()
+check('modlog has warn', 'warn' in ml.lower())
+check('modlog has ban', 'ban' in ml.lower())
+check('modlog has unban', 'unban' in ml.lower())
+
 try:
-    member.open(base + '/mod/reports')
-    print('member queue: OPEN (bad)')
+    reporter.open(base + '/mod/reports')
+    check('member cannot reach mod queue', False, 'reached queue')
 except urllib.error.HTTPError as e:
-    print('member queue:', e.code, '(want 403)')
+    check('member cannot reach mod queue', e.code == 403, e.code)
+
+# Leave the shared queue empty for whichever suite runs next (order-independence).
+for _ in range(10):
+    q = mod.open(base + '/mod/reports').read().decode()
+    ids = re.findall(r'/mod/report/(\d+)/handle', q)
+    if not ids:
+        break
+    post(mod, '/mod/reports', '/mod/report/%s/handle' % ids[0], {'status': 'dismissed', 'note': ''})
+check('queue left clean', 'Queue is clear' in mod.open(base + '/mod/reports').read().decode())
+finish()

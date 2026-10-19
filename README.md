@@ -153,9 +153,19 @@ Hooks::add_action('footer', fn() => print('Hello from my plugin!'));
 Hooks::add_filter('post_body_html', fn($html) => $html); // transform post HTML
 ```
 
-**Contributing:** bug reports and pull requests welcome. The `scripts/`
-folder has the test suites (`vulntest.py` covers 46 security checks) — they
-need a running board on `http://localhost:8080`. PHP 8.1+ (tested on 8.1 and 8.3).
+**Contributing:** bug reports and pull requests welcome. PHP 8.1+ (tested on
+8.1 and 8.3). The `scripts/` folder has the regression suites; `vulntest.py` covers 46 security checks.
+Run them all against a fresh, seeded board (needs Docker — the dev stack in
+`scripts/`):
+
+```sh
+sh scripts/testenv.sh        # fresh canonical DB + board on :8081
+python3 scripts/runtests.py  # every suite, in any order; exit 1 on failure
+```
+
+`testenv.sh` rebuilds a throwaway `retrobb_test` database (migrate + seed) and
+leaves your real boards alone; point the suites elsewhere with
+`RETROBB_TEST_BASE` (and `RETROBB_TEST_DB` for the DB-truth checks).
 
 ---
 

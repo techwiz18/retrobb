@@ -1,4 +1,4 @@
-import re, urllib.request, urllib.parse, http.cookiejar, urllib.error
+import re, sys, urllib.request, urllib.parse, http.cookiejar, urllib.error
 import os as _os; base = _os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
 PASS, FAIL = [], []
 
@@ -208,3 +208,4 @@ check('skin switch POST without CSRF sets no cookie', 'retrobb_skin' not in set_
 print('RESULT: %d passed, %d failed' % (len(PASS), len(FAIL)))
 if FAIL:
     print('FAILED:', FAIL)
+sys.exit(1 if FAIL else 0)

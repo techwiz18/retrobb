@@ -1,6 +1,8 @@
 """Verify the 0.5 backlog batch: search cap, listing pagination, sitemap caching,
 session limits, dashboard canonical warning. Read-mostly; logs in as admin."""
-import re, os, urllib.request, urllib.parse, http.cookiejar, urllib.error
+import os, re, sys, urllib.request, urllib.parse, http.cookiejar, urllib.error
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _harness import check, finish
 
 base = os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
 
@@ -19,12 +21,6 @@ def login(op, u, p):
 class NoRedir(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, hdrs, newurl):
         return None
-
-fails = []
-def check(name, ok, detail=''):
-    print(('PASS ' if ok else 'FAIL ') + name + ((' — ' + str(detail)) if detail else ''))
-    if not ok:
-        fails.append(name)
 
 admin = session(); login(admin, 'admin', 'admin123')
 
@@ -75,4 +71,4 @@ check('session survives immediate revalidation', 'AdminCP' in admin.open(base + 
 dash = admin.open(base + '/admin').read().decode()
 check('dashboard warns about unset board URL', 'Board URL' in dash and 'canonical' in dash.lower())
 
-print('\nRESULT:', ('%d failed' % len(fails)) if fails else 'all passed')
+finish()

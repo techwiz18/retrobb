@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+- Deterministic regression suite. `scripts/testenv.sh` builds a fresh, seeded
+  `retrobb_test` board (canonical ids) on an isolated port, and
+  `scripts/runtests.py` runs every suite against it in any order and exits
+  non-zero on the first broken check. The suites share `scripts/_harness.py`
+  and are self-contained — no hardcoded fixture ids, no dependence on another
+  suite's leftovers — so they no longer rot against a drifted database.
+
 ### Security
 - State-changing GET routes now require POST plus a CSRF token. Import runs
   (`/admin/import/run`) no longer accept GET, so the session token stops

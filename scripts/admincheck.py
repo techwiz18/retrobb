@@ -1,17 +1,21 @@
-import re, urllib.request, urllib.parse, http.cookiejar
+import os, re, sys, urllib.request, urllib.parse, http.cookiejar
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _harness import check, finish
+
+base = os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
 cj = http.cookiejar.CookieJar()
 op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
-import os as _os; base = _os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
+
 html = op.open(base + '/login').read().decode()
 tok = re.search(r'name="csrf" value="([^"]+)"', html).group(1)
-data = urllib.parse.urlencode({'csrf': tok, 'login': 'admin', 'password': 'admin123', 'next': '/'}).encode()
-op.open(urllib.request.Request(base + '/login', data=data))
-dash = op.open(base + '/admin').read().decode()
-print('dashboard 200:', 'Dashboard' in dash)
+op.open(urllib.request.Request(base + '/login', data=urllib.parse.urlencode(
+    {'csrf': tok, 'login': 'admin', 'password': 'admin123', 'next': '/'}).encode()))
+
+check('dashboard renders', 'Dashboard' in op.open(base + '/admin').read().decode())
 struct = op.open(base + '/admin/structure').read().decode()
-print('structure rows:', struct.count('struct-cat'))
-print('no stray topic-row:', 'topic-row' not in struct)
-users = op.open(base + '/admin/users').read().decode()
-print('users listed:', 'dialup_dan' in users)
-print('modlog page:', 'Mod log' in op.open(base + '/admin/modlog').read().decode())
-print('bans page:', 'Bans' in op.open(base + '/admin/bans').read().decode())
+check('structure lists categories', struct.count('struct-cat') > 0)
+check('structure has no stray topic rows', 'topic-row' not in struct)
+check('users page lists members', 'dialup_dan' in op.open(base + '/admin/users').read().decode())
+check('modlog page renders', 'Mod log' in op.open(base + '/admin/modlog').read().decode())
+check('bans page renders', 'Bans' in op.open(base + '/admin/bans').read().decode())
+finish()
