@@ -13,6 +13,14 @@
   and are self-contained — no hardcoded fixture ids, no dependence on another
   suite's leftovers — so they no longer rot against a drifted database.
 
+### Changed
+- The README opens with a **Status** section: RetroBB is beta, with a plain list
+  of what is not built yet (email verification, maintenance mode, per-forum
+  permissions, mass actions, soft deletions, sub-forums, MFA), the mobile
+  caveat, importer gaps, and the GD requirement for avatar resizing. Invalid
+  claims are now caught mechanically: `doccheck` fails if the README advertises
+  stability while `RETROBB_VERSION` is a pre-release.
+
 ### Security
 - State-changing GET routes now require POST plus a CSRF token. Import runs
   (`/admin/import/run`) no longer accept GET, so the session token stops

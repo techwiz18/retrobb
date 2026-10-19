@@ -213,6 +213,28 @@ def check_test_count(readme: str, live: bool) -> None:
         fail(f"README claims {claimed} security checks; suite reports {actual}")
 
 
+def check_stability_claims(readme: str) -> None:
+    """A pre-release version must not be advertised as stable.
+
+    Keeps the beta -> stable flip honest: while RETROBB_VERSION carries a
+    -beta/-rc/-alpha suffix, the README must not claim production readiness.
+    When the version goes stable this check falls silent on its own.
+    """
+    m = re.search(r"const RETROBB_VERSION = '([^']+)'", read(HELPERS))
+    version = m.group(1) if m else ""
+    if not re.search(r"-(beta|rc|alpha)", version):
+        return
+    claims = [
+        "production-ready", "production ready", "ready for a real forum",
+        "ready for everyone", "stable release", "battle-tested",
+    ]
+    hits = [c for c in claims if re.search(re.escape(c), readme, re.I)]
+    if hits:
+        fail(f"pre-release {version} is advertised as stable: {hits}")
+    else:
+        ok(f"pre-release {version} makes no stability claims")
+
+
 def main() -> int:
     if not README.exists():
         print("SETUP: README.md not found")
@@ -234,6 +256,8 @@ def main() -> int:
     check_seed_credentials(readme)
     print("- test count")
     check_test_count(readme, live)
+    print("- stability claims")
+    check_stability_claims(readme)
 
     if failures:
         print(f"\nRESULT: {len(failures)} claim(s) contradict source")
