@@ -52,6 +52,10 @@ HOOK = r"""#!/bin/sh
 #                 (main is ahead of live until the merge), so checking it here
 #                 would block the normal flow.
 #
+# Both pushes also run scripts/doccheck.py: the README must agree with the
+# source it describes (version, cited paths, seed credentials, test count).
+# Those are the mistakes code review never catches, because docs are prose.
+#
 # Bypass once with: git push --no-verify
 status=0
 while read -r local_ref local_sha remote_ref remote_sha; do
@@ -65,6 +69,12 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     echo "$out"
     echo ""
     echo "PUSH BLOCKED ($remote_ref). Fix the above, or bypass with --no-verify."
+    status=1
+  fi
+  if ! out=$(python3 scripts/doccheck.py 2>&1); then
+    echo "$out"
+    echo ""
+    echo "PUSH BLOCKED (docs). Fix the above, or bypass with --no-verify."
     status=1
   fi
 done
@@ -100,6 +110,7 @@ def install_hook() -> int:
     print(f"installed pre-push gate at {path}")
     print("  push to live -> RULE 1 + RULE 2 (deploy completeness, nothing stranded)")
     print("  push to main -> RULE 2 (nothing stranded on live)")
+    print("  both pushes  -> doccheck (README claims match source)")
     return 0
 
 
