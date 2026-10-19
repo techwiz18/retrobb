@@ -165,7 +165,9 @@ python3 scripts/runtests.py  # every suite, in any order; exit 1 on failure
 
 `testenv.sh` rebuilds a throwaway `retrobb_test` database (migrate + seed) and
 leaves your real boards alone; point the suites elsewhere with
-`RETROBB_TEST_BASE` (and `RETROBB_TEST_DB` for the DB-truth checks).
+`RETROBB_TEST_BASE` (and `RETROBB_TEST_DB` for the DB-truth checks). CI
+(`.github/workflows/ci.yml`) runs the same suite plus PHP lint, the docs check,
+and the main/live branch invariant on every push and pull request.
 
 ---
 

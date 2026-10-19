@@ -18,8 +18,10 @@ PORT="${RETROBB_TEST_PORT:-8081}"
 DB="${RETROBB_TEST_DB:-retrobb_test}"
 CFG="${ROOT}/storage/test-config.php"
 
-if [ ! -f "${ROOT}/config.php" ]; then
-    echo "testenv: run this from the repo root (no config.php here)" >&2
+# Run from the repo root. (Do NOT require config.php — it is gitignored, so a
+# fresh CI checkout has none; the test board gets its own generated config.)
+if [ ! -f "${ROOT}/bin/migrate.php" ]; then
+    echo "testenv: run this from the repo root (no bin/migrate.php here)" >&2
     exit 2
 fi
 
