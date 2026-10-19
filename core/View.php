@@ -24,7 +24,11 @@ class View
         ob_start();
         require $contentFile;
         $content = ob_get_clean();
+        // Buffer the layout too: it renders the nav, whose anonymous CSRF
+        // cookie must be set before any output flushes the headers.
+        ob_start();
         require $layoutFile;
+        ob_end_flush();
     }
 
     public static function partial(string $template, array $vars = []): void

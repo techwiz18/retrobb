@@ -214,7 +214,7 @@ $r->get('#^/admin/import$#', [\RetroBB\Controllers\ImportController::class, 'for
 $r->get('#^/admin/plugins$#', [\RetroBB\Controllers\AdminController::class, 'pluginsPage']);
 $r->post('#^/admin/plugin/([A-Za-z0-9_-]+)$#', [\RetroBB\Controllers\AdminController::class, 'pluginToggle']);
 $r->post('#^/admin/import/test$#', [\RetroBB\Controllers\ImportController::class, 'test']);
-$r->get('#^/admin/import/run$#', [\RetroBB\Controllers\ImportController::class, 'run']);
+$r->post('#^/admin/import/run$#', [\RetroBB\Controllers\ImportController::class, 'run']);
 $r->get('#^/admin/spam$#', [\RetroBB\Controllers\AdminController::class, 'spamPage']);
 $r->get('#^/admin/structure$#', [\RetroBB\Controllers\AdminController::class, 'structurePage']);
 $r->get('#^/admin/bans$#', [\RetroBB\Controllers\AdminController::class, 'bansPage']);
@@ -238,8 +238,13 @@ $r->post('#^/admin/migrate$#', [\RetroBB\Controllers\AdminController::class, 'ru
 $r->get('#^/sitemap\.xml$#', [\RetroBB\Controllers\SitemapController::class, 'xml']);
 $r->get('#^/sitemap\.xsl$#', [\RetroBB\Controllers\SitemapController::class, 'xsl']);
 $r->get('#^/search$#', [\RetroBB\Controllers\SearchController::class, 'index']);
-// skin switcher + legacy compat
-$r->get('#^/skin/([a-z0-9]+)$#', function (string $s) {
+// skin switcher + legacy compat. POST + CSRF: a GET let any page embed this
+// URL and pin a visitor's skin (preference fixation, issue #2). The token is
+// the sessionless double-submit one — guests have no session to bind to.
+$r->post('#^/skin/([a-z0-9]+)$#', function (string $s) {
+    if (!\RetroBB\Core\Csrf::verifyAnon($_POST['anon_csrf'] ?? null)) {
+        redirect('/');
+    }
     if (feature('skin_selector') && in_array($s, ['classic', 'midnight', 'silver'], true)) {
         setcookie('retrobb_skin', $s, time() + 86400 * 365, base_path() ?: '/');
     }
@@ -254,8 +259,11 @@ $r->get('#^/skin/([a-z0-9]+)$#', function (string $s) {
     // bridge must trust the server here, not stale localStorage.
     redirect($bp . (str_contains($bp, '?') ? '&' : '?') . 'picked=skin');
 });
-// theme switcher (light / dark / auto-follows-OS)
-$r->get('#^/theme/(light|dark|auto)$#', function (string $t) {
+// theme switcher (light / dark / auto-follows-OS). Same POST + CSRF rule.
+$r->post('#^/theme/(light|dark|auto)$#', function (string $t) {
+    if (!\RetroBB\Core\Csrf::verifyAnon($_POST['anon_csrf'] ?? null)) {
+        redirect('/');
+    }
     if (in_array($t, allowed_themes(), true)) {
         setcookie('retrobb_theme', $t, time() + 86400 * 365, base_path() ?: '/');
     }

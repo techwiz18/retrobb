@@ -1,5 +1,16 @@
 # Changelog — RetroBB by techwiz.dad. Format follows keep-a-changelog loosely.
 
+## [Unreleased]
+
+### Security
+- State-changing GET routes now require POST plus a CSRF token. Import runs
+  (`/admin/import/run`) no longer accept GET, so the session token stops
+  leaking through Referer and server logs. The skin and theme switchers
+  (`/skin/…`, `/theme/…`) likewise move to POST, closing the
+  preference-fixation path where any page could embed the URL and pin a
+  visitor's skin or theme. Read-markers (alerts, PM open, view counts) stay on
+  GET by design.
+
 ## [0.5.0-beta.2] — 2026-10-18 (pre-release)
 Security and performance follow-up to 0.5.0-beta.1, plus the first batch of
 moderation fixes. Sessions now expire on the server, and the scans and

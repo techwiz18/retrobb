@@ -10,16 +10,19 @@ def get_cookies(path):
     try:
         r = op.open(base + path)
         r.read()
-        return r.headers.get('Set-Cookie')
+        return '; '.join(r.headers.get_all('Set-Cookie') or [])
     except urllib.error.HTTPError as e:
-        return e.headers.get('Set-Cookie')
+        return '; '.join(e.headers.get_all('Set-Cookie') or [])
 
-print('--- guest GETs must NOT set cookies ---')
+print('--- guest GETs must NOT start a session (stateless CSRF cookie is fine) ---')
 for path in ['/', '/members', '/forum/general-chat.f2', '/sitemap.xml',
              '/topic/what-was-your-first-forum.t2?page=99', '/nope', '/login?x=1']:
     sc = get_cookies(path)
-    # /login renders a form (needs CSRF) so it legitimately sets one; topic pages track views
-    print(path, '->', 'SET' if sc else 'none')
+    # A session (PHPSESSID) is the thing that must stay lazy. Layout pages now
+    # also set the stateless retrobb_csrf cookie for the POST switchers (#2);
+    # /login legitimately does both, /sitemap.xml (layout-less) stays clean.
+    kind = 'SESSION' if 'PHPSESSID' in sc else ('none' if not sc else 'csrf-only')
+    print(path, '->', kind, ('[' + sc[:80] + ']' if sc else ''))
 print('--- login/logout roundtrip ---')
 op = fresh()
 html = op.open(base + '/login').read().decode()
