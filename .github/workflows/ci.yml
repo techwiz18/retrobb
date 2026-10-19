@@ -9,7 +9,7 @@ jobs:
   suite:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # full history: the branch invariant walks commits.
           fetch-depth: 0
