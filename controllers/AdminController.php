@@ -58,10 +58,10 @@ class AdminController
             'activeBans' => $active,
             'installPresent' => is_file(dirname(__DIR__) . '/public/install.php'),
             'update' => update_check(),
-            // With no board_url, canonicals (and password-reset links) build
-            // from the request Host header — poisonable if the origin is
-            // reachable directly. Warn unless host enforcement covers it.
-            'canonicalUnset' => setting('board_url', '') === '' && !config_value('force_board_host', false),
+            // Board URL is required for safe absolute links: without it
+            // canonicals fall back to relative URLs, the sitemap omits locs,
+            // and password-reset mail refuses to send. Always warn.
+            'canonicalUnset' => setting('board_url', '') === '',
             'pageTitle' => 'AdminCP — ' . board_name(),
         ]);
     }
