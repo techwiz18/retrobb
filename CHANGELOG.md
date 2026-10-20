@@ -22,6 +22,12 @@
   stability while `RETROBB_VERSION` is a pre-release.
 
 ### Security
+- `bin/migrate.php`, `bin/seed.php` and `bin/import-sqlite.php` refuse web
+  execution. Trusted web entry (AdminCP database updates, the installer) sets an
+  explicit constant first, so a deployment that loses its `.htaccess` can no
+  longer run migrations, seeds or imports by URL. The installer's demo-content
+  option was removed — it would have created known demo credentials on a real
+  install; use `php bin/migrate.php --seed` for a local test drive.
 - Stored XSS in bare `[url]…[/url]` links. The decoded URL was emitted as the
   link text without escaping, so HTML in the URL executed (`[url]http://x/…`).
   The fallback label is now escaped; `vulntest` covers the script and

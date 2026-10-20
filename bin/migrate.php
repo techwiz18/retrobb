@@ -3,6 +3,14 @@ declare(strict_types=1);
 // RetroBB migrator + seeder (MySQL 8+ / MariaDB 10.6+). Usage:
 //   php bin/migrate.php            (migrate only)
 //   php bin/migrate.php --seed     (migrate + demo seed)
+//
+// CLI-only. Trusted web entry (installer, AdminCP) sets
+// RETROBB_INTERNAL_MIGRATE before including this file; a direct web request
+// is refused so a host without working .htaccess can't run migrations.
+if (PHP_SAPI !== 'cli' && !defined('RETROBB_INTERNAL_MIGRATE')) {
+    http_response_code(404);
+    exit;
+}
 
 $root = dirname(__DIR__);
 require_once $root . '/core/Db.php';
@@ -153,6 +161,9 @@ try {
 echo "Migrations done.\n";
 
 if ($seed) {
+    if (!defined('RETROBB_INTERNAL_SEED')) {
+        define('RETROBB_INTERNAL_SEED', true);
+    }
     require_once $root . '/bin/seed.php';
     // The seed above may have just created the first admin account; give the
     // new owner the super tier so AdminCP → Settings/Features/Spam work on a

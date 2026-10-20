@@ -4,6 +4,13 @@ declare(strict_types=1);
 // Usage: php bin/import-sqlite.php /path/to/retrobb.sqlite
 // Imports every known table into the MySQL database from config.php,
 // preserving ids, then prints row counts for verification.
+//
+// CLI-only: this reads a local file and rewrites the board, so it must never
+// be reachable over the web.
+if (PHP_SAPI !== 'cli') {
+    http_response_code(404);
+    exit;
+}
 
 $root = dirname(__DIR__);
 require_once $root . '/core/Db.php';

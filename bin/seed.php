@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 // Demo seed: admin + sample boards. Idempotent-ish (skips if users exist unless --force).
+//
+// CLI-only. bin/migrate.php defines RETROBB_INTERNAL_SEED before including it
+// (the installer no longer seeds demo content); a direct web request is refused.
+if (PHP_SAPI !== 'cli' && !defined('RETROBB_INTERNAL_SEED')) {
+    http_response_code(404);
+    exit;
+}
 
 $root = dirname(__DIR__);
 require_once $root . '/core/Db.php';

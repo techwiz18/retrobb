@@ -208,7 +208,7 @@ $defaults = [
     'mysql_user' => 'retrobb', 'mysql_pass' => '',
     'board_name' => 'RetroBB', 'board_tagline' => 'An old-school forum for the modern web',
     'board_url' => '', 'default_skin' => 'classic', 'default_theme' => 'auto',
-    'admin_user' => '', 'admin_email' => '', 'demo' => '',
+    'admin_user' => '', 'admin_email' => '',
     'feature_alerts' => '1', 'feature_mentions' => '1', 'feature_reactions' => '1', 'feature_pms' => '1',
     'skin_selector' => '1', 'theme_light' => '1', 'theme_dark' => '1', 'theme_auto' => '1',
 ];
@@ -431,7 +431,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
                 $values[$k] = is_string($_POST[$k]) ? trim($_POST[$k]) : $values[$k];
             }
         }
-        $values['demo'] = isset($_POST['demo']) ? '1' : '';
         if (!preg_match('/^[A-Za-z0-9_\- ]{3,30}$/', $values['admin_user'])) {
             $errors[] = 'Admin username must be 3–30 chars (letters, numbers, space, _ -).';
         }
@@ -500,6 +499,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
 
             // --- migrate (silenced so our redirect header survives) ---
             $argv = ['migrate.php'];
+            if (!defined('RETROBB_INTERNAL_MIGRATE')) {
+                define('RETROBB_INTERNAL_MIGRATE', true);
+            }
             ob_start();
             require_once $root . '/bin/migrate.php';
             ob_end_clean();
@@ -552,16 +554,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
                         'Welcome to ' . mb_substr($values['board_name'], 0, 80) . '!',
                         "Welcome! This is the first thread on your new board.\n\n[b]First steps:[/b]\n[list]\n[*] Make your boards in AdminCP → Structure\n[*] Pick the look in AdminCP → Features\n[*] Turn on spam protection before you go public\n[/list]\n\nReply below to test things out. Have fun!"
                     );
-                }
-                if ($values['demo'] === '1') {
-                    // Demo content only on truly fresh boards — never wipe real posts.
-                    $existing = (int) Db::pdo()->query('SELECT COUNT(*) c FROM topics')->fetch()['c'];
-                    if ($existing === 0) {
-                        $argv = ['migrate.php', '--seed', '--force'];
-                        ob_start();
-                        require_once $root . '/bin/seed.php';
-                        ob_end_clean();
-                    }
                 }
                 unset($_SESSION['rb_install']);
                 if (!is_dir($root . '/storage')) {
@@ -719,7 +711,6 @@ if (!$installed && isset($step_order[$step]) && ($_SERVER['REQUEST_METHOD'] ?? '
     <label>Email<br><input type="email" name="admin_email" value="<?= e($values['admin_email']) ?>" required style="width:100%"></label><br><br>
     <label>Password (8+ chars)<br><input type="password" name="admin_pass" required></label><br><br>
     <label>Repeat password<br><input type="password" name="admin_pass2" required></label><br><br>
-    <label><input type="checkbox" name="demo" value="1" <?= $values['demo'] === '1' ? 'checked' : '' ?>> Install demo boards and posts so I can try things out</label><br><br>
     <?php if (!empty($showConfirm)): ?>
     <div class="flash-error" style="margin-bottom:10px"><label><input type="checkbox" name="confirm_existing" value="1"> Yes, install into the existing database and keep its content</label></div>
     <?php endif; ?>
