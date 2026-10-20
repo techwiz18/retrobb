@@ -27,6 +27,14 @@
   The fallback label is now escaped; `vulntest` covers the script and
   `img onerror` payloads; `php bin/rebuild-html.php` re-renders already-stored
   post/PM HTML (run it once after upgrading an existing board).
+- The web installer can no longer be re-run just because
+  `storage/installed.lock` is missing: a configured `config.php` plus any board
+  content counts as installed, it fails closed when the database can't be
+  checked, step order is enforced for POSTs (not just GET), and the success
+  page needs the request that actually installed. On success it deletes itself
+  (falling back to a non-PHP backup outside `public/`), sends baseline security
+  headers, and no longer prints PDO errors. The dashboard also warns about a
+  leftover `public/install.disabled.php`.
 - Password-reset links no longer fall back to the request `Host`. With
   `board_url` blank, canonicals are relative, the sitemap omits its locs (its
   cache key now includes `board_url`), and reset mail refuses to send rather

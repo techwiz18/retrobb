@@ -54,6 +54,7 @@ SUITES = [
     'viewstrict',
     'rebuildcheck',
     'hostcheck',
+    'installcheck',
 ]
 
 
