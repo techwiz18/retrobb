@@ -440,6 +440,12 @@ class AdminController
         }
         try {
             @set_time_limit(120);
+            if (!defined('RETROBB_INTERNAL_MIGRATE')) {
+                define('RETROBB_INTERNAL_MIGRATE', true);
+            }
+            // Don't let a query string become $argv (register_argc_argv=On):
+            // the web path always means a plain migrate, never --seed/--force.
+            $argv = ['migrate.php'];
             ob_start();
             require dirname(__DIR__) . '/bin/migrate.php';
             ob_end_clean();
