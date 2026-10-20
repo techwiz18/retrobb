@@ -57,6 +57,9 @@ class AdminController
             'openReports' => \RetroBB\Models\Report::openCount(),
             'activeBans' => $active,
             'installPresent' => is_file(dirname(__DIR__) . '/public/install.php'),
+            // Older installs renamed rather than deleted the wizard; that copy
+            // is still executable, so keep nagging until it is gone.
+            'installDisabledPresent' => is_file(dirname(__DIR__) . '/public/install.disabled.php'),
             'update' => update_check(),
             // Board URL is required for safe absolute links: without it
             // canonicals fall back to relative URLs, the sitemap omits locs,
@@ -406,9 +409,9 @@ class AdminController
                 $_SESSION['html_repair_cursor'] = $stats['next'];
             }
             $msg = sprintf(
-                'Re-rendered %d stored post/PM body%s (scanned %d, skipped %d, conflicted %d).',
+                'Re-rendered %d stored post/PM %s (scanned %d, skipped %d, conflicted %d).',
                 $stats['changed'],
-                $stats['changed'] === 1 ? '' : 'ies',
+                $stats['changed'] === 1 ? 'body' : 'bodies',
                 $stats['scanned'],
                 $stats['skipped'],
                 $stats['conflicted']

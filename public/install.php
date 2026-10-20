@@ -20,19 +20,72 @@ require_once $root . '/models/Notification.php';
 use RetroBB\Core\Db;
 use RetroBB\Core\Slug;
 
+// Same hardening as the front controller: never print fatals or paths, and
+// send baseline security headers (this file does not go through index.php).
+@ini_set('display_errors', '0');
+set_exception_handler(function (Throwable $e): void {
+    error_log('RetroBB installer fatal: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    if (!headers_sent()) {
+        http_response_code(500);
+    }
+    echo '<!doctype html><meta charset="utf-8"><h1>Installation error</h1>'
+        . '<p>The installer hit an unexpected error. Check the PHP error log, fix it, and reload.</p>';
+    exit;
+});
+header('X-Frame-Options: SAMEORIGIN');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: same-origin');
+header_remove('X-Powered-By');
+
 \RetroBB\Core\Auth::startSession();
 
 $lock = $root . '/storage/installed.lock';
 $force = !empty($_GET['force']);
-// The lock is the install marker. A populated database alone is NOT a block —
-// admins legitimately install into pre-created (even used) databases — but it
-// requires explicit confirmation on the owner step.
-$installed = is_file($lock) && !$force;
+
+/**
+ * A board is installed if the install lock exists, or config.php is present
+ * AND the database already has users. A config.php with no users table/rows is
+ * an interrupted first install, which may resume. Any other DB failure (down,
+ * bad credentials) counts as installed — fail closed rather than re-run.
+ */
+function installer_installed(string $root): bool
+{
+    if (is_file($root . '/storage/installed.lock')) {
+        return true;
+    }
+    if (!is_file($root . '/config.php')) {
+        return false;
+    }
+    try {
+        $pdo = Db::pdo();
+    } catch (\Throwable) {
+        return true; // config present but DB unreachable: fail closed
+    }
+    // Any content means this is (or was) a real board: never re-open the
+    // wizard just because the users table is empty or was dropped.
+    foreach (['users', 'categories', 'forums', 'topics', 'posts'] as $table) {
+        try {
+            if ((int) $pdo->query("SELECT COUNT(*) FROM `$table`")->fetchColumn() > 0) {
+                return true;
+            }
+        } catch (\Throwable $t) {
+            $m = $t->getMessage();
+            if (!str_contains($m, "doesn't exist") && !str_contains($m, 'Base table or view not found')) {
+                return true; // permission/timeout/connection error: fail closed
+            }
+            // table missing — keep checking the rest
+        }
+    }
+    return false; // config + empty schema: resume an interrupted install
+}
+
+$installedNow = installer_installed($root);
+$installed = $installedNow && !$force;
 // Re-installing over a live board (?force=1) requires a super-admin session.
 // Anything else bounces to the index with no explanation: the existence of
 // a privileged path is itself need-to-know. Locked out? Delete install.php
 // + storage/installed.lock via your hosting panel instead.
-if (is_file($lock) && $force) {
+if ($installedNow && $force) {
     $forceUser = \RetroBB\Core\Auth::user();
     // Re-read the row: a stale session (demoted/banned since login) must
     // not pass on cached credentials. Pre-tier schemas keep legacy behavior.
@@ -55,7 +108,7 @@ if (is_file($lock) && $force) {
 // Step-up auth for reinstalls: even a super-admin session must re-prove
 // itself with password + an emailed code before the wizard runs. (A future
 // TOTP step slots in beside the emailed code here.)
-$needVerify = is_file($lock) && $force;
+$needVerify = $installedNow && $force;
 $verifiedAt = (int) ($_SESSION['rb_reinstall_ok'] ?? 0);
 if ($needVerify && $verifiedAt <= time() - 900) {
     require_once $root . '/models/User.php';
@@ -146,6 +199,8 @@ if (!in_array($step, ['welcome', 'database', 'board', 'features', 'owner', 'done
 }
 $errors = [];
 $installDisabled = false;
+$lockWarn = false;
+$justInstalled = false;
 $showConfirm = false;
 
 $defaults = [
@@ -224,7 +279,10 @@ function try_db(array $values): array
             [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
         );
     } catch (Throwable $t) {
-        return [false, 'Could not connect to MySQL with those details — check host, port, username and password. (' . $t->getMessage() . ')', null];
+        // Log the detail; do not show connection internals to an unauthenticated
+        // visitor (the installer runs before any login).
+        error_log('RetroBB installer DB connect failed: ' . $t->getMessage());
+        return [false, 'Could not connect to MySQL with those details — check host, port, username and password.', null];
     }
     // Most shared hosts (cPanel etc.) require the database to exist
     // already with the user assigned to it — only try to create it
@@ -273,6 +331,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
         $errors[] = 'Session expired — please try that step again.';
         if (in_array($form, $steps, true)) {
             $step = $form;
+        }
+    }
+    // Enforce step order for POSTs too (the GET guard below is not enough):
+    // a form beyond the visitor's session progress is rejected, so the owner
+    // step cannot be posted directly.
+    if ($csrfOk && in_array($form, $steps, true)) {
+        $allow = furthest_step();
+        if ($step_order[$form] > $step_order[$allow]) {
+            $errors[] = 'Complete the earlier installation steps first.';
+            $step = $allow;
+            $csrfOk = false;
         }
     }
     if ($form === 'database' && $csrfOk) {
@@ -498,19 +567,31 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
                 if (!is_dir($root . '/storage')) {
                     @mkdir($root . '/storage', 0775, true);
                 }
-                file_put_contents($lock, date('c'));
-                // Neutralize this very file so setup can't be re-run from the web:
-                // renaming beats deleting (atomic, visible, reversible). If the
-                // rename fails (permissions), the done page says so loudly.
-                $disabled = @rename(__FILE__, $root . '/public/install.disabled.php');
+                $lockOk = @file_put_contents($lock, date('c')) !== false;
+                // Remove this setup file: it must never remain executable.
+                // Delete it if possible; otherwise move it out of the web root
+                // under a non-.php name. Installation detection no longer relies
+                // on this file or the lock, so failure is reported, not fatal.
+                $removed = @unlink(__FILE__);
+                if (!$removed) {
+                    $removed = @rename(__FILE__, $root . '/storage/install.disabled.php.bak');
+                }
                 $step = 'done';
-                $installDisabled = $disabled;
+                $justInstalled = true;
+                $installDisabled = (bool) $removed;
+                $lockWarn = !$lockOk;
             }
         }
         if ($step !== 'done') {
             $step = 'owner';
         }
     }
+}
+
+// The success page belongs to the request that actually installed the board;
+// a bare ?step=done must not render it on an arbitrary board.
+if ($step === 'done' && !$justInstalled) {
+    $step = 'welcome';
 }
 
 // Progress guard: completed steps stay revisitable (Back buttons), but
@@ -538,14 +619,18 @@ if (!$installed && isset($step_order[$step]) && ($_SERVER['REQUEST_METHOD'] ?? '
   <div class="maintitle">Welcome aboard! 🎉</div>
   <div class="flash-ok">Your board is installed. Log in with the admin account you just created.</div>
   <p><a class="btn" href="<?= e(url('/')) ?>">Visit your new board</a></p>
+  <?php if (!empty($lockWarn)): ?>
+  <p class="flash-error"><b>Warning:</b> could not write <code>storage/installed.lock</code>. The board is still protected (the owner account in the database marks it installed), but make <code>storage/</code> writable.</p>
+  <?php endif; ?>
   <?php if (!empty($installDisabled)): ?>
-  <p class="muted">Housekeeping handled: this setup file has disabled itself (<code>install.disabled.php</code>) so it can't be re-run.</p>
+  <p class="muted">Housekeeping handled: this setup file removed itself so it can't be re-run.</p>
   <?php else: ?>
-  <p class="muted">One last thing: delete <code>public/install.php</code> — setup couldn't remove itself (file permissions), so please do it by hand.</p>
+  <p class="flash-error">One last thing: delete <code>public/install.php</code> — setup couldn't remove itself (file permissions), so please do it by hand.</p>
   <?php endif; ?>
 <?php elseif ($installed): ?>
   <div class="maintitle">Already installed</div>
-  <p>This board already has an owner account. <a href="<?= e(url('/')) ?>">Visit the board</a>.</p>
+  <p>This board already has an owner account, so the installer will not run. <a href="<?= e(url('/')) ?>">Visit the board</a>.</p>
+  <p class="muted">If you are intentionally starting over, remove <code>config.php</code> and the board's database tables first.</p>
 <?php elseif ($step === 'welcome'): ?>
   <div class="maintitle">Before we begin…</div>
   <div class="recent-list">
