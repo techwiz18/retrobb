@@ -288,16 +288,30 @@ function canonical_url(string $path): string
         }
         return $base . $path;
     }
-    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    // No board_url: fall back to the deployment subpath so bare paths (mail
-    // links like /reset-password) still resolve under a prefix. App paths
-    // already carrying it are left alone (idempotent, like url()).
+    // No board_url: return a base-prefixed RELATIVE URL. Never build absolute
+    // links from the request Host (issue #13 / H1): a spoofed Host would
+    // otherwise poison canonical tags and password-reset links. Callers that
+    // need a real origin must use canonical_absolute_url() and cope with ''
+    // (not configured).
     $bp = base_path();
     if ($bp !== '' && $path !== $bp && !str_starts_with(explode('?', $path, 2)[0], $bp . '/')) {
         $path = $bp . '/' . ltrim($path, '/');
     }
-    return $scheme . '://' . $host . $path;
+    return $path;
+}
+
+/**
+ * Absolute URL for mail/feeds, or '' when board_url is not configured. Never
+ * falls back to the request Host (H1) — a blank result means the caller must
+ * refuse to emit the link rather than trusting whatever Host the client sent.
+ */
+function canonical_absolute_url(string $path): string
+{
+    $base = rtrim(setting('board_url', ''), '/');
+    if ($base === '' || !preg_match('#^https?://#i', $base)) {
+        return '';
+    }
+    return canonical_url($path);
 }
 
 function time_ago(string $datetime): string

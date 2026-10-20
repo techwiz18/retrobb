@@ -27,6 +27,11 @@
   The fallback label is now escaped; `vulntest` covers the script and
   `img onerror` payloads; `php bin/rebuild-html.php` re-renders already-stored
   post/PM HTML (run it once after upgrading an existing board).
+- Password-reset links no longer fall back to the request `Host`. With
+  `board_url` blank, canonicals are relative, the sitemap omits its locs (its
+  cache key now includes `board_url`), and reset mail refuses to send rather
+  than mailing a link an attacker could point at their own host. The dashboard
+  always warns when Board URL is unset. `scripts/hostcheck.py` covers it.
 - State-changing GET routes now require POST plus a CSRF token. Import runs
   (`/admin/import/run`) no longer accept GET, so the session token stops
   leaking through Referer and server logs. The skin and theme switchers

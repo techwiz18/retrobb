@@ -12,7 +12,9 @@ class Mail
         if ($cfg !== '' && filter_var($cfg, FILTER_VALIDATE_EMAIL)) {
             return $cfg;
         }
-        $host = (string) (parse_url(setting('board_url', ''), PHP_URL_HOST) ?: ($_SERVER['HTTP_HOST'] ?? ''));
+        // Never derive the sender domain from the request Host (H1): only the
+        // configured board_url may supply it.
+        $host = (string) (parse_url(setting('board_url', ''), PHP_URL_HOST) ?: '');
         $host = preg_replace('/:\d+$/', '', $host);
         if ($host !== '' && !str_contains($host, ' ')) {
             return 'noreply@' . $host;
@@ -46,8 +48,9 @@ class Mail
         return $ok;
     }
 
+    /** '' when board_url is unset — callers must not send the reset mail. */
     public static function resetLink(string $token): string
     {
-        return canonical_url('/reset-password?token=' . $token);
+        return canonical_absolute_url('/reset-password?token=' . $token);
     }
 }

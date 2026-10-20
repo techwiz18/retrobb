@@ -187,14 +187,22 @@ class AuthController
         $user = $login !== '' ? User::findByLogin($login) : null;
         if ($user) {
             $token = \RetroBB\Models\PasswordReset::issue((int) $user['id']);
+            // A reset link must never be built from the request Host (H1). If
+            // the owner hasn't set Board URL, refuse to send rather than
+            // mailing a link an attacker could point at their own host.
+            $link = $token !== '' ? \RetroBB\Core\Mail::resetLink($token) : '';
             if ($token !== '' && !empty($user['email'])) {
-                \RetroBB\Core\Mail::send(
-                    $user['email'],
-                    'Password reset for ' . board_name(),
-                    "Someone asked to reset the password for '" . $user['username'] . "' on " . board_name() . ".\n\n"
-                    . \RetroBB\Core\Mail::resetLink($token) . "\n\n"
-                    . "The link works once and expires in an hour. Ignore this mail if it wasn't you."
-                );
+                if ($link === '') {
+                    error_log('RetroBB: password reset not sent — set Board URL in AdminCP (a safe reset link needs it).');
+                } else {
+                    \RetroBB\Core\Mail::send(
+                        $user['email'],
+                        'Password reset for ' . board_name(),
+                        "Someone asked to reset the password for '" . $user['username'] . "' on " . board_name() . ".\n\n"
+                        . $link . "\n\n"
+                        . "The link works once and expires in an hour. Ignore this mail if it wasn't you."
+                    );
+                }
             }
         }
         View::render('auth/forgot', ['pageTitle' => 'Forgot password', 'sent' => true]);

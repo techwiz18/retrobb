@@ -111,7 +111,9 @@ Plugins::load();
 \RetroBB\Core\Hooks::do_action('boot');
 
 // Canonical-host enforcement (e.g. subdomain → hub-subpath consolidation).
-// Off unless enabled via config.php / RETROBB_FORCE_BOARD_HOST. When on,
+// Off unless enabled via config.php / RETROBB_FORCE_BOARD_HOST, and it needs a
+// configured board_url to compare against — with board_url blank there is no
+// trusted host, so enforcement is inert and the dashboard warns. When on,
 // requests whose Host differs from board_url's host get a 301 to the board
 // URL — except requests carrying the trusted proxy header (the reverse
 // proxy must send it; presence means "I already routed this"). Lives in

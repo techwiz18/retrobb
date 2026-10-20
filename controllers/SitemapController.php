@@ -27,13 +27,21 @@ class SitemapController
         if ($lastMod <= 0) {
             $lastMod = time();
         }
+        // Include board_url in the validator: changing it changes every loc, so
+        // a cached sitemap from before (or from a Host-poisoned era) must not
+        // be answered with a 304.
+        $etag = 'sitemap-' . $lastMod . '-' . substr(md5((string) setting('board_url', '')), 0, 10);
         header('Cache-Control: public, max-age=3600');
         header('Last-Modified: ' . gmdate('D, d M Y H:i:s', $lastMod) . ' GMT');
-        header('ETag: "sitemap-' . $lastMod . '"');
+        header('ETag: "' . $etag . '"');
         $ifMod = (string) ($_SERVER['HTTP_IF_MODIFIED_SINCE'] ?? '');
         $ifNone = (string) ($_SERVER['HTTP_IF_NONE_MATCH'] ?? '');
-        if (($ifMod !== '' && (int) strtotime($ifMod) >= $lastMod)
-            || ($ifNone !== '' && trim($ifNone, '"') === 'sitemap-' . $lastMod)) {
+        // If both validators arrive, ETag wins (RFC 9110) — so a changed
+        // board_url cannot be masked by a stale If-Modified-Since.
+        $notModified = $ifNone !== ''
+            ? trim($ifNone, '"') === $etag
+            : ($ifMod !== '' && (int) strtotime($ifMod) >= $lastMod);
+        if ($notModified) {
             http_response_code(304);
             return;
         }
@@ -41,13 +49,21 @@ class SitemapController
         echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
         echo '<?xml-stylesheet href="' . \e(\url('/sitemap.xsl')) . '" type="text/xsl"?>' . "\n";
         echo '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+        // Sitemap locs must be absolute. Without board_url there is no safe
+        // origin (never the request Host — H1), so omit them instead.
         $forums = $pdo->query('SELECT id, name FROM forums')->fetchAll();
         foreach ($forums as $f) {
-            echo '<url><loc>' . e(canonical_url(rtrim(Slug::forumUrl($f), '/'))) . '</loc></url>' . "\n";
+            $loc = canonical_absolute_url(rtrim(Slug::forumUrl($f), '/'));
+            if ($loc !== '') {
+                echo '<url><loc>' . e($loc) . '</loc></url>' . "\n";
+            }
         }
         $topics = $pdo->query('SELECT id, title FROM topics ORDER BY last_post_at DESC LIMIT 500')->fetchAll();
         foreach ($topics as $t) {
-            echo '<url><loc>' . e(canonical_url(rtrim(Slug::topicUrl($t), '/'))) . '</loc></url>' . "\n";
+            $loc = canonical_absolute_url(rtrim(Slug::topicUrl($t), '/'));
+            if ($loc !== '') {
+                echo '<url><loc>' . e($loc) . '</loc></url>' . "\n";
+            }
         }
         echo '</urlset>';
     }
