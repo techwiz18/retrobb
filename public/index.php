@@ -11,6 +11,7 @@ require_once $root . '/core/Csrf.php';
 require_once $root . '/core/Passwords.php';
 require_once $root . '/core/Mail.php';
 require_once $root . '/core/BBCode.php';
+require_once $root . '/core/HtmlRepair.php';
 require_once $root . '/core/Mentions.php';
 require_once $root . '/core/Import/Base.php';
 require_once $root . '/core/Import/Phpbb.php';
@@ -235,6 +236,7 @@ $r->post('#^/admin/forum/(\d+)/rename$#', [\RetroBB\Controllers\AdminController:
 $r->post('#^/admin/forum/(\d+)/delete$#', [\RetroBB\Controllers\AdminController::class, 'deleteForum']);
 $r->post('#^/admin/unban/(\d+)$#', [\RetroBB\Controllers\AdminController::class, 'unban']);
 $r->post('#^/admin/migrate$#', [\RetroBB\Controllers\AdminController::class, 'runMigrate']);
+$r->post('#^/admin/repair-html$#', [\RetroBB\Controllers\AdminController::class, 'repairHtml']);
 $r->get('#^/sitemap\.xml$#', [\RetroBB\Controllers\SitemapController::class, 'xml']);
 $r->get('#^/sitemap\.xsl$#', [\RetroBB\Controllers\SitemapController::class, 'xsl']);
 $r->get('#^/search$#', [\RetroBB\Controllers\SearchController::class, 'index']);

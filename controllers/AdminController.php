@@ -382,6 +382,52 @@ class AdminController
         redirect('/admin/bans');
     }
 
+    /**
+     * Super-only: re-render stored post/PM HTML from BBCode (C1 remediation).
+     * The live board deploys through cPanel without guaranteed SSH, so this is
+     * the no-CLI path to `php bin/rebuild-html.php`. Resumable: the scan cursor
+     * lives in the session, so repeated clicks continue where the last stopped.
+     * Plugins were loaded by the front controller, so `post_body_html` filters
+     * apply exactly as on the web.
+     */
+    public function repairHtml(): void
+    {
+        $this->needSuper();
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin');
+        }
+        try {
+            @set_time_limit(120);
+            $cursors = $_SESSION['html_repair_cursor'] ?? [];
+            $stats = \RetroBB\Core\HtmlRepair::run(0, false, false, 500, 2000, is_array($cursors) ? $cursors : []);
+            if (!empty($stats['next']['done'])) {
+                unset($_SESSION['html_repair_cursor']);
+            } else {
+                $_SESSION['html_repair_cursor'] = $stats['next'];
+            }
+            $msg = sprintf(
+                'Re-rendered %d stored post/PM body%s (scanned %d, skipped %d, conflicted %d).',
+                $stats['changed'],
+                $stats['changed'] === 1 ? '' : 'ies',
+                $stats['scanned'],
+                $stats['skipped'],
+                $stats['conflicted']
+            );
+            if (!empty($stats['more'])) {
+                $msg .= ' Click again to continue.';
+            }
+            if ($stats['failed'] > 0) {
+                $_SESSION['flash_error'] = $msg . sprintf(' %d row(s) failed — see the PHP error log.', $stats['failed']);
+            } else {
+                $_SESSION['flash_ok'] = $msg;
+            }
+        } catch (\Throwable $t) {
+            error_log('RetroBB html repair failed: ' . $t->getMessage());
+            $_SESSION['flash_error'] = 'Repair failed — see the PHP error log.';
+        }
+        redirect('/admin');
+    }
+
     /** One-click database updates after a file upgrade (mirrors bin/migrate.php). */
     public function runMigrate(): void
     {

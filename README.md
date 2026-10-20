@@ -176,7 +176,7 @@ Hooks::add_filter('post_body_html', fn($html) => $html); // transform post HTML
 ```
 
 **Contributing:** bug reports and pull requests welcome. PHP 8.1+ (tested on
-8.1 and 8.3). The `scripts/` folder has the regression suites; `vulntest.py` covers 46 security checks.
+8.1 and 8.3). The `scripts/` folder has the regression suites; `vulntest.py` covers 48 security checks.
 Run them all against a fresh, seeded board (needs Docker — the dev stack in
 `scripts/`):
 

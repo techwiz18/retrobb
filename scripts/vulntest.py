@@ -113,6 +113,10 @@ xss_posts = [
     '[url="x" onclick="alert(4)"]click[/url]',
     '[img]http://x"onerror="alert(5)[/img]',
     '[b]<script>alert(6)</script>[/b]',
+    # C1 (issue #13): a bare [url] has no label; its decoded URL used to be
+    # emitted raw, so HTML in the URL executed.
+    '[url]http://x/</a><script>alert(8)</script>[/url]',
+    '[url]http://x/"><img src=x onerror=alert(10)>[/url]',
 ]
 payload = '\n'.join(xss_posts)
 _, _, html, _ = get(mem, '/new-topic/%s' % fid)
@@ -136,6 +140,9 @@ if ours:
     check('no javascript: href', 'href="javascript:' not in thtml.lower())
     check('event handlers escaped', ' onerror="' not in thtml and ' onclick="' not in thtml)
     check('title escaped', '&lt;script&gt;' in thtml)
+    # C1 regression: the bare-[url] label must never emit raw HTML.
+    check('bare [url] script neutralized', '<script>alert(8)' not in thtml)
+    check('bare [url] img onerror neutralized', '<img src=x onerror=alert(10)' not in thtml)
 else:
     check('xss topic created+found', False)
 # bio XSS
