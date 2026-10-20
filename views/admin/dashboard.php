@@ -22,4 +22,7 @@
 <?php if (isset($_GET['migrated'])): ?><div class="flash-ok">Database updates ran clean.</div><?php endif; ?>
 <?php if (\RetroBB\Core\Auth::isSuper()): ?><div class="cat-row">Database</div>
 <p class="muted">After uploading a new release, run the database updates here (same as <code>php bin/migrate.php</code>). Safe to run any time — updates only ever add.</p>
-<form method="post" action="<?= e(url('/admin/migrate')) ?>"><?= \RetroBB\Core\Csrf::field() ?><button class="btn" type="submit">Run database updates</button></form><?php endif; ?>
+<form method="post" action="<?= e(url('/admin/migrate')) ?>"><?= \RetroBB\Core\Csrf::field() ?><button class="btn" type="submit">Run database updates</button></form>
+<div class="cat-row">Maintenance</div>
+<p class="muted">Re-render stored post and PM HTML from its BBCode. Run once after upgrading a board that predates the link-sanitising fix; only affected rows change, and it is safe to repeat.</p>
+<form method="post" action="<?= e(url('/admin/repair-html')) ?>"><?= \RetroBB\Core\Csrf::field() ?><button class="btn" type="submit">Repair rendered posts</button></form><?php endif; ?>

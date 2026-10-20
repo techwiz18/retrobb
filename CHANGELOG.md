@@ -22,6 +22,11 @@
   stability while `RETROBB_VERSION` is a pre-release.
 
 ### Security
+- Stored XSS in bare `[url]…[/url]` links. The decoded URL was emitted as the
+  link text without escaping, so HTML in the URL executed (`[url]http://x/…`).
+  The fallback label is now escaped; `vulntest` covers the script and
+  `img onerror` payloads; `php bin/rebuild-html.php` re-renders already-stored
+  post/PM HTML (run it once after upgrading an existing board).
 - State-changing GET routes now require POST plus a CSRF token. Import runs
   (`/admin/import/run`) no longer accept GET, so the session token stops
   leaking through Referer and server logs. The skin and theme switchers

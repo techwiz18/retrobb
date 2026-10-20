@@ -175,7 +175,11 @@ class BBCode
             return htmlspecialchars($label ?? $url, ENT_QUOTES, 'UTF-8');
         }
         $safe = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
-        $text = $label ?? $url;
+        // A bare [url]X[/url] has no label: show the URL, escaped. $label, when
+        // present, is the already-escaped inner text (plus our own tags), so it
+        // stays raw. Emitting the decoded URL raw here was a stored-XSS hole
+        // ([url]http://x/</a><script>…[/url]) — see issue #13 (C1).
+        $text = $label ?? $safe;
         return '<a href="' . $safe . '" rel="nofollow ugc noopener" target="_blank">' . $text . '</a>';
     }
 

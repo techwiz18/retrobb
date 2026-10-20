@@ -52,6 +52,7 @@ SUITES = [
     'concurrency',
     'viewcount',
     'viewstrict',
+    'rebuildcheck',
 ]
 
 
