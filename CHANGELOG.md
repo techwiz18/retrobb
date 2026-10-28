@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.6.0-beta.1] — 2026-10-28 (pre-release)
+
 ### Added
 - Continuous integration (`.github/workflows/ci.yml`): on every push and PR it
   runs the README/source doccheck, the main/live branch invariant, PHP lint,
