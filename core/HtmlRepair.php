@@ -6,10 +6,14 @@ namespace RetroBB\Core;
 /**
  * Re-render stored post/PM HTML from its BBCode source.
  *
- * Mitigation for C1 stored-XSS: re-renders stored HTML using the fixed renderer.
+ * Built for the C1 stored-XSS remediation (issue #13): the renderer used to
+ * emit a bare [url] URL unescaped, so already-stored `body_html` can contain
+ * injected markup. Re-rendering with the fixed renderer neutralises it.
  *
  * Default mode is TARGETED: only rows whose stored HTML shows the injection
- * signature are rewritten.
+ * signature are rewritten, so legitimate historical output (mentions, plugin
+ * filters, renderer drift) is left alone. `$all` re-renders everything, which
+ * is only appropriate on a board whose renderer has been stable.
  */
 class HtmlRepair
 {

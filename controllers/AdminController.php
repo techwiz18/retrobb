@@ -438,11 +438,6 @@ class AdminController
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             redirect('/admin');
         }
-        // Add validation: only csrf token should be present.
-        if (count($_POST) > 1) {
-            $_SESSION['flash_error'] = 'Database migration request received unexpected parameters.';
-            redirect('/admin');
-        }
         try {
             @set_time_limit(120);
             if (!defined('RETROBB_INTERNAL_MIGRATE')) {
