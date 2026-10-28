@@ -138,3 +138,20 @@ fix it with another `--no-verify` push.
    `git push origin main && git push --force-with-lease origin live`.
 7. Verify: `python3 scripts/branchcheck.py --remote` must pass. Delete the
    backup branch only after that.
+
+## Release packaging (read before zipping anything)
+
+- NEVER `zip -r .` from the worktree — it grabs `.opencode/node_modules/`,
+  `.git/`, local `config.php`, and mail logs (16 MB leak vs ~150 KB clean).
+  A stray root `*.zip` is the tell; delete it, don't commit it (`dist/` is
+  gitignored for a reason).
+- ONLY build with `sh scripts/package-release.sh <version>` from a clean tree
+  (it refuses dirty worktrees unless passed `--worktree`). It allowlists
+  `public core controllers models views migrations plugins bin
+  config.example.php .htaccess index.php LICENSE` via `git archive`, strips
+  `plugins/hub-shell`, `plugins/hello-world`, and `storage/*`, writes to
+  `/tmp/opencode/retrobb-<ver>.zip`, and fails on MISSING front door or LEAK
+  (`config.php`, hub-shell, hello-world).
+- Order: bump `RETROBB_VERSION` in `core/helpers.php:7` on `main`, commit,
+  push `main`, merge to `live`, push `live`, tag `v<version>`, push tag, then
+  run the script. GitHub pre-release = that tag, not a hand zip.
