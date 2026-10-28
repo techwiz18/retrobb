@@ -61,22 +61,18 @@ function installer_installed(string $root): bool
     } catch (\Throwable) {
         return true; // config present but DB unreachable: fail closed
     }
-    // Any content means this is (or was) a real board: never re-open the
-    // wizard just because the users table is empty or was dropped.
-    foreach (['users', 'categories', 'forums', 'topics', 'posts'] as $table) {
-        try {
-            if ((int) $pdo->query("SELECT COUNT(*) FROM `$table`")->fetchColumn() > 0) {
-                return true;
-            }
-        } catch (\Throwable $t) {
-            $m = $t->getMessage();
-            if (!str_contains($m, "doesn't exist") && !str_contains($m, 'Base table or view not found')) {
-                return true; // permission/timeout/connection error: fail closed
-            }
-            // table missing — keep checking the rest
+    // Check for the most definitive sign of a live board: a user account.
+    try {
+        if ((int) $pdo->query("SELECT COUNT(*) FROM `users`")->fetchColumn() > 0) {
+            return true;
+        }
+    } catch (\Throwable $t) {
+        $m = $t->getMessage();
+        if (!str_contains($m, "doesn't exist") && !str_contains($m, 'Base table or view not found')) {
+            return true; // permission/timeout/connection error: fail closed
         }
     }
-    return false; // config + empty schema: resume an interrupted install
+    return false; // config + no users: resume an interrupted install
 }
 
 $installedNow = installer_installed($root);

@@ -48,9 +48,13 @@ class Mail
         return $ok;
     }
 
-    /** '' when board_url is unset — callers must not send the reset mail. */
+    /** Returns a canonical absolute URL, or throws if board_url is unset. */
     public static function resetLink(string $token): string
     {
+        $url = setting('board_url', '');
+        if (empty($url)) {
+            throw new \RuntimeException('Cannot generate reset link: board_url is unset.');
+        }
         return canonical_absolute_url('/reset-password?token=' . $token);
     }
 }
