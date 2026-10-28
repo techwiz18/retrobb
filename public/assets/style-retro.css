@@ -144,6 +144,16 @@ a.smallbtn { display:inline-block; text-decoration:none; color:inherit; }
   .topbar { padding:10px 12px; } .logo a { font-size:17px; }
   .page-wrap { margin:0; border:0; }
 }
+/* Small phones (~360-480px, mobile issue #1): let packed flex rows wrap
+   instead of squeezing, and give pagination thumb-sized targets. The 760px
+   block above already stacks grids; this only finishes the narrowest case. */
+@media (max-width:480px) {
+  .posthead, .postfoot { flex-wrap:wrap; row-gap:4px; }
+  .profile-card { flex-wrap:wrap; }
+  .pagination a, .pagination b { padding:6px 12px; margin:0 6px 6px 0; }
+  .dropmenu { right:0; left:auto; }
+  .postactions { flex-wrap:wrap; }
+}
 
 /* ---- Dark mode. Surfaces go dark; each skin keeps its own accents (title
    gradient, category bar, borders) so the skin switcher stays meaningful.
