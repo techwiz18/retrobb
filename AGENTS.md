@@ -50,7 +50,8 @@ Pure-PHP forum (no framework). MIT. Production code + tests must stay green.
 - `require_once` is for class files ONLY. `config.php` returns a value, so it
   needs plain `require` (require_once hands back `true` on second inclusion
   and 500s logged-in users).
-- `install.php` self-renames to `install.disabled.php` on success; restore the
+- `install.php` deletes itself on success (`unlink`, fallback to
+  `storage/install.disabled.php.bak` outside `public/`); restore the
   name to re-test the wizard.
 - Never commit/push without `git status` plus a remote check inside THIS repo.
 - **Check the branch before every commit.** `git checkout live` for a deploy
@@ -69,24 +70,27 @@ Pure-PHP forum (no framework). MIT. Production code + tests must stay green.
   `--allow-unrelated-histories`, would have given `live` a second root. Run
   `git fetch --unshallow` on any fresh clone; check with `ls .git/shallow`.
 
-## Current state (2026-10-18)
+## Current state (2026-10-28)
 
-- **`v0.5.0-beta.2`** on `main` (`30292a6`) and merged into `live` (`cd03728`).
-  Beta.2 is a security/performance pass: server-side session expiry, search
-  page cap, paginated members/bans, `COUNT(*)` drafts, sitemap caching +
-  304s, blank-`board_url` dashboard warning, and `LOWER()`-free login/mention
-  lookups. No migrations.
+- **`v0.5.0-beta.2`** (`RETROBB_VERSION` in `core/helpers.php:7`) plus
+  unreleased security hardening on `main`: stored-XSS fix + repair path
+  (C1), Host-header distrust / `board_url` canonicals + reset-mail refuse
+  (H1), installer re-run guard + self-deletion + POST step order (H2),
+  `bin/*` web-execution refuse (B1), CI (doccheck + branchcheck + lint +
+  full suite). No version bump yet.
 - `live` = `main` + site-only files (`.cpanel.yml`, `DEPLOY.md`,
   `plugins/hub-shell/`). Deploy = push `live`, then cPanel **Update from
   Remote → Deploy**; the operator clicks that, not the agent.
-- Open issues: **#1** mobile responsiveness, **#2** state-changing GETs
-  (import-run is the real one), **#8** trusted-proxy header binding (the
-  `board_url` half shipped in beta.2).
+- Open issues: **#1** mobile responsiveness; v1.0 milestone tracks the rest
+  (#9, #10, #14, C1, H1 closed at last check); #15 theme customization,
+  #16 AdminCP Maintenance area. The old #2 import-run GET and #8
+  `board_url` items are shipped — see `CHANGELOG.md` Unreleased/Security.
 - Remaining roadmap work is in README (v0.4→v0.7); changelog Ideas is the raw
   backlog.
-- Suites: `smoke`, `vulntest` (43 checks), `supertest`, `avatartest`,
-  `queuecheck`, `themecheck`, `modflow`, and `backlogcheck` (new, covers the
-  beta.2 behaviour).
+- Suites run via `scripts/runtests.py` (see it for the current list):
+  `smoke`, `vulntest`, `supertest`, `avatartest`, `queuecheck`,
+  `themecheck`, `modflow`, `backlogcheck`, plus `hostcheck`,
+  `installcheck`, `bincheck`, `rebuildcheck` for the security work above.
 - **`scripts/branchcheck.py` enforces the main/live invariant** (see
   *Branch discipline* below). Run `--remote` after any push; a pre-push hook
   is installed with `--install-hook`.
@@ -112,3 +116,25 @@ on rule 2 only — checking rule 1 when pushing `main` would block the normal
 flow. Bypass one push with `--no-verify`. New site-only files under
 `plugins/hub-shell/` need no script edit; adding one elsewhere means adding it
 to `SITE_ONLY`.
+
+### If `live` is stranded (recovery for any agent)
+
+Symptom: `branchcheck` FAILs `stranded` on product files (e.g. after a
+`--no-verify` push or a commit on the wrong branch), even when
+`git diff main..live` shows only site-only files. The checker walks commits,
+not the diff, so the offending commit must leave `live`'s history — do NOT
+fix it with another `--no-verify` push.
+
+1. `git branch --show-current` (know where you are), then
+   `git log --oneline --no-merges --reverse main..live` to list live-only
+   commits and spot the product-file offender.
+2. `git checkout live && git branch backup-live-<date> live` (safety copy).
+3. `git reset --hard main` — `live` is now clean.
+4. `git cherry-pick` the site-only commits from step 1 in order, skipping
+   the offender (e.g. `git cherry-pick c5d8813 5adc946 ...`).
+5. Verify: `git diff main..live --stat` shows ONLY site-only files, and
+   `python3 scripts/branchcheck.py` prints invariant holds.
+6. Push `main` first, then force-push the rebuilt `live`:
+   `git push origin main && git push --force-with-lease origin live`.
+7. Verify: `python3 scripts/branchcheck.py --remote` must pass. Delete the
+   backup branch only after that.
