@@ -155,3 +155,14 @@ fix it with another `--no-verify` push.
 - Order: bump `RETROBB_VERSION` in `core/helpers.php:7` on `main`, commit,
   push `main`, merge to `live`, push `live`, tag `v<version>`, push tag, then
   run the script. GitHub pre-release = that tag, not a hand zip.
+- Publish the pre-release with `gh` (tag + zip already exist — this only
+  creates the Release object, no rebuild/re-tag/re-push):
+  1. Verify: `git rev-parse v<ver>` equals `git rev-parse main`;
+     `ls -lh /tmp/opencode/retrobb-<ver>.zip` (~170K);
+     `python3 scripts/branchcheck.py --remote` holds;
+     `gh release list | head` does NOT show the version yet.
+  2. `gh release create v<ver> --prerelease --title "v<ver>" --notes "<one
+     line: what's in it + install via public/install.php>" /tmp/opencode/retrobb-<ver>.zip`
+  3. Verify: `gh release view v<ver>` shows pre-release + the zip asset.
+  If `create` says already exists, stop — run `view` only, never
+  delete/recreate or move the tag to fix it.
