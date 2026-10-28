@@ -72,12 +72,13 @@ Pure-PHP forum (no framework). MIT. Production code + tests must stay green.
 
 ## Current state (2026-10-28)
 
-- **`v0.5.0-beta.2`** (`RETROBB_VERSION` in `core/helpers.php:7`) plus
-  unreleased security hardening on `main`: stored-XSS fix + repair path
+- **`v0.6.0-beta.1`** (`RETROBB_VERSION` in `core/helpers.php:7`, tagged +
+  published as GitHub pre-release with `/tmp/opencode/retrobb-v0.6.0-beta.1.zip`
+  from `scripts/package-release.sh`). Rolls up: stored-XSS fix + repair path
   (C1), Host-header distrust / `board_url` canonicals + reset-mail refuse
   (H1), installer re-run guard + self-deletion + POST step order (H2),
   `bin/*` web-execution refuse (B1), CI (doccheck + branchcheck + lint +
-  full suite). No version bump yet.
+  full suite).
 - `live` = `main` + site-only files (`.cpanel.yml`, `DEPLOY.md`,
   `plugins/hub-shell/`). Deploy = push `live`, then cPanel **Update from
   Remote → Deploy**; the operator clicks that, not the agent.
