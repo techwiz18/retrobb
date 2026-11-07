@@ -6,7 +6,7 @@
 <?php if (!empty($installPresent)): ?><div class="flash-error"><b>Security:</b> <code>public/install.php</code> is still on the server — anyone reaching it can probe your install. Delete it via your hosting panel. A future reinstall also needs <code>storage/installed.lock</code> removed.</div><?php endif; ?>
 <?php if (!empty($installDisabledPresent)): ?><div class="flash-error"><b>Security:</b> <code>public/install.disabled.php</code> is still on the server and is still executable. Delete it via your hosting panel.</div><?php endif; ?>
 <?php if (!empty($canonicalUnset)): ?><div class="flash-error"><b>Action needed:</b> no <a href="<?= e(url('/admin/settings')) ?>">Board URL</a> is set. Canonical tags fall back to relative URLs, the sitemap omits its links, and <b>password-reset email is disabled</b> (it will not send a link built from a request's Host). Set the board's real address to restore them.</div><?php endif; ?>
-<?php if ($openReports > 0): ?><div class="flash-error"><a href="<?= e(url('/mod/reports')) ?>"><b><?= $openReports ?> open report<?= $openReports === 1 ? '' : 's' ?></b> in the mod queue</a></div><?php endif; ?>
+<?php if ($openReports > 0): ?><div class="flash-error"><a href="<?= e(url('/admin/reports')) ?>"><b><?= $openReports ?> open report<?= $openReports === 1 ? '' : 's' ?></b> in the mod queue</a></div><?php endif; ?>
 <div class="dash-grid">
   <?php $dashSuper = \RetroBB\Core\Auth::isSuper(); ?>
   <?php if ($dashSuper): ?><a class="dash-card" href="<?= e(url('/admin/settings')) ?>"><b>⚙ Settings</b><small>Board name, tagline, flood, edit window</small></a>
