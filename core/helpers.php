@@ -461,3 +461,19 @@ function avatar_html(array $user, bool|string $size = 'post'): string
     $box = 'width:' . $w . 'px;aspect-ratio:' . $w . '/' . $h;
     return '<span class="avatar' . $lg . '" style="' . $box . ';font-size:' . (int) round(min($w, $h) * 0.46) . 'px;background:hsl(' . $hue . ',45%,55%)">' . e($initial) . '</span>';
 }
+
+/**
+ * Username output with the post_username_html filter applied everywhere
+ * (issue #21 — was topic-only). $user needs user_id (or id) + username at
+ * minimum; extra keys ride along as filter context. $link=false for plain
+ * spots (breadcrumbs, titles) where a profile link doesn't belong.
+ */
+function username_html(array $user, bool $link = true): string
+{
+    $id = (int) ($user['user_id'] ?? $user['id'] ?? 0);
+    $name = (string) ($user['username'] ?? '?');
+    $html = ($link && $id > 0)
+        ? '<a href="' . e(\RetroBB\Core\Slug::memberUrl(['id' => $id, 'username' => $name])) . '">' . e($name) . '</a>'
+        : e($name);
+    return \RetroBB\Core\Hooks::apply_filters('post_username_html', $html, $user);
+}
