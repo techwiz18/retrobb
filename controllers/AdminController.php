@@ -175,7 +175,20 @@ class AdminController
             $cur = $pdo->prepare('SELECT enabled FROM plugins WHERE name=?');
             $cur->execute([$name]);
             $row = $cur->fetch();
-            $next = $row ? 1 - (int) $row['enabled'] : 0;
+            if ($row) {
+                // Atomic single-statement toggle: two super-admins clicking
+                // at once can't read the same value and write it back twice.
+                $pdo->prepare('UPDATE plugins SET enabled = 1 - enabled WHERE name=?')->execute([$name]);
+                $chk = $pdo->prepare('SELECT enabled FROM plugins WHERE name=?');
+                $chk->execute([$name]);
+                $r2 = $chk->fetch();
+                $next = $r2 ? (int) $r2['enabled'] : 1 - (int) $row['enabled'];
+            } else {
+                // First toggle of a never-toggled plugin disables it (new
+                // plugins run enabled until an admin says otherwise).
+                $pdo->prepare('INSERT INTO plugins (name, enabled) VALUES (?, 0)')->execute([$name]);
+                $next = 0;
+            }
             $pdo->prepare('INSERT INTO plugins (name, enabled) VALUES (?, ?) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled)')
                 ->execute([$name, $next]);
             \RetroBB\Core\Modlog::log((int) Auth::user()['id'], $next ? 'plugin_enable' : 'plugin_disable', 'plugin', 0, $name);

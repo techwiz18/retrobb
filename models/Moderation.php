@@ -21,19 +21,25 @@ class Moderation
             return false;
         }
         try {
-            Db::pdo()->prepare(
-                'INSERT INTO warnings (user_id, warned_by, reason, created_at, post_id, topic_id) VALUES (?,?,?,?,?,?)'
-            )->execute([$userId, $modId, $reason, date('Y-m-d H:i:s'), $postId, $topicId]);
+            Db::transact(function () use ($userId, $modId, $reason, $postId, $topicId): void {
+                try {
+                    Db::pdo()->prepare(
+                        'INSERT INTO warnings (user_id, warned_by, reason, created_at, post_id, topic_id) VALUES (?,?,?,?,?,?)'
+                    )->execute([$userId, $modId, $reason, date('Y-m-d H:i:s'), $postId, $topicId]);
+                } catch (\Throwable) {
+                    // Pre-010 tables lack post/topic columns — record it anyway.
+                    Db::pdo()->prepare(
+                        'INSERT INTO warnings (user_id, warned_by, reason, created_at) VALUES (?,?,?,?)'
+                    )->execute([$userId, $modId, $reason, date('Y-m-d H:i:s')]);
+                    $postId = 0;
+                    $topicId = 0;
+                }
+                Modlog::log($modId, 'warn', 'user', $userId, mb_substr($reason, 0, 200));
+                \RetroBB\Models\Notification::create($userId, $modId, 'warning', $topicId, $postId, $reason);
+            });
         } catch (\Throwable) {
-            // Pre-010 tables lack post/topic columns — record it anyway.
-            Db::pdo()->prepare(
-                'INSERT INTO warnings (user_id, warned_by, reason, created_at) VALUES (?,?,?,?)'
-            )->execute([$userId, $modId, $reason, date('Y-m-d H:i:s')]);
-            $postId = 0;
-            $topicId = 0;
+            return false;
         }
-        Modlog::log($modId, 'warn', 'user', $userId, mb_substr($reason, 0, 200));
-        \RetroBB\Models\Notification::create($userId, $modId, 'warning', $topicId, $postId, $reason);
         return true;
     }
 
@@ -70,11 +76,14 @@ class Moderation
             return 0;
         }
         $expires = $days === null ? null : date('Y-m-d H:i:s', time() + $days * 86400);
-        Db::pdo()->prepare(
-            'INSERT INTO bans (user_id, banned_by, reason, expires_at, created_at) VALUES (?,?,?,?,?)'
-        )->execute([$userId, $modId, mb_substr(trim($reason), 0, 500), $expires, date('Y-m-d H:i:s')]);
-        $id = (int) Db::pdo()->lastInsertId();
-        Modlog::log($modId, 'ban', 'user', $userId, ($days === null ? 'permanent' : $days . 'd') . ': ' . mb_substr(trim($reason), 0, 150));
+        $id = 0;
+        Db::transact(function () use ($userId, $modId, $reason, $expires, $days, &$id): void {
+            Db::pdo()->prepare(
+                'INSERT INTO bans (user_id, banned_by, reason, expires_at, created_at) VALUES (?,?,?,?,?)'
+            )->execute([$userId, $modId, mb_substr(trim($reason), 0, 500), $expires, date('Y-m-d H:i:s')]);
+            $id = (int) Db::pdo()->lastInsertId();
+            Modlog::log($modId, 'ban', 'user', $userId, ($days === null ? 'permanent' : $days . 'd') . ': ' . mb_substr(trim($reason), 0, 150));
+        });
         return $id;
     }
 

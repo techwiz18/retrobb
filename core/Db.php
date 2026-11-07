@@ -47,4 +47,25 @@ class Db
     {
         self::$pdo = null;
     }
+
+    /** Run $fn inside a transaction, joining an active one (nested model
+        calls share the outer transaction instead of committing early). */
+    public static function transact(callable $fn): mixed
+    {
+        $pdo = self::pdo();
+        if ($pdo->inTransaction()) {
+            return $fn();
+        }
+        $pdo->beginTransaction();
+        try {
+            $result = $fn();
+            $pdo->commit();
+            return $result;
+        } catch (\Throwable $t) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $t;
+        }
+    }
 }

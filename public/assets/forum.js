@@ -17,6 +17,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+// Double-submit guard (flood): the first click wins. A second click while
+// the request is in flight would create a duplicate post/PM/report/topic.
+// Cancelled confirms (inline onsubmit returning false) set defaultPrevented
+// before we run, so those forms stay usable.
+document.addEventListener('submit', (ev) => {
+  const form = ev.target;
+  if (!(form instanceof HTMLFormElement) || ev.defaultPrevented) {
+    return;
+  }
+  if (form.dataset.submitted === '1') {
+    ev.preventDefault();
+    return;
+  }
+  form.dataset.submitted = '1';
+  form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach((b) => {
+    b.disabled = true;
+  });
+});
 // User dropdown (alerts/messages): click toggles for touch, Esc/outside closes.
 // (Hover/focus-within reveals it with no JS via CSS.)
 document.addEventListener('click', (ev) => {
