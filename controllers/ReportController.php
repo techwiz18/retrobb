@@ -202,8 +202,8 @@ class ReportController
         $this->withLockedReport($id, function (array $rep) use ($id, &$goto): void {
             $me = (int) Auth::user()['id'];
             $post = Post::find((int) $rep['post_id']);
-            if ($post && (int) $post['user_id'] !== $me && ($post['user_group'] ?? 'member') !== 'member' && !Auth::isSuper()) {
-                $_SESSION['flash_error'] = 'Only super admins can delete staff posts.';
+            if ($post && ($err = \RetroBB\Models\Moderation::staffPostError($post, $me, Auth::isSuper(), 'delete')) !== null) {
+                $_SESSION['flash_error'] = $err;
                 return;
             }
             $topicId = $post ? Post::delete((int) $rep['post_id']) : null;

@@ -48,6 +48,18 @@ class Db
         self::$pdo = null;
     }
 
+    /** Single COUNT(*) query that returns 0 when the table is missing. */
+    public static function countQuery(string $sql, array $params = []): int
+    {
+        try {
+            $st = self::pdo()->prepare($sql);
+            $st->execute($params);
+            return (int) ($st->fetch()['c'] ?? 0);
+        } catch (\Throwable) {
+            return 0;
+        }
+    }
+
     /** Run $fn inside a transaction, joining an active one (nested model
         calls share the outer transaction instead of committing early). */
     public static function transact(callable $fn): mixed

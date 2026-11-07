@@ -40,6 +40,12 @@ class Search
         return $terms;
     }
 
+    /** LIKE pattern with metacharacters escaped (shared: Search + merge picker). */
+    public static function like(string $term): string
+    {
+        return '%' . addcslashes($term, '%_\\') . '%';
+    }
+
     /** @return array{topics: array, total: int} */
     public static function query(array $terms, int $page = 1, int $perPage = 15): array
     {
@@ -53,7 +59,7 @@ class Search
         $whereParams = [];
         foreach ($terms as $t) {
             // LIKE metacharacters in user input match literally, not as wildcards.
-            $like = '%' . addcslashes($t, '%_\\') . '%';
+            $like = self::like($t);
             $where[] = '(t.title LIKE ? OR EXISTS (SELECT 1 FROM posts p WHERE p.topic_id=t.id AND p.body_bbcode LIKE ?))';
             $whereParams[] = $like;
             $whereParams[] = $like;
@@ -68,7 +74,7 @@ class Search
         $titleOrd = [];
         foreach ($terms as $t) {
             $titleOrd[] = '(t.title LIKE ?)';
-            $orderParams[] = '%' . addcslashes($t, '%_\\') . '%';
+            $orderParams[] = self::like($t);
         }
         $orderSql = implode(' + ', $titleOrd);
         $st = $pdo->prepare(

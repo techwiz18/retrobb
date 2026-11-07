@@ -160,24 +160,12 @@ class Pm
 
     public static function sentCount(int $userId): int
     {
-        try {
-            $st = Db::pdo()->prepare('SELECT COUNT(*) c FROM pms WHERE sender_id=? AND sender_deleted=0');
-            $st->execute([$userId]);
-            return (int) $st->fetch()['c'];
-        } catch (\Throwable) {
-            return 0;
-        }
+        return Db::countQuery('SELECT COUNT(*) c FROM pms WHERE sender_id=? AND sender_deleted=0', [$userId]);
     }
 
     public static function trashCount(int $userId): int
     {
-        try {
-            $st = Db::pdo()->prepare('SELECT COUNT(*) c FROM pms WHERE (sender_id=? AND sender_deleted=1) OR (recipient_id=? AND recipient_deleted=1)');
-            $st->execute([$userId, $userId]);
-            return (int) $st->fetch()['c'];
-        } catch (\Throwable) {
-            return 0;
-        }
+        return Db::countQuery('SELECT COUNT(*) c FROM pms WHERE (sender_id=? AND sender_deleted=1) OR (recipient_id=? AND recipient_deleted=1)', [$userId, $userId]);
     }
 
     // ---- drafts ----
@@ -231,13 +219,7 @@ class Pm
      */
     public static function draftsCount(int $userId): int
     {
-        try {
-            $st = Db::pdo()->prepare('SELECT COUNT(*) c FROM pm_drafts WHERE user_id=?');
-            $st->execute([$userId]);
-            return (int) ($st->fetch()['c'] ?? 0);
-        } catch (\Throwable) {
-            return 0;
-        }
+        return Db::countQuery('SELECT COUNT(*) c FROM pm_drafts WHERE user_id=?', [$userId]);
     }
 
     public static function findDraft(int $id, int $userId): ?array
