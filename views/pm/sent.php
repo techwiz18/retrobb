@@ -9,7 +9,7 @@
 <?php foreach ($items as $m): ?>
   <div class="recent-row"><span>
     <a href="<?= e(url('/pm/' . (int) $m['id'])) ?>"><?= e($m['subject']) ?></a>
-    <br><small class="muted">to <?= e($m['recipient_name']) ?> · <?= e($m['created_at']) ?><?= empty($m['read_at']) ? ' · <b>unread</b>' : ' · read' ?></small>
+    <br><small class="muted">to <?= username_html(['user_id' => $m['recipient_id'], 'username' => $m['recipient_name']], false) ?> · <?= e($m['created_at']) ?><?= empty($m['read_at']) ? ' · <b>unread</b>' : ' · read' ?></small>
   </span></div>
 <?php endforeach; ?>
 </div>
