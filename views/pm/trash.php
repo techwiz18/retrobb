@@ -10,7 +10,7 @@
 <?php foreach ($items as $m): ?>
   <div class="recent-row"><span>
     <?= e($m['subject']) ?>
-    <br><small class="muted"><?= (int) $m['sender_id'] === (int) $me ? 'to ' . e($m['recipient_name']) : 'from ' . e($m['sender_name']) ?> · <?= e($m['created_at']) ?></small>
+    <br><small class="muted"><?= (int) $m['sender_id'] === (int) $me ? 'to ' . username_html(['user_id' => $m['recipient_id'], 'username' => $m['recipient_name']], false) : 'from ' . username_html(['user_id' => $m['sender_id'], 'username' => $m['sender_name']], false) ?> · <?= e($m['created_at']) ?></small>
   </span></div>
 <?php endforeach; ?>
 </div>
