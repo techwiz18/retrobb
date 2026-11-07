@@ -106,6 +106,33 @@ class ReportController
         redirect('/mod/reports');
     }
 
+    /** Run $fn with the report row locked; bounce to the queue unless open.
+        Serializes two mods handling the same report: the loser sees a
+        non-open row and lands back on the queue with nothing double-done. */
+    private function withLockedReport(int $id, callable $fn): void
+    {
+        $pdo = \RetroBB\Core\Db::pdo();
+        $pdo->beginTransaction();
+        try {
+            $st = $pdo->prepare('SELECT * FROM reports WHERE id=? FOR UPDATE');
+            $st->execute([$id]);
+            $rep = $st->fetch() ?: null;
+            if (!$rep || $rep['status'] !== 'open') {
+                $pdo->rollBack();
+                $this->queueReturn();
+            }
+            $fn($rep);
+            if ($pdo->inTransaction()) {
+                $pdo->commit();
+            }
+        } catch (\Throwable $t) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $t;
+        }
+    }
+
     public function handle(int $id): void
     {
         if (!Auth::isMod()) {
@@ -118,19 +145,20 @@ class ReportController
             echo 'CSRF mismatch';
             return;
         }
-        $rep = Report::find($id);
-        if ($rep && $rep['status'] === 'open') {
-            $status = ($_POST['status'] ?? '') === 'resolved' ? 'resolved' : 'dismissed';
-            $note = mb_substr(trim((string) ($_POST['note'] ?? '')), 0, 500);
-            // Resolving claims action was taken: a note is required so the
-            // log says what happened. Dismissing stays one click.
-            if ($status === 'resolved' && $note === '') {
-                $this->resolveForm($id, 'Tell us what action you took before resolving.');
-                return;
-            }
+        $status = ($_POST['status'] ?? '') === 'resolved' ? 'resolved' : 'dismissed';
+        $note = mb_substr(trim((string) ($_POST['note'] ?? '')), 0, 500);
+        // Resolving claims action was taken: a note is required so the
+        // log says what happened. Dismissing stays one click. Validated
+        // before the lock: the form render below must not fall through
+        // to queueReturn().
+        if ($status === 'resolved' && $note === '') {
+            $this->resolveForm($id, 'Tell us what action you took before resolving.');
+            return;
+        }
+        $this->withLockedReport($id, function (array $rep) use ($id, $status, $note): void {
             Report::handle($id, (int) Auth::user()['id'], $status, $note);
             Modlog::log((int) Auth::user()['id'], 'report_' . $status, 'report', $id, "post {$rep['post_id']}" . ($note !== '' ? ': ' . mb_substr($note, 0, 150) : ''));
-        }
+        });
         $this->queueReturn();
     }
 
@@ -155,42 +183,40 @@ class ReportController
         ]);
     }
 
-    private function openReport(int $id): ?array
+    /** Delete the reported post and resolve the report. */
+    public function deletePost(int $id): void
     {
         if (!Auth::isMod()) {
             http_response_code(403);
             echo 'Forbidden';
-            return null;
+            return;
         }
         if (!Csrf::verify($_POST['csrf'] ?? null)) {
             http_response_code(419);
             echo 'CSRF mismatch';
-            return null;
+            return;
         }
-        $rep = Report::find($id);
-        return ($rep && $rep['status'] === 'open') ? $rep : null;
-    }
-
-    /** Delete the reported post and resolve the report. */
-    public function deletePost(int $id): void
-    {
-        $rep = $this->openReport($id);
-        if ($rep === null) {
-            $this->queueReturn();
-        }
-        $me = (int) Auth::user()['id'];
-        $post = Post::find((int) $rep['post_id']);
-        if ($post && (int) $post['user_id'] !== $me && ($post['user_group'] ?? 'member') !== 'member' && !Auth::isSuper()) {
-            $_SESSION['flash_error'] = 'Only super admins can delete staff posts.';
-            $this->queueReturn();
-        }
-        $topicId = $post ? Post::delete((int) $rep['post_id']) : null;
-        Report::handle($id, $me, 'resolved', 'reported post deleted');
-        Modlog::log($me, 'delete', 'post', (int) $rep['post_id'], 'via report #' . $id);
-        $_SESSION['flash_ok'] = 'Reported post deleted.';
-        if ($topicId !== null) {
-            $topic = \RetroBB\Models\Topic::find($topicId);
-            redirect($topic ? Slug::topicUrl($topic) : '/');
+        // Redirect target escapes the closure: redirect() exits, and exiting
+        // inside the lock would roll the delete back.
+        $goto = null;
+        $this->withLockedReport($id, function (array $rep) use ($id, &$goto): void {
+            $me = (int) Auth::user()['id'];
+            $post = Post::find((int) $rep['post_id']);
+            if ($post && (int) $post['user_id'] !== $me && ($post['user_group'] ?? 'member') !== 'member' && !Auth::isSuper()) {
+                $_SESSION['flash_error'] = 'Only super admins can delete staff posts.';
+                return;
+            }
+            $topicId = $post ? Post::delete((int) $rep['post_id']) : null;
+            Report::handle($id, $me, 'resolved', 'reported post deleted');
+            Modlog::log($me, 'delete', 'post', (int) $rep['post_id'], 'via report #' . $id);
+            $_SESSION['flash_ok'] = 'Reported post deleted.';
+            if ($topicId !== null) {
+                $topic = \RetroBB\Models\Topic::find($topicId);
+                $goto = $topic ? Slug::topicUrl($topic) : '/';
+            }
+        });
+        if ($goto !== null) {
+            redirect($goto);
         }
         $this->queueReturn();
     }
@@ -219,27 +245,41 @@ class ReportController
     /** Warn the reported post's author and resolve the report. */
     public function warnAuthor(int $id): void
     {
-        $rep = $this->openReport($id);
-        if ($rep === null) {
-            $this->queueReturn();
+        if (!Auth::isMod()) {
+            http_response_code(403);
+            echo 'Forbidden';
+            return;
+        }
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            http_response_code(419);
+            echo 'CSRF mismatch';
+            return;
         }
         $reason = mb_substr(trim((string) ($_POST['reason'] ?? '')), 0, 500);
         if (mb_strlen($reason) < 3) {
             $this->warnForm($id, 'Write the warning reason (3+ chars) — the user sees it.');
             return;
         }
-        $me = (int) Auth::user()['id'];
-        $post = Post::find((int) $rep['post_id']);
-        if ($post) {
-            $ok = \RetroBB\Models\Moderation::warn((int) $post['user_id'], $me, $reason, (int) $post['id'], (int) $post['topic_id']);
-            if (!$ok) {
-                $this->warnForm($id, 'That author cannot be warned — dismiss or delete the post instead.');
-                return;
+        // warnForm renders (no redirect), so it must skip the queueReturn
+        // below — everything else lands back on the queue.
+        $shown = false;
+        $this->withLockedReport($id, function (array $rep) use ($id, $reason, &$shown): void {
+            $me = (int) Auth::user()['id'];
+            $post = Post::find((int) $rep['post_id']);
+            if ($post) {
+                $ok = \RetroBB\Models\Moderation::warn((int) $post['user_id'], $me, $reason, (int) $post['id'], (int) $post['topic_id']);
+                if (!$ok) {
+                    $this->warnForm($id, 'That author cannot be warned — dismiss or delete the post instead.');
+                    $shown = true;
+                    return;
+                }
             }
+            Report::handle($id, $me, 'resolved', 'author warned: ' . mb_substr($reason, 0, 200));
+            Modlog::log($me, 'report_resolved', 'report', $id, 'author warned');
+            $_SESSION['flash_ok'] = 'Author warned.';
+        });
+        if (!$shown) {
+            $this->queueReturn();
         }
-        Report::handle($id, $me, 'resolved', 'author warned: ' . mb_substr($reason, 0, 200));
-        Modlog::log($me, 'report_resolved', 'report', $id, 'author warned');
-        $_SESSION['flash_ok'] = 'Author warned.';
-        $this->queueReturn();
     }
 }

@@ -19,9 +19,17 @@ class Report
         if ($dup->fetch()) {
             return ['ok' => false, 'error' => 'You already reported this post.'];
         }
-        $pdo->prepare(
-            'INSERT INTO reports (post_id, topic_id, reporter_id, reason, status, created_at) VALUES (?,?,?,?,?,?)'
-        )->execute([$postId, $topicId, $reporterId, $reason, 'open', date('Y-m-d H:i:s')]);
+        try {
+            $pdo->prepare(
+                'INSERT INTO reports (post_id, topic_id, reporter_id, reason, status, created_at) VALUES (?,?,?,?,?,?)'
+            )->execute([$postId, $topicId, $reporterId, $reason, 'open', date('Y-m-d H:i:s')]);
+        } catch (\Throwable $t) {
+            // Lost the race with an identical report (unique key): same answer.
+            if (str_contains($t->getMessage(), 'Duplicate entry')) {
+                return ['ok' => false, 'error' => 'You already reported this post.'];
+            }
+            throw $t;
+        }
         \RetroBB\Core\Hooks::do_action('report_created', (int) $pdo->lastInsertId());
         return ['ok' => true];
     }
@@ -67,8 +75,10 @@ class Report
     public static function handle(int $id, int $modId, string $status, string $note = ''): void
     {
         $status = $status === 'resolved' ? 'resolved' : 'dismissed';
+        // Belt-and-braces: callers hold the row lock (see ReportController),
+        // but a stray call must never flip an already-handled report.
         Db::pdo()->prepare(
-            'UPDATE reports SET status=?, handled_by=?, handled_at=?, handle_note=? WHERE id=?'
+            "UPDATE reports SET status=?, handled_by=?, handled_at=?, handle_note=? WHERE id=? AND status='open'"
         )->execute([$status, $modId, date('Y-m-d H:i:s'), mb_substr($note, 0, 500), $id]);
     }
 }
