@@ -17,6 +17,7 @@
     </div>
   </div>
 </div>
+<?php \RetroBB\Core\Hooks::render_template_hook('profile_after', ['profile' => $profile]); ?>
 <div class="maintitle">Recent posts by <?= e($profile['username']) ?></div>
 <div class="recent-list">
 <?php foreach ($recent as $r): ?>

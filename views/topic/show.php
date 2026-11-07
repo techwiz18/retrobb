@@ -40,8 +40,9 @@
   <div class="postbody">
     <div class="postleft">
       <?= avatar_html($p) ?>
-      <b class="postuser"><a href="<?= e(\RetroBB\Core\Slug::memberUrl(['id' => $p['user_id'], 'username' => $p['username']])) ?>"><?= e($p['username']) ?></a></b>
+      <b class="postuser"><?php $userLink = '<a href="' . e(\RetroBB\Core\Slug::memberUrl(['id' => $p['user_id'], 'username' => $p['username']])) . '">' . e($p['username']) . '</a>'; ?><?= \RetroBB\Core\Hooks::apply_filters('post_username_html', $userLink, $p) ?></b>
       <span class="group group-<?= e($p['user_group']) ?>"><?= e($p['user_group']) ?></span>
+      <?php \RetroBB\Core\Hooks::render_template_hook('postbit_user', ['post' => $p]); ?>
       <small class="postmeta"><?= (int) $p['user_posts'] ?> posts<br>Joined <?= e(substr($p['user_since'], 0, 10)) ?></small>
     </div>
     <div class="postright"><?= \RetroBB\Core\BBCode::needsRepair($p['body_html']) ? \RetroBB\Core\BBCode::toHtml($p['body_bbcode']) : $p['body_html'] ?><?php $editedTs = strtotime((string) ($p['edited_at'] ?? '')); ?><?php if ($editedTs > 0): ?><div class="editedmark">Edited <?= e(time_ago($p['edited_at'])) ?></div><?php endif; ?></div>

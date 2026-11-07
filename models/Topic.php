@@ -111,7 +111,7 @@ class Topic
         $pdo->prepare('UPDATE topics SET posts_count=posts_count+1, last_post_at=?, last_post_user_id=? WHERE id=?')->execute([$now, $userId, $topicId]);
         $pdo->prepare('UPDATE forums SET posts_count=posts_count+1, last_topic_id=? WHERE id=?')->execute([$topicId, $topic['forum_id']]);
         $pdo->prepare('UPDATE users SET posts_count=posts_count+1 WHERE id=?')->execute([$userId]);
-        \RetroBB\Core\Hooks::do_action('post_created', $topicId);
+        \RetroBB\Core\Hooks::do_action('post_created', $topicId, $pid, $userId);
         // Reply alert for the topic starter + mention alerts for @names.
         if ((int) $topic['user_id'] !== $userId) {
             \RetroBB\Models\Notification::create((int) $topic['user_id'], $userId, 'reply', $topicId, $pid);
