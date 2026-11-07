@@ -91,6 +91,9 @@ a.smallbtn { display:inline-block; text-decoration:none; color:inherit; }
 .postright img.bbcode-img { max-width:100%; height:auto; }
 .bbcode-quote { border:1px dashed var(--border); background:var(--quote-bg); padding:8px 10px; margin:8px 0; }
 .bbcode-quote cite { font-weight:bold; display:block; margin-bottom:4px; }
+/* Text directly under a quote sits tight (margin stacking made the gap
+   read as multiple blank lines). */
+.postright blockquote + p { margin-top:2px; }
 .bbcode-code { background:#1e1e1e; color:#d7ffcf; padding:8px 10px; overflow:auto; }
 .replybox textarea, .form textarea, .form input[type=text], .form input[type=email], .form input[type=password], .form input[type=number], .form select { font:13px Verdana,Arial,sans-serif; padding:8px; border:1px solid var(--border); border-radius:3px; background:var(--input-bg); color:var(--input-text); }
 .replybox textarea { width:100%; }
