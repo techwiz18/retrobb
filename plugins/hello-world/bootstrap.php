@@ -41,7 +41,8 @@ Hooks::add_filter('post_body_html', function ($html) {
 // Hooks::add_action('plugin_enabled', function ($name) {});
 // Hooks::add_action('plugin_disabled', function ($name) {});
 // #22 uninstall: super-confirmed button on AdminCP → Plugins fires this;
-// drop your tables + clear settings here (core forgets the row + prefix).
+// drop your tables + clear settings here (core then forgets the row,
+// prefix settings, and deletes the plugin directory).
 // Hooks::add_action('plugin_uninstalled', function ($name) {});
 
 // #17 admin spots: link into the AdminCP nav + summary widgets on the

@@ -215,12 +215,31 @@ class AdminController
             $pdo->prepare('DELETE FROM plugins WHERE name=?')->execute([$name]);
             $like = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $name) . '.%';
             $pdo->prepare("DELETE FROM settings WHERE `key` LIKE ? ESCAPE '\\\\'")->execute([$like]);
+            self::removeDir($dir);
             \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'plugin_uninstall', 'plugin', 0, $name);
-            $_SESSION['flash_ok'] = 'Plugin uninstalled: data dropped, files left in place.';
+            $_SESSION['flash_ok'] = 'Plugin uninstalled: tables, settings, and files removed.';
         } catch (\Throwable) {
             $_SESSION['flash_error'] = 'Could not uninstall plugin.';
         }
         redirect('/admin/plugins');
+    }
+
+    /** Recursive plugin removal, jailed to plugins/ (realpath containment). */
+    private static function removeDir(string $dir): void
+    {
+        $base = realpath(dirname(__DIR__) . '/plugins');
+        $real = realpath($dir);
+        if ($base === false || $real === false || $real === $base || !str_starts_with($real, $base . DIRECTORY_SEPARATOR)) {
+            throw new \RuntimeException('Refusing to delete outside plugins/.');
+        }
+        $items = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($real, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($items as $item) {
+            $item->isDir() ? rmdir($item->getPathname()) : unlink($item->getPathname());
+        }
+        rmdir($real);
     }
 
     public function modlogPage(): void
