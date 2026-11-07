@@ -24,7 +24,7 @@
     <div><a href="<?= e(\RetroBB\Core\Slug::topicUrl($t)) ?>"><?= e($t['title']) ?></a><?php if (!empty($unread[(int) $t['id']])): ?> <span class="pill">New</span><?php endif; ?><br><small>by <?= username_html(['user_id' => $t['user_id'], 'username' => $t['author']]) ?> · <?= e(time_ago($t['created_at'])) ?></small></div>
     <div class="c"><?= max(0, (int) $t['posts_count'] - 1) ?></div>
     <div class="c"><?= (int) $t['views'] ?></div>
-    <div class="r"><small><?= username_html(['user_id' => $t['last_user_id'] ?? 0, 'username' => $t['last_user'] ?? $t['author']]) ?><br><?= e(time_ago($t['last_post_at'])) ?></small></div>
+    <div class="r"><small class="muted">by <?= username_html(['user_id' => $t['last_user_id'] ?? 0, 'username' => $t['last_user'] ?? $t['author']]) ?> <a href="<?= e(\RetroBB\Core\Slug::topicUrl($t)) ?>" title="Jump to last post">»</a><br><?= e(post_date((string) ($t['last_post_at'] ?? ''))) ?></small></div>
   </div>
   <?php endforeach; ?>
   <?php if (!$topics): ?><div class="empty">No topics yet. Be the first!</div><?php endif; ?>

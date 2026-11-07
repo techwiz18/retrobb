@@ -14,7 +14,9 @@
     <div class="forum-stats"><b><?= (int) $f['posts_count'] ?></b> posts<br><b><?= (int) $f['topics_count'] ?></b> topics</div>
     <div class="forum-last">
       <?php if (!empty($f['last_topic_id'])): ?>
-        <small class="muted">Last post by <b><?= username_html(['user_id' => $f['last_user_id'] ?? 0, 'username' => $f['last_user'] ?? '?']) ?></b> in <a href="<?= e(url('/topic/' . ($f['last_slug'] ?: 'topic') . '.t' . (int) $f['last_topic_id'])) ?>"><?= e($f['last_title'] ?? 'View') ?></a><?php if (!empty($f['last_at'])): ?><br><?= e(time_ago($f['last_at'])) ?><?php endif; ?></small>
+        <?php $lastUrl = url('/topic/' . ($f['last_slug'] ?: 'topic') . '.t' . (int) $f['last_topic_id']); ?>
+        <a class="lastpost-title" href="<?= e($lastUrl) ?>"><?= e($f['last_title'] ?? 'View') ?></a>
+        <small class="muted">by <?= username_html(['user_id' => $f['last_user_id'] ?? 0, 'username' => $f['last_user'] ?? '?']) ?> <a href="<?= e($lastUrl) ?>" title="Jump to last post">»</a><br><?= e(post_date((string) ($f['last_at'] ?? ''))) ?></small>
       <?php else: ?><small>No posts yet</small><?php endif; ?>
     </div>
   </div>
