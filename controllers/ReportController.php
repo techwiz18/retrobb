@@ -6,6 +6,7 @@ namespace RetroBB\Controllers;
 use RetroBB\Core\Auth;
 use RetroBB\Core\Csrf;
 use RetroBB\Core\Modlog;
+use RetroBB\Core\Router;
 use RetroBB\Core\Slug;
 use RetroBB\Core\View;
 use RetroBB\Models\Post;
@@ -68,8 +69,25 @@ class ReportController
         View::render('report/queue', [
             'reports' => $data['reports'], 'total' => $data['total'],
             'page' => $page, 'pages' => $pages,
+            // AdminCP entry (/admin/reports) keeps the admin chrome; the
+            // ModCP path keeps the mod chrome. Same content either way.
+            'admin' => str_starts_with(Router::currentPath(), '/admin/'),
             'pageTitle' => 'Mod queue — ' . board_name(),
         ]);
+    }
+
+    /** Back to the queue the caller came from (AdminCP or ModCP). */
+    private function queueReturn(): void
+    {
+        // Exact-path allowlist only: never follow an open referer anywhere
+        // else (same rule as the skin/theme switchers, minus their query).
+        $parts = parse_url($_SERVER['HTTP_REFERER'] ?? '');
+        $path = is_array($parts) ? (string) ($parts['path'] ?? '') : '';
+        if ($path === '/admin/reports' || $path === '/mod/reports') {
+            $qs = is_array($parts) && ($parts['query'] ?? '') !== '' ? '?' . $parts['query'] : '';
+            redirect($path . $qs);
+        }
+        $this->queueReturn();
     }
 
     public function handle(int $id): void
@@ -97,7 +115,7 @@ class ReportController
             Report::handle($id, (int) Auth::user()['id'], $status, $note);
             Modlog::log((int) Auth::user()['id'], 'report_' . $status, 'report', $id, "post {$rep['post_id']}" . ($note !== '' ? ': ' . mb_substr($note, 0, 150) : ''));
         }
-        redirect('/mod/reports');
+        $this->queueReturn();
     }
 
     /** Resolve form (GET): what did you do about it? Note required on submit. */
@@ -110,7 +128,7 @@ class ReportController
         }
         $rep = Report::find($id);
         if (!$rep || $rep['status'] !== 'open') {
-            redirect('/mod/reports');
+            $this->queueReturn();
         }
         $post = Post::find((int) $rep['post_id']);
         $topic = $post ? \RetroBB\Models\Topic::find((int) $post['topic_id']) : null;
@@ -141,13 +159,13 @@ class ReportController
     {
         $rep = $this->openReport($id);
         if ($rep === null) {
-            redirect('/mod/reports');
+            $this->queueReturn();
         }
         $me = (int) Auth::user()['id'];
         $post = Post::find((int) $rep['post_id']);
         if ($post && (int) $post['user_id'] !== $me && ($post['user_group'] ?? 'member') !== 'member' && !Auth::isSuper()) {
             $_SESSION['flash_error'] = 'Only super admins can delete staff posts.';
-            redirect('/mod/reports');
+            $this->queueReturn();
         }
         $topicId = $post ? Post::delete((int) $rep['post_id']) : null;
         Report::handle($id, $me, 'resolved', 'reported post deleted');
@@ -157,7 +175,7 @@ class ReportController
             $topic = \RetroBB\Models\Topic::find($topicId);
             redirect($topic ? Slug::topicUrl($topic) : '/');
         }
-        redirect('/mod/reports');
+        $this->queueReturn();
     }
 
     /** Warn form (GET): the mod writes the actual warning, not the report text. */
@@ -170,7 +188,7 @@ class ReportController
         }
         $rep = Report::find($id);
         if (!$rep || $rep['status'] !== 'open') {
-            redirect('/mod/reports');
+            $this->queueReturn();
         }
         $post = Post::find((int) $rep['post_id']);
         $topic = $post ? \RetroBB\Models\Topic::find((int) $post['topic_id']) : null;
@@ -185,7 +203,7 @@ class ReportController
     {
         $rep = $this->openReport($id);
         if ($rep === null) {
-            redirect('/mod/reports');
+            $this->queueReturn();
         }
         $reason = mb_substr(trim((string) ($_POST['reason'] ?? '')), 0, 500);
         if (mb_strlen($reason) < 3) {
@@ -204,6 +222,6 @@ class ReportController
         Report::handle($id, $me, 'resolved', 'author warned: ' . mb_substr($reason, 0, 200));
         Modlog::log($me, 'report_resolved', 'report', $id, 'author warned');
         $_SESSION['flash_ok'] = 'Author warned.';
-        redirect('/mod/reports');
+        $this->queueReturn();
     }
 }

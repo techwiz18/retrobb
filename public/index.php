@@ -223,6 +223,9 @@ $r->get('#^/admin/structure$#', [\RetroBB\Controllers\AdminController::class, 's
 $r->get('#^/admin/bans$#', [\RetroBB\Controllers\AdminController::class, 'bansPage']);
 $r->get('#^/admin/users$#', [\RetroBB\Controllers\AdminController::class, 'usersPage']);
 $r->get('#^/admin/modlog$#', [\RetroBB\Controllers\AdminController::class, 'modlogPage']);
+// AdminCP entry to the shared mod queue (same content as /mod/reports but
+// with the admin chrome, so AdminCP never kicks out to ModCP).
+$r->get('#^/admin/reports$#', [\RetroBB\Controllers\ReportController::class, 'queue']);
 $r->post('#^/admin/settings$#', [\RetroBB\Controllers\AdminController::class, 'saveSettings']);
 $r->post('#^/admin/add-forum$#', [\RetroBB\Controllers\AdminController::class, 'addForum']);
 $r->post('#^/admin/add-category$#', [\RetroBB\Controllers\AdminController::class, 'addCategory']);
