@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Fixed
+- Race hardening (audit): one open report per post/reporter enforced by a
+  unique key; password-reset tokens claimed atomically so a link works once;
+  report handling locks the row, so two mods can't double-warn; login
+  throttle keys on IP+account so one shared proxy can't lock out all logins.
+- Atomicity: topic create/reply/move/split/merge/delete, post delete, and
+  warn/ban now run inside transactions (`Db::transact`, joins an active one).
+- Double-submit guard: forms disable their buttons on first submit (confirmed
+  dialogs still work); plugin toggle flips atomically.
+- Removed dead code (`Moderation::banList`, `Reaction::counts`); shared the
+  LIKE-escape, staff-post rule, count-query, and board-name validation in one
+  place each; new concurrent double-report regression test.
+
 ## [0.6.0-beta.1] — 2026-10-28 (pre-release)
 
 ### Added

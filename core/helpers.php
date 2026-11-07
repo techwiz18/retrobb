@@ -250,14 +250,21 @@ function allowed_themes(): array
     return $out ?: ['auto'];
 }
 
+/** Cookie preference validated against an allowlist, else the default. */
+function cookie_choice(string $cookie, array $allowed, string $default): string
+{
+    $v = $_COOKIE[$cookie] ?? $default;
+    return in_array($v, $allowed, true) ? $v : $default;
+}
+
 function skin(): string
 {
+    $d = setting('default_skin', 'classic');
+    $d = in_array($d, ['classic', 'midnight', 'silver'], true) ? $d : 'classic';
     if (!feature('skin_selector')) {
-        $d = setting('default_skin', 'classic');
-        return in_array($d, ['classic', 'midnight', 'silver'], true) ? $d : 'classic';
+        return $d;
     }
-    $s = $_COOKIE['retrobb_skin'] ?? setting('default_skin', 'classic');
-    return in_array($s, ['classic', 'midnight', 'silver'], true) ? $s : 'classic';
+    return cookie_choice('retrobb_skin', ['classic', 'midnight', 'silver'], $d);
 }
 
 function theme(): string
@@ -267,11 +274,8 @@ function theme(): string
     if (!in_array($fallback, $allowed, true)) {
         $fallback = in_array('auto', $allowed, true) ? 'auto' : $allowed[0];
     }
-    $t = $_COOKIE['retrobb_theme'] ?? $fallback;
-    if (!in_array($t, ['light', 'dark', 'auto'], true) || !in_array($t, $allowed, true)) {
-        $t = $fallback;
-    }
-    return $t;
+    $t = cookie_choice('retrobb_theme', ['light', 'dark', 'auto'], $fallback);
+    return in_array($t, $allowed, true) ? $t : $fallback;
 }
 
 function canonical_url(string $path): string

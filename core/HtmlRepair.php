@@ -27,7 +27,8 @@ class HtmlRepair
      * Stored HTML the renderer could not have produced: raw script-ish tags,
      * inline event handlers, or javascript:/vbscript:/data: URLs in an
      * attribute. The renderer escapes all user text and emits a fixed tag set,
-     * so any of these is legacy injected markup.
+     * so any of these is legacy injected markup. Hostility only — renderer
+     * staleness (leftover BBCode) is BBCode::needsRepair's job.
      *
      * Attribute values are entity-decoded and whitespace-stripped first, so
      * obfuscated forms (`java&#115;cript:`, `jav&#x09;ascript:`,

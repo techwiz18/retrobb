@@ -130,13 +130,24 @@ class Board
         return $r ?: null;
     }
 
-    /** Rename a category. Returns [ok, error?]. */
-    public static function renameCategory(int $id, string $title): array
+    /** Trimmed board name valid for a rename, or the ['ok'=>false] answer. */
+    private static function checkBoardName(string $title, string $label): array
     {
         $title = trim($title);
         if (mb_strlen($title) < 2 || mb_strlen($title) > 190) {
-            return ['ok' => false, 'error' => 'Category title must be 2–190 characters.'];
+            return ['ok' => false, 'error' => "$label must be 2–190 characters.", 'title' => $title];
         }
+        return ['ok' => true, 'title' => $title];
+    }
+
+    /** Rename a category. Returns [ok, error?]. */
+    public static function renameCategory(int $id, string $title): array
+    {
+        $checked = self::checkBoardName($title, 'Category title');
+        if (!$checked['ok']) {
+            return $checked;
+        }
+        $title = $checked['title'];
         if (!self::category($id)) {
             return ['ok' => false, 'error' => 'Category not found.'];
         }
@@ -162,11 +173,12 @@ class Board
     /** Rename a forum (and optionally move it to another category). Returns [ok, error?]. */
     public static function renameForum(int $id, string $name, string $desc, int $categoryId): array
     {
-        $name = trim($name);
-        $desc = trim($desc);
-        if (mb_strlen($name) < 2 || mb_strlen($name) > 190) {
-            return ['ok' => false, 'error' => 'Forum name must be 2–190 characters.'];
+        $checked = self::checkBoardName($name, 'Forum name');
+        if (!$checked['ok']) {
+            return $checked;
         }
+        $name = $checked['title'];
+        $desc = trim($desc);
         if (mb_strlen($desc) > 500) {
             return ['ok' => false, 'error' => 'Description must be under 500 characters.'];
         }
