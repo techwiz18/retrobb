@@ -6,7 +6,7 @@
 <?php foreach ($plugins as $p): ?>
 <div class="recent-row"><span><b><?= e($p['name']) ?></b><?php if ($p['version'] !== ''): ?> <span class="muted"><?= e($p['version']) ?></span><?php endif; ?> <?= $p['enabled'] ? '<b style="color:#080">[on]</b>' : '<span class="muted">[off]</span>' ?><br>
 <small class="muted"><?= e($p['description']) ?><?php if ($p['author'] !== ''): ?> · by <?= e($p['author']) ?><?php endif; ?></small></span>
-<span><form method="post" action="<?= e(url('/admin/plugin/' . $p['name'])) ?>" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn"><?= $p['enabled'] ? 'Disable' : 'Enable' ?></button></form> <form method="post" action="<?= e(url('/admin/plugin/' . $p['name'] . '/uninstall')) ?>" style="display:inline" onsubmit="return confirm('Uninstall <?= e($p['name']) ?>? Its tables and settings are dropped. Files stay put.')"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn danger">Uninstall</button></form></span></div>
+<span><form method="post" action="<?= e(url('/admin/plugin/' . $p['name'])) ?>" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn"><?= $p['enabled'] ? 'Disable' : 'Enable' ?></button></form> <form method="post" action="<?= e(url('/admin/plugin/' . $p['name'] . '/uninstall')) ?>" style="display:inline" onsubmit="return confirm('Uninstall <?= e($p['name']) ?>? Its tables, settings, AND files are removed.')"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn danger">Uninstall</button></form></span></div>
 <?php endforeach; ?>
 <?php if (!$plugins): ?><div class="empty">No plugins installed.</div><?php endif; ?>
 </div>
