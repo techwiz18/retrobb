@@ -289,4 +289,10 @@ $r->get('#^/viewtopic\.php$#', function () {
     redirect('/');
 });
 
+// Plugin routes (issue #19): after core routes so core wins collisions.
+// Canonical-host enforcement above already ran, so plugin pages get the
+// same Host-distrust 301s, and unmatched plugin paths fall through to the
+// shared 404 below. Plugins register via Hooks::add_action('routes', ...).
+\RetroBB\Core\Hooks::do_action('routes', $r);
+
 $r->dispatch($_SERVER['REQUEST_METHOD'] ?? 'GET', Router::currentPath());

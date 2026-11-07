@@ -179,6 +179,9 @@ class AdminController
             $pdo->prepare('INSERT INTO plugins (name, enabled) VALUES (?, ?) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled)')
                 ->execute([$name, $next]);
             \RetroBB\Core\Modlog::log((int) Auth::user()['id'], $next ? 'plugin_enable' : 'plugin_disable', 'plugin', 0, $name);
+            // Lifecycle hook (issue #20): seeding on enable, cleanup on
+            // disable — replaces every-request CREATE TABLE IF NOT EXISTS.
+            \RetroBB\Core\Hooks::do_action($next ? 'plugin_enabled' : 'plugin_disabled', $name);
         } catch (\Throwable) {
             $_SESSION['flash_error'] = 'Could not save plugin state.';
         }
