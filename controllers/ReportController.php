@@ -87,7 +87,7 @@ class ReportController
             $qs = is_array($parts) && ($parts['query'] ?? '') !== '' ? '?' . $parts['query'] : '';
             redirect($path . $qs);
         }
-        $this->queueReturn();
+        redirect('/mod/reports');
     }
 
     public function handle(int $id): void
