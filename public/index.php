@@ -216,6 +216,7 @@ $r->post('#^/admin/features$#', [\RetroBB\Controllers\AdminController::class, 's
 $r->get('#^/admin/import$#', [\RetroBB\Controllers\ImportController::class, 'form']);
 $r->get('#^/admin/plugins$#', [\RetroBB\Controllers\AdminController::class, 'pluginsPage']);
 $r->post('#^/admin/plugin/([A-Za-z0-9_-]+)$#', [\RetroBB\Controllers\AdminController::class, 'pluginToggle']);
+$r->post('#^/admin/plugin/([A-Za-z0-9_-]+)/uninstall$#', [\RetroBB\Controllers\AdminController::class, 'pluginUninstall']);
 $r->post('#^/admin/import/test$#', [\RetroBB\Controllers\ImportController::class, 'test']);
 $r->post('#^/admin/import/run$#', [\RetroBB\Controllers\ImportController::class, 'run']);
 $r->get('#^/admin/spam$#', [\RetroBB\Controllers\AdminController::class, 'spamPage']);
