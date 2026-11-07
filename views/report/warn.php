@@ -3,7 +3,7 @@
 <div class="maintitle">Warn author (report #<?= (int) $report['id'] ?>)</div>
 <?php if ($post && $topic): ?>
 <div class="recent-list"><div class="recent-row"><span>
-  Post by <b><?= e($post['username']) ?></b> in <a href="<?= e(\RetroBB\Core\Slug::topicUrl(['id' => $topic['id'], 'title' => $topic['title']])) ?>#p<?= (int) $post['id'] ?>"><?= e($topic['title']) ?></a><br>
+  Post by <b><?= username_html($post, false) ?></b> in <a href="<?= e(\RetroBB\Core\Slug::topicUrl(['id' => $topic['id'], 'title' => $topic['title']])) ?>#p<?= (int) $post['id'] ?>"><?= e($topic['title']) ?></a><br>
   <small class="muted">Reported reason (for reference, not the warning): <?= e($report['reason']) ?></small>
 </span></div></div>
 <?php endif; ?>

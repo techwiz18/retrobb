@@ -15,7 +15,7 @@ if (!empty($b['expires_at']) && !empty($b['created_at'])) {
     $span = $days . 'd ban from ' . $b['created_at'];
 }
 ?>
-<div class="recent-row" style="align-items:flex-start"><span><b><?= e($b['username']) ?></b>
+<div class="recent-row" style="align-items:flex-start"><span><b><?= username_html($b, false) ?></b>
 <?php if ($active): ?><b style="color:#a00">[ACTIVE]</b>
 <?php elseif ($expired): ?><span class="muted">[expired — <?= e($span) ?>]</span>
 <?php else: ?><span class="muted">[ended]</span><?php endif; ?><br>

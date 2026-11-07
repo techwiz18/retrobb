@@ -1,9 +1,9 @@
 <?php /** @var array $profile */ /** @var array $recent */ /** @var array $warnings */ /** @var array|null $activeBan */ ?>
-<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(url('/members')) ?>">Members</a> &raquo; <?= e($profile['username']) ?></div>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(url('/members')) ?>">Members</a> &raquo; <?= username_html($profile, false) ?></div>
 <div class="profile-card">
   <?= avatar_html($profile, true) ?>
   <div class="profile-id">
-    <div class="profile-name"><?= e($profile['username']) ?></div>
+    <div class="profile-name"><?= username_html($profile, false) ?></div>
     <div><span class="group group-<?= e($profile['user_group']) ?>"><?= e($profile['user_group']) ?></span>
     <?php $me2 = \RetroBB\Core\Auth::user(); ?>
     <?php if ($me2 && (int) $me2['id'] === (int) $profile['id']): ?> <a class="smallbtn" href="<?= e(url('/settings/profile')) ?>">Edit profile</a><?php elseif ($me2 && feature('pms')): ?> <a class="smallbtn" href="<?= e(url('/pm/new?to=' . urlencode($profile['username']))) ?>">Message</a><?php endif; ?></div>
@@ -18,7 +18,7 @@
   </div>
 </div>
 <?php \RetroBB\Core\Hooks::render_template_hook('profile_after', ['profile' => $profile]); ?>
-<div class="maintitle">Recent posts by <?= e($profile['username']) ?></div>
+<div class="maintitle">Recent posts by <?= username_html($profile, false) ?></div>
 <div class="recent-list">
 <?php foreach ($recent as $r): ?>
   <div class="recent-row">
@@ -40,7 +40,7 @@
 <div class="flash-error">⛔ Banned <?= $activeBan['expires_at'] ? 'until ' . e($activeBan['expires_at']) : 'permanently' ?> — <?= e($activeBan['reason']) ?></div>
 <?php endif; ?>
 <?php if (\RetroBB\Core\Auth::isMod() && \RetroBB\Core\Auth::user()['id'] !== (int) $profile['id']): ?>
-<div class="maintitle">Moderate <?= e($profile['username']) ?></div>
+<div class="maintitle">Moderate <?= username_html($profile, false) ?></div>
 <div class="admin-grid">
 <form method="post" action="<?= e(url('/members/' . (int) $profile['id'] . '/warn')) ?>" class="form">
   <?= \RetroBB\Core\Csrf::field() ?>

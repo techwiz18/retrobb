@@ -2,7 +2,7 @@
 <div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <?php if ($forum): ?><a href="<?= e(\RetroBB\Core\Slug::forumUrl($forum)) ?>"><?= e($forum['name']) ?></a> &raquo;<?php endif; ?> <?= e($topic['title']) ?></div>
 <div class="maintitle"><?= e($topic['title']) ?></div>
 <div class="actionrow">
-  <span class="muted">by <a href="<?= e(\RetroBB\Core\Slug::memberUrl(['id' => $topic['user_id'], 'username' => $topic['author']])) ?>"><?= e($topic['author']) ?></a> · <?= (int) $topic['views'] ?> views</span>
+  <span class="muted">by <?= username_html(['user_id' => $topic['user_id'], 'username' => $topic['author']]) ?> · <?= (int) $topic['views'] ?> views</span>
 </div>
 <?php if (\RetroBB\Core\Auth::isMod()): ?>
 <div class="modbar">
@@ -40,7 +40,7 @@
   <div class="postbody">
     <div class="postleft">
       <?= avatar_html($p) ?>
-      <b class="postuser"><?php $userLink = '<a href="' . e(\RetroBB\Core\Slug::memberUrl(['id' => $p['user_id'], 'username' => $p['username']])) . '">' . e($p['username']) . '</a>'; ?><?= \RetroBB\Core\Hooks::apply_filters('post_username_html', $userLink, $p) ?></b>
+      <b class="postuser"><?= username_html($p) ?></b>
       <span class="group group-<?= e($p['user_group']) ?>"><?= e($p['user_group']) ?></span>
       <?php \RetroBB\Core\Hooks::render_template_hook('postbit_user', ['post' => $p]); ?>
       <small class="postmeta"><?= (int) $p['user_posts'] ?> posts<br>Joined <?= e(substr($p['user_since'], 0, 10)) ?></small>

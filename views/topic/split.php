@@ -8,7 +8,7 @@
   <label>New topic title<br><input type="text" name="title" maxlength="120" required style="width:100%"></label><br><br>
   <?php foreach ($posts as $p): ?>
   <div class="recent-row">
-    <span><label><input type="checkbox" name="post_ids[]" value="<?= (int) $p['id'] ?>"> <b><?= e($p['username']) ?></b> — <?= e(\RetroBB\Core\BBCode::excerpt($p['body_bbcode'], 90)) ?></label></span>
+    <span><label><input type="checkbox" name="post_ids[]" value="<?= (int) $p['id'] ?>"> <b><?= username_html(['user_id' => $p['user_id'], 'username' => $p['username']], false) ?></b> — <?= e(\RetroBB\Core\BBCode::excerpt($p['body_bbcode'], 90)) ?></label></span>
     <span class="recent-date"><?= e(time_ago($p['created_at'])) ?></span>
   </div>
   <?php endforeach; ?>

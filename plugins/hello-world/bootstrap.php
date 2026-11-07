@@ -29,9 +29,11 @@ Hooks::add_filter('post_body_html', function ($html) {
 // Hooks::add_template_hook('profile_after', __DIR__ . '/views/card.php');
 
 // #18 postbit: author-block content server-side (no JS injection), plus a
-// username-HTML filter (keep escaping with e(); $post row is 2nd arg).
+// username-HTML filter that now fires on EVERY username site-wide (helper
+// username_html() in core/helpers.php — keep escaping with e(); the user
+// row is 2nd arg).
 // Hooks::add_template_hook('postbit_user', __DIR__ . '/views/flair.php');
-// Hooks::add_filter('post_username_html', function ($html, $post) { return $html; });
+// Hooks::add_filter('post_username_html', function ($html, $user) { return $html; });
 
 // #20 lifecycle: seed on enable, clean up on disable (replaces
 // every-request CREATE TABLE). Tables live in migrations/*.sql and apply
