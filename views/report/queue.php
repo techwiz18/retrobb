@@ -1,7 +1,7 @@
-<?php /** @var array $reports */ /** @var int $total */ /** @var int $page */ /** @var int $pages */ ?>
+<?php /** @var array $reports */ /** @var int $total */ /** @var int $page */ /** @var int $pages */ /** @var bool|null $admin */ ?>
 <div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; Mod queue</div>
 <div class="maintitle">Mod queue — <?= $total ?> open report<?= $total === 1 ? '' : 's' ?></div>
-<?php \RetroBB\Core\View::partial('mod/_nav', ['active' => 'queue']); ?>
+<?php \RetroBB\Core\View::partial(!empty($admin) ? 'admin/_nav' : 'mod/_nav', ['active' => 'queue']); ?>
 <div class="recent-list">
 <?php foreach ($reports as $r): ?>
   <div class="recent-row" style="align-items:flex-start">
