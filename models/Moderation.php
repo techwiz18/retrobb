@@ -21,19 +21,25 @@ class Moderation
             return false;
         }
         try {
-            Db::pdo()->prepare(
-                'INSERT INTO warnings (user_id, warned_by, reason, created_at, post_id, topic_id) VALUES (?,?,?,?,?,?)'
-            )->execute([$userId, $modId, $reason, date('Y-m-d H:i:s'), $postId, $topicId]);
+            Db::transact(function () use ($userId, $modId, $reason, $postId, $topicId): void {
+                try {
+                    Db::pdo()->prepare(
+                        'INSERT INTO warnings (user_id, warned_by, reason, created_at, post_id, topic_id) VALUES (?,?,?,?,?,?)'
+                    )->execute([$userId, $modId, $reason, date('Y-m-d H:i:s'), $postId, $topicId]);
+                } catch (\Throwable) {
+                    // Pre-010 tables lack post/topic columns — record it anyway.
+                    Db::pdo()->prepare(
+                        'INSERT INTO warnings (user_id, warned_by, reason, created_at) VALUES (?,?,?,?)'
+                    )->execute([$userId, $modId, $reason, date('Y-m-d H:i:s')]);
+                    $postId = 0;
+                    $topicId = 0;
+                }
+                Modlog::log($modId, 'warn', 'user', $userId, mb_substr($reason, 0, 200));
+                \RetroBB\Models\Notification::create($userId, $modId, 'warning', $topicId, $postId, $reason);
+            });
         } catch (\Throwable) {
-            // Pre-010 tables lack post/topic columns — record it anyway.
-            Db::pdo()->prepare(
-                'INSERT INTO warnings (user_id, warned_by, reason, created_at) VALUES (?,?,?,?)'
-            )->execute([$userId, $modId, $reason, date('Y-m-d H:i:s')]);
-            $postId = 0;
-            $topicId = 0;
+            return false;
         }
-        Modlog::log($modId, 'warn', 'user', $userId, mb_substr($reason, 0, 200));
-        \RetroBB\Models\Notification::create($userId, $modId, 'warning', $topicId, $postId, $reason);
         return true;
     }
 
@@ -49,13 +55,7 @@ class Moderation
 
     public static function warningCount(int $userId): int
     {
-        try {
-            $st = Db::pdo()->prepare('SELECT COUNT(*) c FROM warnings WHERE user_id=?');
-            $st->execute([$userId]);
-            return (int) $st->fetch()['c'];
-        } catch (\Throwable) {
-            return 0;
-        }
+        return Db::countQuery('SELECT COUNT(*) c FROM warnings WHERE user_id=?', [$userId]);
     }
 
     /** $days null = permanent. Returns ban id, or 0 on refusal (admin targets
@@ -70,11 +70,14 @@ class Moderation
             return 0;
         }
         $expires = $days === null ? null : date('Y-m-d H:i:s', time() + $days * 86400);
-        Db::pdo()->prepare(
-            'INSERT INTO bans (user_id, banned_by, reason, expires_at, created_at) VALUES (?,?,?,?,?)'
-        )->execute([$userId, $modId, mb_substr(trim($reason), 0, 500), $expires, date('Y-m-d H:i:s')]);
-        $id = (int) Db::pdo()->lastInsertId();
-        Modlog::log($modId, 'ban', 'user', $userId, ($days === null ? 'permanent' : $days . 'd') . ': ' . mb_substr(trim($reason), 0, 150));
+        $id = 0;
+        Db::transact(function () use ($userId, $modId, $reason, $expires, $days, &$id): void {
+            Db::pdo()->prepare(
+                'INSERT INTO bans (user_id, banned_by, reason, expires_at, created_at) VALUES (?,?,?,?,?)'
+            )->execute([$userId, $modId, mb_substr(trim($reason), 0, 500), $expires, date('Y-m-d H:i:s')]);
+            $id = (int) Db::pdo()->lastInsertId();
+            Modlog::log($modId, 'ban', 'user', $userId, ($days === null ? 'permanent' : $days . 'd') . ': ' . mb_substr(trim($reason), 0, 150));
+        });
         return $id;
     }
 
@@ -96,6 +99,19 @@ class Moderation
         }
         Modlog::log($modId, 'unban', 'user', (int) $ban['user_id'], $detail);
         return (int) $ban['user_id'];
+    }
+
+    /** Staff-post rule, shared by every post edit/delete path: anyone may
+        touch their own posts, but another staffer's post needs a super
+        admin. Returns the error or null. */
+    public static function staffPostError(array $post, int $actorId, bool $actorSuper, string $verb): ?string
+    {
+        if ((int) ($post['user_id'] ?? 0) !== $actorId
+            && ($post['user_group'] ?? 'member') !== 'member'
+            && !$actorSuper) {
+            return 'Only super admins can ' . $verb . ' staff posts.';
+        }
+        return null;
     }
 
     /** Target group + whether the actor is super. Pre-tier schemas lack the
@@ -137,45 +153,23 @@ class Moderation
         return $r ?: null;
     }
 
-    /** @return array active + recent bans */
-    public static function banList(int $limit = 100): array
-    {
-        $limit = max(1, min(1000, $limit));
-        return Db::pdo()->query(
-            'SELECT b.*, u.username, a.username AS banned_by_name FROM bans b JOIN users u ON u.id=b.user_id JOIN users a ON a.id=b.banned_by ORDER BY b.id DESC LIMIT ' . $limit
-        )->fetchAll();
-    }
-
     /** Total ban rows (for paging the mod/admin ban history). */
     public static function banCount(): int
     {
-        try {
-            return (int) Db::pdo()->query('SELECT COUNT(*) c FROM bans')->fetch()['c'];
-        } catch (\Throwable) {
-            return 0;
-        }
+        return Db::countQuery('SELECT COUNT(*) c FROM bans');
     }
 
-    /**
-     * How many bans are in force right now. Counting from banList()'s window
-     * only saw the newest 100 rows, so busy boards under-reported.
-     */
+    /** How many bans are in force right now (counts every row, no window). */
     public static function activeBanCount(): int
     {
-        try {
-            $st = Db::pdo()->prepare(
-                'SELECT COUNT(*) c FROM bans WHERE lifted_at IS NULL AND (expires_at IS NULL OR expires_at > ?)'
-            );
-            $st->execute([date('Y-m-d H:i:s')]);
-            return (int) ($st->fetch()['c'] ?? 0);
-        } catch (\Throwable) {
-            return 0;
-        }
+        return Db::countQuery(
+            'SELECT COUNT(*) c FROM bans WHERE lifted_at IS NULL AND (expires_at IS NULL OR expires_at > ?)',
+            [date('Y-m-d H:i:s')]
+        );
     }
 
-    /** One page of ban history, newest first. */
-    public static function banPage(int $page = 1, int $perPage = 50): array
-    {
+    /** @return array active + recent bans */
+    public static function banPage(int $page = 1, int $perPage = 50): array    {
         $page = max(1, $page);
         $perPage = max(1, min(200, $perPage));
         $offset = ($page - 1) * $perPage;

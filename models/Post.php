@@ -35,16 +35,18 @@ class Post
         }
         $pdo = Db::pdo();
         $topicId = (int) $post['topic_id'];
-        $n = (int) $pdo->query('SELECT COUNT(*) c FROM posts WHERE topic_id=' . $topicId)->fetch()['c'];
-        if ($n <= 1) {
-            Topic::delete($topicId);
-            return null;
-        }
-        $pdo->prepare('DELETE FROM posts WHERE id=?')->execute([$id]);
-        $pdo->prepare('UPDATE users SET posts_count=GREATEST(posts_count-1,0) WHERE id=?')->execute([(int) $post['user_id']]);
-        Topic::recountTopic($topicId);
-        Topic::recountForum((int) $post['forum_id']);
-        return $topicId;
+        return Db::transact(function () use ($pdo, $id, $post, $topicId): ?int {
+            $n = (int) $pdo->query('SELECT COUNT(*) c FROM posts WHERE topic_id=' . $topicId)->fetch()['c'];
+            if ($n <= 1) {
+                Topic::delete($topicId);
+                return null;
+            }
+            $pdo->prepare('DELETE FROM posts WHERE id=?')->execute([$id]);
+            $pdo->prepare('UPDATE users SET posts_count=GREATEST(posts_count-1,0) WHERE id=?')->execute([(int) $post['user_id']]);
+            Topic::recountTopic($topicId);
+            Topic::recountForum((int) $post['forum_id']);
+            return $topicId;
+        });
     }
 
     /** Seconds since this user last posted (anywhere), or null if never. */

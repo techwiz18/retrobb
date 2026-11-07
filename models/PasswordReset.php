@@ -62,7 +62,7 @@ class PasswordReset
         }
     }
 
-    /** Set the new password and burn every token for that user. */
+    /** Set the new password and burn the token (atomic claim: concurrent uses lose). */
     public static function consume(string $token, string $password): array
     {
         if (strlen($password) < 8) {
@@ -74,16 +74,20 @@ class PasswordReset
         }
         try {
             $pdo = Db::pdo();
+            // Claim the token first, atomically: two requests racing the same
+            // link both passed check() above, but only one UPDATE lands.
+            $claim = $pdo->prepare('UPDATE password_resets SET used_at=? WHERE token_hash=? AND used_at IS NULL');
+            $claim->execute([date('Y-m-d H:i:s'), hash('sha256', $token)]);
+            if ($claim->rowCount() !== 1) {
+                return ['ok' => false, 'error' => 'This reset link is invalid or expired. Request a new one.'];
+            }
             $pdo->prepare("UPDATE users SET password_hash=?, auth_scheme='modern', passwd_salt='' WHERE id=?")
                 ->execute([password_hash_safe($password), $row['user_id']]);
-            $pdo->prepare('UPDATE password_resets SET used_at=? WHERE user_id=? AND used_at IS NULL')
-                ->execute([date('Y-m-d H:i:s'), $row['user_id']]);
         } catch (\Throwable) {
             // Pre-011 tables lack the scheme columns — password still changes.
+            // (Token is already burned above; a retry needs a fresh link.)
             try {
                 Db::pdo()->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash_safe($password), $row['user_id']]);
-                Db::pdo()->prepare('UPDATE password_resets SET used_at=? WHERE user_id=? AND used_at IS NULL')
-                    ->execute([date('Y-m-d H:i:s'), $row['user_id']]);
             } catch (\Throwable $t) {
                 return ['ok' => false, 'error' => 'Could not save the new password.'];
             }

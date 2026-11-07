@@ -253,12 +253,12 @@ $r->get('#^/search$#', [\RetroBB\Controllers\SearchController::class, 'index']);
 // skin switcher + legacy compat. POST + CSRF: a GET let any page embed this
 // URL and pin a visitor's skin (preference fixation, issue #2). The token is
 // the sessionless double-submit one — guests have no session to bind to.
-$r->post('#^/skin/([a-z0-9]+)$#', function (string $s) {
+$switcher = function (string $value, string $cookie, array $allowed, string $pick): void {
     if (!\RetroBB\Core\Csrf::verifyAnon($_POST['anon_csrf'] ?? null)) {
         redirect('/');
     }
-    if (feature('skin_selector') && in_array($s, ['classic', 'midnight', 'silver'], true)) {
-        setcookie('retrobb_skin', $s, time() + 86400 * 365, base_path() ?: '/');
+    if (in_array($value, $allowed, true)) {
+        setcookie($cookie, $value, time() + 86400 * 365, base_path() ?: '/');
     }
     // Referer is client-controlled: only follow local paths, never "//host".
     $back = $_SERVER['HTTP_REFERER'] ?? '/';
@@ -269,22 +269,14 @@ $r->post('#^/skin/([a-z0-9]+)$#', function (string $s) {
     // Tell the sync bridge (hub-shell) this landing carries a fresh explicit
     // choice: typed/bookmarked switcher URLs skip the click seeder, so the
     // bridge must trust the server here, not stale localStorage.
-    redirect($bp . (str_contains($bp, '?') ? '&' : '?') . 'picked=skin');
+    redirect($bp . (str_contains($bp, '?') ? '&' : '?') . 'picked=' . $pick);
+};
+$r->post('#^/skin/([a-z0-9]+)$#', function (string $s) use ($switcher): void {
+    $switcher($s, 'retrobb_skin', feature('skin_selector') ? ['classic', 'midnight', 'silver'] : [], 'skin');
 });
 // theme switcher (light / dark / auto-follows-OS). Same POST + CSRF rule.
-$r->post('#^/theme/(light|dark|auto)$#', function (string $t) {
-    if (!\RetroBB\Core\Csrf::verifyAnon($_POST['anon_csrf'] ?? null)) {
-        redirect('/');
-    }
-    if (in_array($t, allowed_themes(), true)) {
-        setcookie('retrobb_theme', $t, time() + 86400 * 365, base_path() ?: '/');
-    }
-    $back = $_SERVER['HTTP_REFERER'] ?? '/';
-    $bp = parse_url($back, PHP_URL_PATH) ?: '/';
-    if (!str_starts_with($bp, '/') || str_starts_with($bp, '//')) {
-        $bp = '/';
-    }
-    redirect($bp . (str_contains($bp, '?') ? '&' : '?') . 'picked=theme');
+$r->post('#^/theme/(light|dark|auto)$#', function (string $t) use ($switcher): void {
+    $switcher($t, 'retrobb_theme', allowed_themes(), 'theme');
 });
 $r->get('#^/viewtopic\.php$#', function () {
     $t = (int) ($_GET['t'] ?? 0);

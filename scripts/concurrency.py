@@ -28,6 +28,7 @@ tok = re.search(r'name="csrf" value="([^"]+)"', html).group(1)
 url = admin.open(urllib.request.Request(base + '/new-topic/2', data=urllib.parse.urlencode(
     {'csrf': tok, 'title': 'Concurrency target', 'body': 'hammer time'}).encode())).url
 tid = re.search(r'\.t(\d+)', url).group(1)
+turl = url if url.startswith('http') else base + url
 
 def one_reply(i):
     try:
@@ -45,4 +46,37 @@ with ThreadPoolExecutor(max_workers=20) as ex:
 ok = sum(1 for c in codes if c == 200)
 note('concurrent reply codes: %s' % codes)
 check('20 concurrent replies all succeed', ok == 20, '%d/20' % ok)
+
+# Double-report race (audit finding 1): N concurrent reports of the same post
+# by the same user must leave exactly one open report (unique key + catch).
+import time
+stamp = 'race-report-%d' % int(time.time())
+viewer = make_session()
+lh = viewer.open(base + '/login').read().decode()
+lt = re.search(r'name="csrf" value="([^"]+)"', lh).group(1)
+viewer.open(urllib.request.Request(base + '/login', data=urllib.parse.urlencode(
+    {'csrf': lt, 'login': 'Guest_2003', 'password': 'password123'}).encode()))
+thtml = viewer.open(turl).read().decode()
+pid = re.search(r'/post/(\d+)/report', thtml).group(1)
+
+def one_report(i):
+    try:
+        op = make_session()
+        lh = op.open(base + '/login').read().decode()
+        lt = re.search(r'name="csrf" value="([^"]+)"', lh).group(1)
+        op.open(urllib.request.Request(base + '/login', data=urllib.parse.urlencode(
+            {'csrf': lt, 'login': 'Guest_2003', 'password': 'password123'}).encode()))
+        fh = op.open(base + '/post/%s/report' % pid).read().decode()
+        ft = re.search(r'name="csrf" value="([^"]+)"', fh).group(1)
+        op.open(urllib.request.Request(base + '/post/%s/report' % pid, data=urllib.parse.urlencode(
+            {'csrf': ft, 'reason': stamp}).encode()))
+        return 200
+    except Exception as e:
+        return 'ERR %s' % getattr(e, 'code', e)
+
+with ThreadPoolExecutor(max_workers=10) as ex2:
+    list(ex2.map(one_report, range(10)))
+q = admin.open(base + '/mod/reports').read().decode()
+note('double-report reason occurrences: %d' % q.count(stamp))
+check('10 concurrent reports leave one open report', q.count(stamp) == 1, q.count(stamp))
 finish()

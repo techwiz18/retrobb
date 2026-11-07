@@ -27,22 +27,6 @@ class Reaction
         return ['ok' => true, 'action' => ($row ? 'switched' : 'added')];
     }
 
-    /** @return array<string,int> reaction => count */
-    public static function counts(int $postId): array
-    {
-        try {
-            $st = Db::pdo()->prepare('SELECT reaction, COUNT(*) c FROM post_reactions WHERE post_id=? GROUP BY reaction');
-            $st->execute([$postId]);
-            $out = [];
-            foreach ($st->fetchAll() as $r) {
-                $out[$r['reaction']] = (int) $r['c'];
-            }
-            return $out;
-        } catch (\Throwable) {
-            return [];
-        }
-    }
-
     /** @return array<int,array<string,int>> postId => counts (one query for a topic page). */    public static function countsForPosts(array $postIds): array
     {
         $postIds = array_values(array_unique(array_map('intval', $postIds)));

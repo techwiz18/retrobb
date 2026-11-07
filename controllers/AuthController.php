@@ -10,18 +10,27 @@ use RetroBB\Models\User;
 
 class AuthController
 {
-    /** 10 failures in 15 minutes from one IP blocks it. Table may predate migration: fail open. */
-    private static function loginBlocked(string $ip): bool
+    /** 10 failures in 15 minutes from one IP+account blocks it. Table may predate migration: fail open. */
+    private static function throttleKey(string $ip, string $login): string
+    {
+        // Per-account, not per-IP alone: behind a shared proxy every visitor
+        // is one REMOTE_ADDR, so a bare-IP bucket lets 10 bad guesses lock
+        // out all logins (finding: audit). An attacker can still lock one
+        // known account — standard trade-off, 10 tries is the cost.
+        return $ip . '|' . mb_strtolower(trim($login));
+    }
+
+    private static function loginBlocked(string $key): bool
     {
         try {
             $st = \RetroBB\Core\Db::pdo()->prepare('SELECT attempts, last_at FROM login_attempts WHERE ip=?');
-            $st->execute([$ip]);
+            $st->execute([$key]);
             $row = $st->fetch();
             if (!$row) {
                 return false;
             }
             if (strtotime((string) $row['last_at']) < time() - 900) {
-                \RetroBB\Core\Db::pdo()->prepare('DELETE FROM login_attempts WHERE ip=?')->execute([$ip]);
+                \RetroBB\Core\Db::pdo()->prepare('DELETE FROM login_attempts WHERE ip=?')->execute([$key]);
                 return false;
             }
             return (int) $row['attempts'] >= 10;
@@ -30,9 +39,9 @@ class AuthController
         }
     }
 
-    private static function loginFailed(string $ip): void
+    private static function loginFailed(string $key): void
     {
-        if ($ip === '') {
+        if ($key === '' || $key === '|') {
             return;
         }
         try {
@@ -44,9 +53,9 @@ class AuthController
         }
     }
 
-    private static function loginCleared(string $ip): void
+    private static function loginCleared(string $key): void
     {
-        if ($ip === '') {
+        if ($key === '' || $key === '|') {
             return;
         }
         try {
@@ -104,10 +113,12 @@ class AuthController
         }
         $login = trim((string) ($_POST['login'] ?? ''));
         $pass = (string) ($_POST['password'] ?? '');
-        // IP-backed throttle (the session counter alone resets with cookies).
-        // Behind a proxy REMOTE_ADDR is the proxy — see trusted_proxy_header.
+        // IP+account throttle (the session counter alone resets with cookies).
+        // Behind a proxy REMOTE_ADDR is the proxy — the account half keeps
+        // one address from locking out every login (see throttleKey).
         $ip = (string) ($_SERVER['REMOTE_ADDR'] ?? '');
-        if ($ip !== '' && self::loginBlocked($ip)) {
+        $tkey = self::throttleKey($ip, $login);
+        if (self::loginBlocked($tkey)) {
             View::render('auth/login', ['pageTitle' => 'Log in', 'error' => 'Invalid login.']);
             return;
         }
@@ -120,7 +131,7 @@ class AuthController
         }
         $user = User::findByLogin($login);
         if (!$user || !\RetroBB\Core\Passwords::verify($pass, $user)) {
-            self::loginFailed($ip);
+            self::loginFailed($tkey);
             View::render('auth/login', ['pageTitle' => 'Log in', 'error' => 'Invalid login.']);
             return;
         }
@@ -140,7 +151,7 @@ class AuthController
             return;
         }
         $_SESSION[$key] = 0;
-        self::loginCleared($ip);
+        self::loginCleared($tkey);
         Auth::login($user);
         $next = (string) ($_POST['next'] ?? $_GET['next'] ?? '/');
         // Local paths only: block "//evil.com" protocol-relative redirects.

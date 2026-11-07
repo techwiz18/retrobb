@@ -194,7 +194,8 @@ class BBCode
     }
 
     /** Stored HTML predates a renderer fix if it has leftover BBCode or a
-        paragraph opened inside a quote (the old splitter broke there). */
+        paragraph opened inside a quote (the old splitter broke there).
+        Structural staleness only — hostile markup is HtmlRepair's job. */
     public static function needsRepair(string $html): bool
     {
         if (str_contains($html, '[quote')) {

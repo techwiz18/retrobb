@@ -195,11 +195,10 @@ class TopicController
     private function staffPostBlocked(array $post, string $verb): ?string
     {
         $me = Auth::user();
-        if ($me && (int) ($post['user_id'] ?? 0) !== (int) $me['id']
-            && ($post['user_group'] ?? 'member') !== 'member' && !Auth::isSuper()) {
-            return 'Only super admins can ' . $verb . ' staff posts.';
+        if (!$me) {
+            return null;
         }
-        return null;
+        return \RetroBB\Models\Moderation::staffPostError($post, (int) $me['id'], Auth::isSuper(), $verb);
     }
 
     private function needMod(): bool

@@ -68,19 +68,21 @@ class Topic
             return ['ok' => false, 'error' => "Slow down — please wait $wait more second(s)."];
         }
         $pdo = Db::pdo();
-        $now = date('Y-m-d H:i:s');
-        $st = $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, created_at, last_post_at, last_post_user_id, posts_count) VALUES (?,?,?,?,?,?,?,1)');
-        $st->execute([$forumId, $userId, $title, Slug::make($title), $now, $now, $userId]);
-        $tid = (int) $pdo->lastInsertId();
-        $html = BBCode::toHtml($bbcode);
-        $pdo->prepare('INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)')->execute([$tid, $userId, $bbcode, $html, $now]);
-        $pid = (int) $pdo->lastInsertId();
-        $pdo->prepare('UPDATE forums SET topics_count=topics_count+1, posts_count=posts_count+1, last_topic_id=? WHERE id=?')->execute([$tid, $forumId]);
-        $pdo->prepare('UPDATE users SET posts_count=posts_count+1 WHERE id=?')->execute([$userId]);
-        \RetroBB\Core\Hooks::do_action('topic_created', $tid);
-        self::notifyMentions($bbcode, $userId, $tid, $pid);
-        $row = self::find($tid);
-        return ['ok' => true, 'topic' => $row];
+        return Db::transact(function () use ($pdo, $forumId, $userId, $title, $bbcode): array {
+            $now = date('Y-m-d H:i:s');
+            $st = $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, created_at, last_post_at, last_post_user_id, posts_count) VALUES (?,?,?,?,?,?,?,1)');
+            $st->execute([$forumId, $userId, $title, Slug::make($title), $now, $now, $userId]);
+            $tid = (int) $pdo->lastInsertId();
+            $html = BBCode::toHtml($bbcode);
+            $pdo->prepare('INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)')->execute([$tid, $userId, $bbcode, $html, $now]);
+            $pid = (int) $pdo->lastInsertId();
+            $pdo->prepare('UPDATE forums SET topics_count=topics_count+1, posts_count=posts_count+1, last_topic_id=? WHERE id=?')->execute([$tid, $forumId]);
+            $pdo->prepare('UPDATE users SET posts_count=posts_count+1 WHERE id=?')->execute([$userId]);
+            \RetroBB\Core\Hooks::do_action('topic_created', $tid);
+            self::notifyMentions($bbcode, $userId, $tid, $pid);
+            $row = self::find($tid);
+            return ['ok' => true, 'topic' => $row];
+        });
     }
 
     public static function reply(int $topicId, int $userId, string $bbcode): array
@@ -104,20 +106,22 @@ class Topic
             return ['ok' => false, 'error' => "Slow down — please wait $wait more second(s)."];
         }
         $pdo = Db::pdo();
-        $now = date('Y-m-d H:i:s');
-        $html = BBCode::toHtml($bbcode);
-        $pdo->prepare('INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)')->execute([$topicId, $userId, $bbcode, $html, $now]);
-        $pid = (int) $pdo->lastInsertId();
-        $pdo->prepare('UPDATE topics SET posts_count=posts_count+1, last_post_at=?, last_post_user_id=? WHERE id=?')->execute([$now, $userId, $topicId]);
-        $pdo->prepare('UPDATE forums SET posts_count=posts_count+1, last_topic_id=? WHERE id=?')->execute([$topicId, $topic['forum_id']]);
-        $pdo->prepare('UPDATE users SET posts_count=posts_count+1 WHERE id=?')->execute([$userId]);
-        \RetroBB\Core\Hooks::do_action('post_created', $topicId, $pid, $userId);
-        // Reply alert for the topic starter + mention alerts for @names.
-        if ((int) $topic['user_id'] !== $userId) {
-            \RetroBB\Models\Notification::create((int) $topic['user_id'], $userId, 'reply', $topicId, $pid);
-        }
-        self::notifyMentions($bbcode, $userId, $topicId, $pid);
-        return ['ok' => true];
+        return Db::transact(function () use ($pdo, $topicId, $topic, $userId, $bbcode): array {
+            $now = date('Y-m-d H:i:s');
+            $html = BBCode::toHtml($bbcode);
+            $pdo->prepare('INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)')->execute([$topicId, $userId, $bbcode, $html, $now]);
+            $pid = (int) $pdo->lastInsertId();
+            $pdo->prepare('UPDATE topics SET posts_count=posts_count+1, last_post_at=?, last_post_user_id=? WHERE id=?')->execute([$now, $userId, $topicId]);
+            $pdo->prepare('UPDATE forums SET posts_count=posts_count+1, last_topic_id=? WHERE id=?')->execute([$topicId, $topic['forum_id']]);
+            $pdo->prepare('UPDATE users SET posts_count=posts_count+1 WHERE id=?')->execute([$userId]);
+            \RetroBB\Core\Hooks::do_action('post_created', $topicId, $pid, $userId);
+            // Reply alert for the topic starter + mention alerts for @names.
+            if ((int) $topic['user_id'] !== $userId) {
+                \RetroBB\Models\Notification::create((int) $topic['user_id'], $userId, 'reply', $topicId, $pid);
+            }
+            self::notifyMentions($bbcode, $userId, $topicId, $pid);
+            return ['ok' => true];
+        });
     }
 
     public static function bumpViews(int $id): void
@@ -140,15 +144,17 @@ class Topic
             return;
         }
         $pdo = Db::pdo();
-        // Hand every author back their post count (floored at zero).
-        $authors = $pdo->query('SELECT user_id, COUNT(*) n FROM posts WHERE topic_id=' . $id . ' GROUP BY user_id')->fetchAll();
-        $pdo->prepare('DELETE FROM posts WHERE topic_id=?')->execute([$id]);
-        $pdo->prepare('DELETE FROM topics WHERE id=?')->execute([$id]);
-        $dec = $pdo->prepare('UPDATE users SET posts_count=GREATEST(posts_count-?,0) WHERE id=?');
-        foreach ($authors as $a) {
-            $dec->execute([(int) $a['n'], (int) $a['user_id']]);
-        }
-        self::recountForum((int) $t['forum_id']);
+        Db::transact(function () use ($pdo, $id, $t): void {
+            // Hand every author back their post count (floored at zero).
+            $authors = $pdo->query('SELECT user_id, COUNT(*) n FROM posts WHERE topic_id=' . $id . ' GROUP BY user_id')->fetchAll();
+            $pdo->prepare('DELETE FROM posts WHERE topic_id=?')->execute([$id]);
+            $pdo->prepare('DELETE FROM topics WHERE id=?')->execute([$id]);
+            $dec = $pdo->prepare('UPDATE users SET posts_count=GREATEST(posts_count-?,0) WHERE id=?');
+            foreach ($authors as $a) {
+                $dec->execute([(int) $a['n'], (int) $a['user_id']]);
+            }
+            self::recountForum((int) $t['forum_id']);
+        });
     }
 
     public static function recountTopic(int $topicId): void
@@ -208,7 +214,7 @@ class Topic
             'SELECT t.id, t.title, t.slug, f.name AS forum_name FROM topics t JOIN forums f ON f.id=t.forum_id WHERE t.id != ? AND t.title LIKE ? ORDER BY t.last_post_at DESC LIMIT ?'
         );
         $st->bindValue(1, $excludeId, \PDO::PARAM_INT);
-        $st->bindValue(2, '%' . addcslashes($q, '%_\\') . '%', \PDO::PARAM_STR);
+        $st->bindValue(2, \RetroBB\Models\Search::like($q), \PDO::PARAM_STR);
         $st->bindValue(3, $limit, \PDO::PARAM_INT);
         $st->execute();
         return $st->fetchAll();
@@ -244,21 +250,23 @@ class Topic
         }
         $pdo = Db::pdo();
         $srcForumId = (int) $topic['forum_id'];
-        $pdo->prepare('UPDATE topics SET forum_id=? WHERE id=?')->execute([$destForumId, $id]);
-        if ($ghost) {
-            $now = date('Y-m-d H:i:s');
-            $newUrl = Slug::topicUrl(array_merge($topic, ['id' => $id]));
-            $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, pinned, locked, views, posts_count, created_at, last_post_at, last_post_user_id, moved_to_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-                ->execute([$srcForumId, $modId, 'Moved: ' . $topic['title'], Slug::make('moved-' . $topic['title']), 0, 1, 0, 1, $now, $now, $modId, $id]);
-            $gid = (int) $pdo->lastInsertId();
-            $html = BBCode::toHtml('This topic has moved here: [url=' . $newUrl . ']' . $topic['title'] . '[/url]');
-            $pdo->prepare('INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)')
-                ->execute([$gid, $modId, 'moved-stub', $html, $now]);
-        }
-        self::recountForum($srcForumId);
-        self::recountForum($destForumId);
-        \RetroBB\Core\Modlog::log($modId, 'move', 'topic', $id, "forum $srcForumId -> $destForumId" . ($ghost ? ' (ghost)' : ''));
-        return ['ok' => true];
+        return Db::transact(function () use ($pdo, $id, $topic, $destForumId, $ghost, $modId, $srcForumId): array {
+            $pdo->prepare('UPDATE topics SET forum_id=? WHERE id=?')->execute([$destForumId, $id]);
+            if ($ghost) {
+                $now = date('Y-m-d H:i:s');
+                $newUrl = Slug::topicUrl(array_merge($topic, ['id' => $id]));
+                $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, pinned, locked, views, posts_count, created_at, last_post_at, last_post_user_id, moved_to_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+                    ->execute([$srcForumId, $modId, 'Moved: ' . $topic['title'], Slug::make('moved-' . $topic['title']), 0, 1, 0, 1, $now, $now, $modId, $id]);
+                $gid = (int) $pdo->lastInsertId();
+                $html = BBCode::toHtml('This topic has moved here: [url=' . $newUrl . ']' . $topic['title'] . '[/url]');
+                $pdo->prepare('INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)')
+                    ->execute([$gid, $modId, 'moved-stub', $html, $now]);
+            }
+            self::recountForum($srcForumId);
+            self::recountForum($destForumId);
+            \RetroBB\Core\Modlog::log($modId, 'move', 'topic', $id, "forum $srcForumId -> $destForumId" . ($ghost ? ' (ghost)' : ''));
+            return ['ok' => true];
+        });
     }
 
     public static function split(int $id, array $postIds, string $title, int $modId): array
@@ -285,16 +293,18 @@ class Topic
         }
         $now = date('Y-m-d H:i:s');
         $firstMover = $pdo->query('SELECT user_id, created_at FROM posts WHERE id=' . $postIds[0])->fetch();
-        $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, created_at, last_post_at, last_post_user_id, posts_count) VALUES (?,?,?,?,?,?,?,0)')
-            ->execute([(int) $topic['forum_id'], (int) $firstMover['user_id'], $title, Slug::make($title), $firstMover['created_at'], $now, $modId]);
-        $newId = (int) $pdo->lastInsertId();
-        $in = implode(',', $postIds);
-        $pdo->exec("UPDATE posts SET topic_id=$newId WHERE id IN ($in)");
-        self::recountTopic($id);
-        self::recountTopic($newId);
-        self::recountForum((int) $topic['forum_id']);
-        \RetroBB\Core\Modlog::log($modId, 'split', 'topic', $id, count($postIds) . " posts -> t$newId");
-        return ['ok' => true, 'new_id' => $newId];
+        return Db::transact(function () use ($pdo, $topic, $title, $postIds, $now, $firstMover, $modId, $id): array {
+            $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, created_at, last_post_at, last_post_user_id, posts_count) VALUES (?,?,?,?,?,?,?,0)')
+                ->execute([(int) $topic['forum_id'], (int) $firstMover['user_id'], $title, Slug::make($title), $firstMover['created_at'], $now, $modId]);
+            $newId = (int) $pdo->lastInsertId();
+            $in = implode(',', $postIds);
+            $pdo->exec("UPDATE posts SET topic_id=$newId WHERE id IN ($in)");
+            self::recountTopic($id);
+            self::recountTopic($newId);
+            self::recountForum((int) $topic['forum_id']);
+            \RetroBB\Core\Modlog::log($modId, 'split', 'topic', $id, count($postIds) . " posts -> t$newId");
+            return ['ok' => true, 'new_id' => $newId];
+        });
     }
 
     public static function merge(int $sourceId, int $targetId, int $modId): array
@@ -308,15 +318,17 @@ class Topic
             return ['ok' => false, 'error' => 'Topic not found.'];
         }
         $pdo = Db::pdo();
-        $pdo->exec("UPDATE posts SET topic_id=$targetId WHERE topic_id=$sourceId");
-        $pdo->prepare('DELETE FROM topics WHERE id=?')->execute([$sourceId]);
-        self::recountTopic($targetId);
-        self::recountForum((int) $src['forum_id']);
-        if ((int) $dst['forum_id'] !== (int) $src['forum_id']) {
-            self::recountForum((int) $dst['forum_id']);
-        }
-        \RetroBB\Core\Modlog::log($modId, 'merge', 'topic', $sourceId, "merged into t$targetId");
-        return ['ok' => true];
+        return Db::transact(function () use ($pdo, $sourceId, $targetId, $src, $dst, $modId): array {
+            $pdo->exec("UPDATE posts SET topic_id=$targetId WHERE topic_id=$sourceId");
+            $pdo->prepare('DELETE FROM topics WHERE id=?')->execute([$sourceId]);
+            self::recountTopic($targetId);
+            self::recountForum((int) $src['forum_id']);
+            if ((int) $dst['forum_id'] !== (int) $src['forum_id']) {
+                self::recountForum((int) $dst['forum_id']);
+            }
+            \RetroBB\Core\Modlog::log($modId, 'merge', 'topic', $sourceId, "merged into t$targetId");
+            return ['ok' => true];
+        });
     }
 
     /** Mention alerts for @names in a post (skips the author; no-ops when disabled). */
