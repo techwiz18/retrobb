@@ -223,6 +223,7 @@ Social batch plus board control. Tinkerers welcome; not production-hardened yet.
 - Soft deletions (recoverable hides instead of hard deletes) → v0.5.
 - Sub-forums (nested forum hierarchy; importers currently flatten).
 - Optional homepage link in the nav (for boards with a dedicated home page) → v0.6.
+- Post signatures (per-user BBCode block appended to posts, with opt-out) → v0.6.
 - MFA via TOTP (opt-in per user, enforceable for staff roles) → v0.5.
 - Query batching pass (mention lookups, PM tab counts, board subselects).
 - Login throttle that survives cookie drops (persistent/IP-based).
