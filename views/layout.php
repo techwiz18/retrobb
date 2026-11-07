@@ -38,9 +38,10 @@ $title = $pageTitle ?? (board_name() . ' — ' . setting('board_tagline', ''));
       <?php else: ?>
         <a href="<?= e(url('/login')) ?>">Log in</a> · <a href="<?= e(url('/register')) ?>"><b>Register</b></a>
       <?php endif; ?>
+      <?php \RetroBB\Core\Hooks::render_template_hook('userbox', ['user' => $user]); ?>
     </div>
   </div>
-  <nav class="navrow"><a href="<?= e(url('/')) ?>">Board Index</a> · <a href="<?= e(url('/members')) ?>">Members</a> · <a href="<?= e(url('/search')) ?>">Search</a> · <a href="<?= e(url('/sitemap.xml')) ?>">Sitemap</a>
+  <nav class="navrow"><a href="<?= e(url('/')) ?>">Board Index</a> · <a href="<?= e(url('/members')) ?>">Members</a> · <a href="<?= e(url('/search')) ?>">Search</a> · <a href="<?= e(url('/sitemap.xml')) ?>">Sitemap</a><?php \RetroBB\Core\Hooks::render_template_hook('nav_links', []); ?>
     <?php if (\RetroBB\Core\Auth::isMod()): ?>
       · <a href="<?= e(url('/mod/reports')) ?>"><b>Mod queue<?php $qc = \RetroBB\Models\Report::openCount(); if ($qc > 0): ?> (<?= $qc ?>)<?php endif; ?></b></a>
     <?php endif; ?>
