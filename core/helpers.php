@@ -65,6 +65,12 @@ function setting(string $key, string $default = ''): string
     return $cache[$key] ?? $default;
 }
 
+/** Plugin-namespaced settings read (issue #20): setting('<plugin>.<key>'). */
+function plugin_setting(string $plugin, string $key, string $default = ''): string
+{
+    return setting($plugin . '.' . $key, $default);
+}
+
 function board_name(): string
 {
     return setting('board_name', 'RetroBB');

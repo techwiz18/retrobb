@@ -21,12 +21,9 @@ $args = $argv ?? [];
 $seed = in_array('--seed', $args, true);
 
 $pdo = Db::pdo();
-$migrations = glob($root . '/migrations/*.sql');
-sort($migrations);
-foreach ($migrations as $file) {
-    echo 'Applying ' . basename($file) . "...\n";
-    // Our migration files are plain DDL with one statement per chunk and no
-    // semicolons inside statements: strip full-line comments, split on ";".
+// Our migration files are plain DDL with one statement per chunk and no
+// semicolons inside statements: strip full-line comments, split on ";".
+$applySqlFile = function (string $file) use ($pdo): void {
     $lines = explode("\n", (string) file_get_contents($file));
     $lines = array_filter($lines, fn($l) => !str_starts_with(trim($l), '--'));
     foreach (explode(';', implode("\n", $lines)) as $stmt) {
@@ -43,6 +40,37 @@ foreach ($migrations as $file) {
                 throw $t;
             }
         }
+    }
+};
+$migrations = glob($root . '/migrations/*.sql');
+sort($migrations);
+foreach ($migrations as $file) {
+    echo 'Applying ' . basename($file) . "...\n";
+    $applySqlFile($file);
+}
+
+// Plugin migrations (issue #20): plugins/<name>/migrations/*.sql, tracked
+// per-plugin in plugin_migrations so each file runs once. Covers every
+// plugin dir present (not just enabled ones) so enabling later never meets
+// missing tables. Runs inside the same migrator, so AdminCP database updates
+// and the installer pick plugin tables up with no extra step.
+$pfiles = glob($root . '/plugins/*/migrations/*.sql') ?: [];
+sort($pfiles);
+if ($pfiles !== []) {
+    $applied = [];
+    foreach ($pdo->query('SELECT `plugin`, `file` FROM plugin_migrations')->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $applied[$r['plugin'] . '/' . $r['file']] = true;
+    }
+    $mark = $pdo->prepare('INSERT IGNORE INTO plugin_migrations (`plugin`, `file`) VALUES (?, ?)');
+    foreach ($pfiles as $file) {
+        $key = basename(dirname(dirname($file))) . '/' . basename($file);
+        if (isset($applied[$key])) {
+            continue;
+        }
+        echo 'Applying plugin ' . $key . "...\n";
+        $applySqlFile($file);
+        [$pname, $pfile] = explode('/', $key, 2);
+        $mark->execute([$pname, $pfile]);
     }
 }
 
