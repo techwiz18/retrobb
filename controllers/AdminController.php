@@ -215,6 +215,9 @@ class AdminController
             $pdo->prepare('DELETE FROM plugins WHERE name=?')->execute([$name]);
             $like = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $name) . '.%';
             $pdo->prepare("DELETE FROM settings WHERE `key` LIKE ? ESCAPE '\\\\'")->execute([$like]);
+            // Forget its migrations too (issue #22): otherwise a reinstall
+            // skips them as already-applied while the tables are gone.
+            $pdo->prepare('DELETE FROM plugin_migrations WHERE `plugin`=?')->execute([$name]);
             self::removeDir($dir);
             \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'plugin_uninstall', 'plugin', 0, $name);
             $_SESSION['flash_ok'] = 'Plugin uninstalled: tables, settings, and files removed.';
