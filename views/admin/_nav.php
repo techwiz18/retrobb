@@ -12,4 +12,5 @@
   <?php if ($isSuperNav): ?><a href="<?= e(url('/admin/import')) ?>" class="<?= ($active ?? '') === 'import' ? 'on' : '' ?>">Import</a><?php endif; ?>
   <?php if ($isSuperNav): ?><a href="<?= e(url('/admin/plugins')) ?>" class="<?= ($active ?? '') === 'plugins' ? 'on' : '' ?>">Plugins</a><?php endif; ?>
   <a href="<?= e(url('/mod/reports')) ?>" class="<?= ($active ?? '') === 'queue' ? 'on' : '' ?>">Mod queue</a>
+  <?php \RetroBB\Core\Hooks::render_template_hook('admin_nav', []); ?>
 </nav>

@@ -38,3 +38,8 @@ Hooks::add_filter('post_body_html', function ($html) {
 // once via bin/migrate.php; reads via plugin_setting('hello-world', $key).
 // Hooks::add_action('plugin_enabled', function ($name) {});
 // Hooks::add_action('plugin_disabled', function ($name) {});
+
+// #17 admin spots: link into the AdminCP nav + summary widgets on the
+// dashboard (partials emit their own <a> links / .dash-card blocks).
+// Hooks::add_template_hook('admin_nav', __DIR__ . '/views/adminlink.php');
+// Hooks::add_template_hook('admin_dashboard', __DIR__ . '/views/admincard.php');
