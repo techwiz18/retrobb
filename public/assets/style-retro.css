@@ -74,6 +74,10 @@ a.smallbtn { display:inline-block; text-decoration:none; color:inherit; }
 .recent-list { border:1px solid var(--border); border-top:0; margin-bottom:16px; }
 .infocenter { border:1px solid var(--border); border-top:0; margin-bottom:16px; }
 .forum-stats { text-align:center; }
+.forum-last { min-width:0; }
+/* Last-post cell (classic stacked look): title truncates with an ellipsis
+   instead of wrapping the grid column open. */
+.lastpost-title { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; font-weight:bold; }
 .recent-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 16px; background:var(--row); border-bottom:1px solid var(--border); }
 .recent-row .avatarimg, .recent-row .avatar { margin:0 4px 0 0; vertical-align:middle; }
 .recent-row:nth-child(even) { background:var(--row2); }

@@ -348,6 +348,17 @@ function time_ago(string $datetime): string
     return $t->format('M j, Y g:ia');
 }
 
+/** Absolute post date for last-post cells ("Sat Nov 07, 2026 6:00 pm"). */
+function post_date(string $datetime): string
+{
+    try {
+        $t = new DateTime($datetime);
+    } catch (Throwable) {
+        return '';
+    }
+    return $t->format('D M d, Y g:i a');
+}
+
 /** Parse a php.ini shorthand byte value (128M, 8M, 512K). 0 = unlimited. */
 function php_shorthand_bytes(string $v): int
 {
