@@ -71,21 +71,37 @@ class ReportController
             'page' => $page, 'pages' => $pages,
             // AdminCP entry (/admin/reports) keeps the admin chrome; the
             // ModCP path keeps the mod chrome. Same content either way.
-            'admin' => str_starts_with(Router::currentPath(), '/admin/'),
+            'admin' => $this->isAdminContext(),
             'pageTitle' => 'Mod queue — ' . board_name(),
         ]);
+    }
+
+    /** True when the request lives under /admin (path or referer), so error
+        re-renders of shared POST endpoints keep the caller's chrome. */
+    private function isAdminContext(): bool
+    {
+        if (str_starts_with(Router::currentPath(), '/admin/')) {
+            return true;
+        }
+        $ref = $_SERVER['HTTP_REFERER'] ?? '';
+        $path = is_string($ref) && $ref !== '' ? (string) (parse_url($ref, PHP_URL_PATH) ?? '') : '';
+        return str_starts_with($path, '/admin/');
     }
 
     /** Back to the queue the caller came from (AdminCP or ModCP). */
     private function queueReturn(): void
     {
-        // Exact-path allowlist only: never follow an open referer anywhere
-        // else (same rule as the skin/theme switchers, minus their query).
+        // Prefix allowlist only: never follow an open referer anywhere
+        // else (same rule as the skin/theme switchers). Any /admin/* source
+        // returns to the AdminCP queue (form pages resolve away, so only
+        // the queue itself keeps its ?page=).
         $parts = parse_url($_SERVER['HTTP_REFERER'] ?? '');
         $path = is_array($parts) ? (string) ($parts['path'] ?? '') : '';
-        if ($path === '/admin/reports' || $path === '/mod/reports') {
-            $qs = is_array($parts) && ($parts['query'] ?? '') !== '' ? '?' . $parts['query'] : '';
-            redirect($path . $qs);
+        $admin = str_starts_with($path, '/admin/');
+        $onQueue = $path === '/admin/reports' || $path === '/mod/reports';
+        if ($admin || $onQueue || str_starts_with($path, '/mod/report/')) {
+            $qs = ($onQueue && is_array($parts) && ($parts['query'] ?? '') !== '') ? '?' . $parts['query'] : '';
+            redirect(($admin ? '/admin/reports' : '/mod/reports') . $qs);
         }
         redirect('/mod/reports');
     }
@@ -134,6 +150,7 @@ class ReportController
         $topic = $post ? \RetroBB\Models\Topic::find((int) $post['topic_id']) : null;
         View::render('report/resolve', [
             'report' => $rep, 'post' => $post, 'topic' => $topic, 'error' => $error,
+            'admin' => $this->isAdminContext(),
             'pageTitle' => 'Resolve report — ' . board_name(),
         ]);
     }
@@ -194,6 +211,7 @@ class ReportController
         $topic = $post ? \RetroBB\Models\Topic::find((int) $post['topic_id']) : null;
         View::render('report/warn', [
             'report' => $rep, 'post' => $post, 'topic' => $topic, 'error' => $error,
+            'admin' => $this->isAdminContext(),
             'pageTitle' => 'Warn author — ' . board_name(),
         ]);
     }

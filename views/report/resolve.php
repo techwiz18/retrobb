@@ -1,6 +1,7 @@
-<?php /** @var array $report */ /** @var array|null $post */ /** @var array|null $topic */ /** @var string|null $error */ ?>
-<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(url('/mod/reports')) ?>">Mod queue</a> &raquo; Resolve #<?= (int) $report['id'] ?></div>
+<?php /** @var array $report */ /** @var array|null $post */ /** @var array|null $topic */ /** @var string|null $error */ /** @var bool|null $admin */ ?>
+<div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <a href="<?= e(url(!empty($admin) ? '/admin/reports' : '/mod/reports')) ?>">Mod queue</a> &raquo; Resolve #<?= (int) $report['id'] ?></div>
 <div class="maintitle">Resolve report #<?= (int) $report['id'] ?></div>
+<?php \RetroBB\Core\View::partial(!empty($admin) ? 'admin/_nav' : 'mod/_nav', ['active' => 'queue']); ?>
 <?php if ($post && $topic): ?>
 <div class="recent-list"><div class="recent-row"><span>
   Post by <b><?= username_html($post, false) ?></b> in <a href="<?= e(\RetroBB\Core\Slug::topicUrl(['id' => $topic['id'], 'title' => $topic['title']])) ?>#p<?= (int) $post['id'] ?>"><?= e($topic['title']) ?></a><br>

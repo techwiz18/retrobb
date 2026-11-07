@@ -226,6 +226,10 @@ $r->get('#^/admin/modlog$#', [\RetroBB\Controllers\AdminController::class, 'modl
 // AdminCP entry to the shared mod queue (same content as /mod/reports but
 // with the admin chrome, so AdminCP never kicks out to ModCP).
 $r->get('#^/admin/reports$#', [\RetroBB\Controllers\ReportController::class, 'queue']);
+// AdminCP entries to the shared resolve/warn forms (POST endpoints stay
+// shared; queueReturn sends the mod back to whichever queue they came from).
+$r->get('#^/admin/report/(\d+)/resolve$#', [\RetroBB\Controllers\ReportController::class, 'resolveForm']);
+$r->get('#^/admin/report/(\d+)/warn$#', [\RetroBB\Controllers\ReportController::class, 'warnForm']);
 $r->post('#^/admin/settings$#', [\RetroBB\Controllers\AdminController::class, 'saveSettings']);
 $r->post('#^/admin/add-forum$#', [\RetroBB\Controllers\AdminController::class, 'addForum']);
 $r->post('#^/admin/add-category$#', [\RetroBB\Controllers\AdminController::class, 'addCategory']);
