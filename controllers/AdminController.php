@@ -188,6 +188,41 @@ class AdminController
         redirect('/admin/plugins');
     }
 
+    /** Explicit uninstall (issue #22): super-only, confirmed in the form.
+        Fires plugin_uninstalled so the plugin drops its tables, then core
+        forgets the row plus its "<name>.*" settings. Files stay put. */
+    public function pluginUninstall(string $name): void
+    {
+        $this->needSuper();
+        if (!Csrf::verify($_POST['csrf'] ?? null)) {
+            redirect('/admin');
+        }
+        $name = preg_replace('/[^A-Za-z0-9_-]/', '', $name);
+        $dir = dirname(__DIR__) . '/plugins/' . $name;
+        if ($name === '' || !is_dir($dir)) {
+            redirect('/admin/plugins');
+        }
+        try {
+            // Disabled plugins never load their bootstrap, so load it here
+            // (require_once = no-op when already loaded) — otherwise the
+            // hook below would fire with no listener.
+            $boot = $dir . '/bootstrap.php';
+            if (is_file($boot)) {
+                require_once $boot;
+            }
+            \RetroBB\Core\Hooks::do_action('plugin_uninstalled', $name);
+            $pdo = Db::pdo();
+            $pdo->prepare('DELETE FROM plugins WHERE name=?')->execute([$name]);
+            $like = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $name) . '.%';
+            $pdo->prepare("DELETE FROM settings WHERE `key` LIKE ? ESCAPE '\\\\'")->execute([$like]);
+            \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'plugin_uninstall', 'plugin', 0, $name);
+            $_SESSION['flash_ok'] = 'Plugin uninstalled: data dropped, files left in place.';
+        } catch (\Throwable) {
+            $_SESSION['flash_error'] = 'Could not uninstall plugin.';
+        }
+        redirect('/admin/plugins');
+    }
+
     public function modlogPage(): void
     {
         $this->guard();

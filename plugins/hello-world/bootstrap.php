@@ -40,6 +40,9 @@ Hooks::add_filter('post_body_html', function ($html) {
 // once via bin/migrate.php; reads via plugin_setting('hello-world', $key).
 // Hooks::add_action('plugin_enabled', function ($name) {});
 // Hooks::add_action('plugin_disabled', function ($name) {});
+// #22 uninstall: super-confirmed button on AdminCP → Plugins fires this;
+// drop your tables + clear settings here (core forgets the row + prefix).
+// Hooks::add_action('plugin_uninstalled', function ($name) {});
 
 // #17 admin spots: link into the AdminCP nav + summary widgets on the
 // dashboard (partials emit their own <a> links / .dash-card blocks).
