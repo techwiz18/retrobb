@@ -216,8 +216,8 @@ beyond this tag — drop-in upgrade.
 - **v0.6** — moderation remainder (per-forum permissions, mass actions, soft
   deletions, MFA via TOTP, email verification, maintenance mode) plus structure
   and look: sub-forums, appearance customization beyond the shipped skins,
-  more visual breakup, optional homepage link in the nav, post signatures
-- **v0.7** — platform: plugin directory, API, translations
+  more visual breakup, optional homepage link in the nav
+- **v0.7** — platform: plugin directory, API, translations, post signatures
 - **v1.0** — the stable, masses-ready release 🎉
 
 Vote on features in [issues](https://github.com/techwiz18/retrobb/issues).
