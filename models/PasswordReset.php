@@ -83,11 +83,20 @@ class PasswordReset
             }
             $pdo->prepare("UPDATE users SET password_hash=?, auth_scheme='modern', passwd_salt='' WHERE id=?")
                 ->execute([password_hash_safe($password), $row['user_id']]);
+            // Kill the user's other live links too (the old behavior): a link
+            // requested but never used must not survive a reset. Best effort —
+            // a failure here must not turn a successful reset into an error.
+            try {
+                $pdo->prepare('UPDATE password_resets SET used_at=? WHERE user_id=? AND used_at IS NULL')
+                    ->execute([date('Y-m-d H:i:s'), $row['user_id']]);
+            } catch (\Throwable) {
+            }
         } catch (\Throwable) {
             // Pre-011 tables lack the scheme columns — password still changes.
             // (Token is already burned above; a retry needs a fresh link.)
             try {
                 Db::pdo()->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash_safe($password), $row['user_id']]);
+                Db::pdo()->prepare('UPDATE password_resets SET used_at=? WHERE user_id=? AND used_at IS NULL')->execute([date('Y-m-d H:i:s'), $row['user_id']]);
             } catch (\Throwable $t) {
                 return ['ok' => false, 'error' => 'Could not save the new password.'];
             }

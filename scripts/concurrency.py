@@ -79,4 +79,15 @@ with ThreadPoolExecutor(max_workers=10) as ex2:
 q = admin.open(base + '/mod/reports').read().decode()
 note('double-report reason occurrences: %d' % q.count(stamp))
 check('10 concurrent reports leave one open report', q.count(stamp) == 1, q.count(stamp))
+# Leave no trace (suites must clean up shared state): dismiss the probe.
+# The handle link is taken from the stamped row itself, never page position.
+pos = q.find(stamp)
+ridm = re.search(r'/mod/report/(\d+)/handle', q[pos:] if pos >= 0 else q)
+if ridm:
+    dh = admin.open(base + '/mod/reports').read().decode()
+    dtok = re.search(r'name="csrf" value="([^"]+)"', dh).group(1)
+    admin.open(urllib.request.Request(base + '/mod/report/%s/handle' % ridm.group(1), data=urllib.parse.urlencode(
+        {'csrf': dtok, 'status': 'dismissed', 'note': ''}).encode()))
+q2 = admin.open(base + '/mod/reports').read().decode()
+check('probe report dismissed after race test', stamp not in q2)
 finish()
