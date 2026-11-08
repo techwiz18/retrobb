@@ -205,11 +205,11 @@ and the main/live branch invariant on every push and pull request.
   (installer hardening, login throttle, secure session cookies, single redirect
   choke point); version stamp + update check; mobile wrapping fixes
 
-**Current pre-release — `0.6.0-beta.1`**
+**Current pre-release — `0.6.0-beta.2`**
 
-Security hardening rollup: stored-XSS repair path, Host-header distrust with
-safe canonicals, installer re-run guard + self-deletion, refuse, and CI (doccheck + branchcheck + lint + full suite). No version bump
-beyond this tag — drop-in upgrade.
+Plugin API (hooks, routes, lifecycle, uninstall), AdminCP-kept mod queue,
+mobile finish (360px, last-post cells), and the audit hardening below.
+Drop-in upgrade — run the database updates from AdminCP after uploading.
 
 **Planned**
 

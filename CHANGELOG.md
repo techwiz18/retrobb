@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.6.0-beta.2] — 2026-11-08 (pre-release)
+
+### Added
+- Plugin API: display hooks (`nav_links`, `userbox`, `profile_after`,
+  `admin_nav`, `admin_dashboard`), server-side postbit hooks
+  (`postbit_user`, `post_username_html` — now fired on every username site
+  via `username_html()`), a `routes` action for plugin pages, and a
+  lifecycle (per-plugin `migrations/`, `plugin_enabled`/`disabled`/
+  `uninstalled` hooks, `plugin_setting()` helper, confirmed AdminCP
+  uninstall that removes tables, settings, rows, and files).
+- Mod queue stays inside AdminCP (`/admin/reports`, resolve/warn forms keep
+  the admin chrome and return to the queue they came from).
+- Mobile pass: 360px breakpoint (wrapping postheads, touch pagination),
+  classic stacked last-post cells with truncated titles, tighter quote
+  spacing.
+
 ### Fixed
 - Race hardening (audit): one open report per post/reporter enforced by a
   unique key; password-reset tokens claimed atomically so a link works once;

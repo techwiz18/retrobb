@@ -4,7 +4,7 @@ declare(strict_types=1);
 // Global helpers (no namespace for brevity in views).
 
 /** Current package version. Bump on release; -dev/-beta suffixes sort below releases. */
-const RETROBB_VERSION = '0.6.0-beta.1';
+const RETROBB_VERSION = '0.6.0-beta.2';
 
 function e(?string $s): string
 {
