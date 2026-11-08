@@ -96,7 +96,10 @@ class PasswordReset
             // (Token is already burned above; a retry needs a fresh link.)
             try {
                 Db::pdo()->prepare('UPDATE users SET password_hash=? WHERE id=?')->execute([password_hash_safe($password), $row['user_id']]);
-                Db::pdo()->prepare('UPDATE password_resets SET used_at=? WHERE user_id=? AND used_at IS NULL')->execute([date('Y-m-d H:i:s'), $row['user_id']]);
+                try {
+                    Db::pdo()->prepare('UPDATE password_resets SET used_at=? WHERE user_id=? AND used_at IS NULL')->execute([date('Y-m-d H:i:s'), $row['user_id']]);
+                } catch (\Throwable) {
+                }
             } catch (\Throwable $t) {
                 return ['ok' => false, 'error' => 'Could not save the new password.'];
             }
