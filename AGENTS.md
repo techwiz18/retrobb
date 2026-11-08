@@ -72,13 +72,12 @@ Pure-PHP forum (no framework). MIT. Production code + tests must stay green.
 
 ## Current state (2026-10-28)
 
-- **`v0.6.0-beta.1`** (`RETROBB_VERSION` in `core/helpers.php:7`, tagged +
-  published as GitHub pre-release with `/tmp/opencode/retrobb-v0.6.0-beta.1.zip`
-  from `scripts/package-release.sh`). Rolls up: stored-XSS fix + repair path
-  (C1), Host-header distrust / `board_url` canonicals + reset-mail refuse
-  (H1), installer re-run guard + self-deletion + POST step order (H2),
-  `bin/*` web-execution refuse (B1), CI (doccheck + branchcheck + lint +
-  full suite).
+- **`v0.6.0-beta.2`** (`RETROBB_VERSION` in `core/helpers.php:7`, tagged +
+  published as GitHub pre-release with `/tmp/opencode/retrobb-v0.6.0-beta.2.zip`
+  from `scripts/package-release.sh`). Adds to beta.1: plugin API (display +
+  postbit + routes + lifecycle hooks, `username_html()` everywhere, confirmed
+  uninstall), AdminCP-kept mod queue, mobile finish, audit hardening (races,
+  transactions, throttle, double-submit).
 - `live` = `main` + site-only files (`.cpanel.yml`, `DEPLOY.md`,
   `plugins/hub-shell/`). Deploy = push `live`, then cPanel **Update from
   Remote → Deploy**; the operator clicks that, not the agent.
