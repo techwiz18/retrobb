@@ -35,6 +35,19 @@ document.addEventListener('submit', (ev) => {
     b.disabled = true;
   });
 });
+// A cached page restore (Back button) brings back the submitted flag and
+// the disabled buttons with it — clear both so the form works again.
+window.addEventListener('pageshow', (ev) => {
+  if (!ev.persisted) {
+    return;
+  }
+  document.querySelectorAll('form[data-submitted]').forEach((form) => {
+    delete form.dataset.submitted;
+    form.querySelectorAll('button:disabled, input:disabled').forEach((b) => {
+      b.disabled = false;
+    });
+  });
+});
 // User dropdown (alerts/messages): click toggles for touch, Esc/outside closes.
 // (Hover/focus-within reveals it with no JS via CSS.)
 document.addEventListener('click', (ev) => {
