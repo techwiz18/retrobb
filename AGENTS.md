@@ -166,3 +166,17 @@ fix it with another `--no-verify` push.
   3. Verify: `gh release view v<ver>` shows pre-release + the zip asset.
   If `create` says already exists, stop — run `view` only, never
   delete/recreate or move the tag to fix it.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues (`techwiz18/retrobb`). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical labels, names unchanged. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `GLOSSARY.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
