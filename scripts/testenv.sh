@@ -7,6 +7,7 @@
 #
 #   database : $RETROBB_TEST_DB   (default retrobb_test — RECREATED each run)
 #   port     : $RETROBB_TEST_PORT (default 8081)
+#   container: $RETROBB_TEST_NAME (default retrobb-test; hostcheck reads it too)
 #   fixture  : bin/migrate.php --seed  -> admin/PixelMod/dialup_dan/Guest_2003,
 #              categories/forums/topics at fixed ids 1..N
 #
@@ -16,6 +17,7 @@ set -e
 ROOT="$(pwd)"
 PORT="${RETROBB_TEST_PORT:-8081}"
 DB="${RETROBB_TEST_DB:-retrobb_test}"
+NAME="${RETROBB_TEST_NAME:-retrobb-test}"
 CFG="${ROOT}/storage/test-config.php"
 
 # Run from the repo root. (Do NOT require config.php — it is gitignored, so a
@@ -55,8 +57,8 @@ docker run --rm -v "${ROOT}:/app" -v "${CFG}:/app/config.php" -w /app --network 
   retrobb-php php bin/migrate.php --seed | tail -2
 
 echo "testenv: starting board on :${PORT}…"
-docker rm -f retrobb-test >/dev/null 2>&1 || true
-docker run -d --rm --name retrobb-test -p "${PORT}:8000" \
+docker rm -f "${NAME}" >/dev/null 2>&1 || true
+docker run -d --rm --name "${NAME}" -p "${PORT}:8000" \
   -v "${ROOT}:/app" -v "${CFG}:/app/config.php" -w /app --network retrobb-net \
   retrobb-php php -S 0.0.0.0:8000 -t public public/router.php >/dev/null
 
