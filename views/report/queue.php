@@ -8,7 +8,7 @@
   <div class="recent-row" style="align-items:flex-start">
     <div>
       <b>#<?= (int) $r['id'] ?></b> — post by <b><?= username_html(['user_id' => $r['author_id'], 'username' => $r['post_author']]) ?></b> in
-      <a href="<?= e(url('/topic/' . ($r['topic_slug'] ?: 'topic') . '.t' . (int) $r['topic_id'] . '#p' . (int) $r['post_id'])) ?>"><?= e($r['topic_title']) ?></a><br>
+      <a href="<?= e(\RetroBB\Core\Slug::topicUrl(['id' => $r['topic_id'], 'slug' => $r['topic_slug'], 'title' => $r['topic_title']]) . '#p' . (int) $r['post_id']) ?>"><?= e($r['topic_title']) ?></a><br>
       <small>reported by <?= username_html(['user_id' => $r['reporter_id'], 'username' => $r['reporter']]) ?> · <?= e(time_ago($r['created_at'])) ?></small><br>
       <span><?= e($r['reason']) ?></span>
     </div>

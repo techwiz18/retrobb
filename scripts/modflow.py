@@ -6,6 +6,20 @@ from _harness import check, note, finish
 
 base = os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
 
+class NoRedir(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, hdrs, newurl):
+        return None
+
+noredir = urllib.request.build_opener(NoRedir)
+
+def status(path):
+    """HTTP status for an emitted link, without following a redirect."""
+    try:
+        noredir.open(base + path)
+        return 200
+    except urllib.error.HTTPError as e:
+        return e.code
+
 def session():
     cj = http.cookiejar.CookieJar()
     return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
@@ -49,12 +63,22 @@ check('queue shows report reason', 'modflow test report' in q)
 ridm = re.search(r'/mod/report/(\d+)/resolve', q)
 rid = ridm.group(1) if ridm else None
 check('open report appears in queue', rid is not None)
+qm = re.search(r'href="(/topic/[^"#]+\.t\d+)#p\d+"', q)
+check('queue topic link is canonical', bool(qm) and status(qm.group(1)) == 200,
+      '%s -> %s' % (qm.group(1), status(qm.group(1))) if qm else 'missing')
 
 if rid:
     b, _ = post(mod, f'/mod/report/{rid}/resolve', f'/mod/report/{rid}/handle', {'status': 'resolved', 'note': ''})
     check('resolve without note bounces', 'what action you took' in b)
     w, _ = post(mod, f'/mod/report/{rid}/warn', f'/mod/report/{rid}/warn-author', {'reason': 'modflow warning'})
     check('warn-author from queue warns the author', 'Author warned' in w)
+
+# the warning's context link must be the canonical topic URL, not a placeholder
+prof = mod.open(base + '/members/dialup-dan.u3').read().decode()
+wm = re.search(r'<a href="(/topic/[^"#]+\.t\d+(?:#p\d+)?)">view reported post</a>', prof)
+check('warning context link is canonical',
+      bool(wm) and status(wm.group(1).split('#')[0]) == 200,
+      '%s -> %s' % (wm.group(1), status(wm.group(1).split('#')[0])) if wm else 'missing')
 
 # direct profile warn + ban of a member
 prof = mod.open(base + '/members/dialup-dan.u3').read().decode()
