@@ -87,6 +87,14 @@ check('warning context link is canonical',
       bool(wm) and status(wm.group(1).split('#')[0]) == 200,
       '%s -> %s' % (wm.group(1), status(wm.group(1).split('#')[0])) if wm else 'missing')
 
+# Profile Warn/Ban forms follow the target policy (issue #35): a member is
+# actionable, an admin never is.
+prof = mod.open(base + '/members/dialup-dan.u3').read().decode()
+check('mod sees Warn/Ban on a member profile', '/members/3/warn' in prof and '/members/3/ban' in prof)
+adminprof = mod.open(base + '/members/admin.u1').read().decode()
+check('mod sees no Warn/Ban on an admin profile',
+      '/members/1/warn' not in adminprof and '/members/1/ban' not in adminprof)
+
 # direct profile warn + ban of a member
 prof = mod.open(base + '/members/dialup-dan.u3').read().decode()
 check('profile shows member', 'dialup_dan' in prof)
@@ -223,6 +231,13 @@ try:
     check('member cannot reach mod queue', False, 'reached queue')
 except urllib.error.HTTPError as e:
     check('member cannot reach mod queue', e.code == 403, e.code)
+
+# A moderator reaching the shared queue via the AdminCP path gets chrome whose
+# links they can open (issue #35): ModCP nav, no admin-only entries.
+aq = mod.open(base + '/admin/reports').read().decode()
+check('mod on the AdminCP queue gets ModCP nav', '/mod/bans' in aq)
+check('mod on the AdminCP queue sees no admin-only nav',
+      '/admin/structure' not in aq and '/admin/settings' not in aq)
 
 # Leave the shared queue empty for whichever suite runs next (order-independence).
 for _ in range(10):

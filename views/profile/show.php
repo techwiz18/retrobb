@@ -39,7 +39,7 @@
 <?php if (!empty($activeBan)): ?>
 <div class="flash-error">⛔ Banned <?= $activeBan['expires_at'] ? 'until ' . e($activeBan['expires_at']) : 'permanently' ?> — <?= e($activeBan['reason']) ?></div>
 <?php endif; ?>
-<?php if (\RetroBB\Core\Auth::isMod() && \RetroBB\Core\Auth::user()['id'] !== (int) $profile['id']): ?>
+<?php if (\RetroBB\Core\Auth::isMod() && \RetroBB\Core\Auth::user()['id'] !== (int) $profile['id'] && \RetroBB\Models\Moderation::canPunish((int) $profile['id'])): ?>
 <div class="maintitle">Moderate <?= username_html($profile, false) ?></div>
 <div class="admin-grid">
 <form method="post" action="<?= e(url('/members/' . (int) $profile['id'] . '/warn')) ?>" class="form">

@@ -10,8 +10,8 @@
 <div class="dash-grid">
   <?php $dashSuper = \RetroBB\Core\Auth::isSuper(); ?>
   <?php if ($dashSuper): ?><a class="dash-card" href="<?= e(url('/admin/settings')) ?>"><b>⚙ Settings</b><small>Board name, tagline, flood, edit window</small></a>
-  <a class="dash-card" href="<?= e(url('/admin/features')) ?>"><b>✨ Features</b><small>Alerts, PMs, reactions, mentions, skins &amp; themes</small></a><?php endif; ?>
-  <a class="dash-card" href="<?= e(url('/admin/spam')) ?>"><b>🛡 Spam protection</b><small>Honeypot + CAPTCHA providers</small></a>
+  <a class="dash-card" href="<?= e(url('/admin/features')) ?>"><b>✨ Features</b><small>Alerts, PMs, reactions, mentions, skins &amp; themes</small></a>
+  <a class="dash-card" href="<?= e(url('/admin/spam')) ?>"><b>🛡 Spam protection</b><small>Honeypot + CAPTCHA providers</small></a><?php endif; ?>
   <a class="dash-card" href="<?= e(url('/admin/structure')) ?>"><b>🗂 Structure</b><small>Categories &amp; forums, ordering</small></a>
   <a class="dash-card" href="<?= e(url('/admin/bans')) ?>"><b>⛔ Bans<?= $activeBans > 0 ? ' (' . $activeBans . ' active)' : '' ?></b><small>Ban list &amp; unban</small></a>
   <a class="dash-card" href="<?= e(url('/admin/users')) ?>"><b>👥 Users (<?= (int) $stats['users'] ?>)</b><small>Groups &amp; roles</small></a>

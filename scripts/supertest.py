@@ -49,8 +49,27 @@ u, _ = get(admin2, '/admin/users')
 check('users page hides super controls', 'Make super' not in u and 'name="group"' not in u)
 d, _ = get(admin2, '/admin')
 check('dashboard hides super cards', 'Run database updates' not in d and 'Import' not in d)
+check('dashboard and nav hide Spam protection for non-super admins',
+      'Spam protection' not in d and '/admin/spam' not in d)
+_, c4 = get(admin2, '/admin/spam')
+check('non-super admin still blocked from spam protection', c4 == 403, c4)
 q, _ = get(admin2, '/mod/reports')
 check('non-super admin keeps mod queue', 'Mod queue' in q)
+
+# Warn/Ban buttons follow the same target shield as the endpoints (issue #35):
+# never an admin, and staff targets need a super actor.
+pm, _ = get(admin2, '/members/pixelmod.u2')
+check('non-super admin sees no Warn/Ban on a mod profile',
+      '/members/2/warn' not in pm and '/members/2/ban' not in pm)
+gm, _ = get(admin2, '/members/guest-2003.u4')
+check('non-super admin sees Warn/Ban on a member profile',
+      '/members/4/warn' in gm and '/members/4/ban' in gm)
+am, _ = get(admin2, '/members/admin.u1')
+check('nobody is offered Warn/Ban on an admin profile',
+      '/members/1/warn' not in am and '/members/1/ban' not in am)
+sp, _ = get(super_s, '/members/pixelmod.u2')
+check('super admin sees Warn/Ban on a mod profile',
+      '/members/2/warn' in sp and '/members/2/ban' in sp)
 
 # staff shields: only a super may warn/ban a mod
 w, _ = post(admin2, '/members/pixelmod.u2', '/members/2/warn', {'reason': 'admin2 warn mod'})
