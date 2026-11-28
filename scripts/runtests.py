@@ -57,6 +57,7 @@ SUITES = [
     'hostcheck',
     'installcheck',
     'bincheck',
+    'guardcheck',
 ]
 
 

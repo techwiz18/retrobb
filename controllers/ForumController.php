@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace RetroBB\Controllers;
 
+use RetroBB\Core\Guard;
 use RetroBB\Core\Slug;
 use RetroBB\Core\View;
 use RetroBB\Models\Board;
@@ -13,16 +14,12 @@ class ForumController
     {
         $parsed = Slug::parseSuffixed($segment, 'f');
         if (!$parsed) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/forum/' . $segment]);
-            return;
+            Guard::notFound('/forum/' . $segment);
         }
         [$slug, $id] = $parsed;
         $forum = Board::forum($id);
         if (!$forum) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/forum/' . $segment]);
-            return;
+            Guard::notFound('/forum/' . $segment);
         }
         $canonical = Slug::forumUrl($forum);
         if (!\is_canonical($canonical)) {

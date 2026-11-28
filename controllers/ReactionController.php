@@ -6,7 +6,6 @@ namespace RetroBB\Controllers;
 use RetroBB\Core\Auth;
 use RetroBB\Core\Guard;
 use RetroBB\Core\Slug;
-use RetroBB\Core\View;
 use RetroBB\Models\Notification;
 use RetroBB\Models\Post;
 use RetroBB\Models\Reaction;
@@ -16,11 +15,7 @@ class ReactionController
 {
     public function toggle(int $postId): void
     {
-        if (!feature('reactions')) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/post/' . $postId . '/react']);
-            return;
-        }
+        Guard::requireFeature('reactions', '/post/' . $postId . '/react');
         $post = Post::find($postId);
         if (!$post) {
             redirect('/');

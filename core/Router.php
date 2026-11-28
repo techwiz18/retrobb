@@ -81,8 +81,7 @@ class Router
                 }
             }
         }
-        http_response_code(404);
-        View::render('errors/404', ['path' => $path]);
+        Guard::notFound($path);
     }
 
     public static function currentPath(): string

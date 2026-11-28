@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace RetroBB\Controllers;
 
 use RetroBB\Core\Auth;
-use RetroBB\Core\Csrf;
 use RetroBB\Core\Guard;
 use RetroBB\Core\Modlog;
 use RetroBB\Core\Router;
@@ -104,12 +103,6 @@ class ReportController
         return '/mod/reports';
     }
 
-    /** A stale token sends the mod back to the queue, told nothing was done. */
-    private function csrfRefused(): never
-    {
-        Guard::flashThenReturn($this->queuePath(), 'Your security token expired — nothing was changed.');
-    }
-
     /** Run $fn with the report row locked; bounce to the queue unless open.
         Serializes two mods handling the same report: the loser sees a
         non-open row and lands back on the queue with nothing double-done. */
@@ -140,9 +133,7 @@ class ReportController
     public function handle(int $id): void
     {
         Guard::requireModerator();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            $this->csrfRefused();
-        }
+        Guard::csrfThenReturn($this->queuePath(), 'Your security token expired — nothing was changed.');
         $status = ($_POST['status'] ?? '') === 'resolved' ? 'resolved' : 'dismissed';
         $note = mb_substr(trim((string) ($_POST['note'] ?? '')), 0, 500);
         // Resolving claims action was taken: a note is required so the
@@ -181,9 +172,7 @@ class ReportController
     public function deletePost(int $id): void
     {
         Guard::requireModerator();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            $this->csrfRefused();
-        }
+        Guard::csrfThenReturn($this->queuePath(), 'Your security token expired — nothing was changed.');
         // Redirect target escapes the closure: redirect() exits, and exiting
         // inside the lock would roll the delete back.
         $goto = null;
@@ -230,9 +219,7 @@ class ReportController
     public function warnAuthor(int $id): void
     {
         Guard::requireModerator();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            $this->csrfRefused();
-        }
+        Guard::csrfThenReturn($this->queuePath(), 'Your security token expired — nothing was changed.');
         $reason = mb_substr(trim((string) ($_POST['reason'] ?? '')), 0, 500);
         if (mb_strlen($reason) < 3) {
             $this->warnForm($id, 'Write the warning reason (3+ chars) — the user sees it.');
