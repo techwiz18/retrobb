@@ -58,6 +58,11 @@ login(reporter, 'Guest_2003', 'password123')
 # the staff shields block).
 thtml = reporter.open(base + '/topic/what-was-your-first-forum.t2').read().decode()
 pid = re.search(r'/post/(\d+)/report', thtml).group(1)
+# Reports carry a unique (post, reporter, status) key. A previous run leaves a
+# dismissed row for the same fixed fixture post, so clear our own rows first
+# (this suite must be re-runnable without a DB rebuild).
+sql("DELETE FROM reports WHERE post_id=%s AND reporter_id IN "
+    "(SELECT id FROM users WHERE username IN ('Guest_2003','admin'))" % pid)
 _, code = post(reporter, f'/post/{pid}/report', f'/post/{pid}/report', {'reason': 'modflow test report'})
 check('member can report a post', code is None, code)
 _, code2 = post(reporter, f'/post/{pid}/report', f'/post/{pid}/report', {'reason': 'second try'})

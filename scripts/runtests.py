@@ -63,10 +63,10 @@ SUITES = [
 
 
 def run_suite(name):
-    """Run one suite. Returns (ok, seconds, tail_lines)."""
+    """Run one suite. Returns (ok, seconds, tail_lines, full_output)."""
     path = ROOT / 'scripts' / (name + '.py')
     if not path.is_file():
-        return False, 0.0, ['missing: scripts/%s.py' % name]
+        return False, 0.0, ['missing: scripts/%s.py' % name], ''
     env = dict(os.environ)
     env['RETROBB_TEST_BASE'] = BASE
     env['RETROBB_TEST_DB'] = DB
@@ -79,7 +79,7 @@ def run_suite(name):
         out = (proc.stdout or '') + (proc.stderr or '')
         rc = proc.returncode
     except subprocess.TimeoutExpired:
-        return False, 600.0, ['TIMEOUT after 600s']
+        return False, 600.0, ['TIMEOUT after 600s'], ''
     secs = time.time() - start
 
     ok = rc == 0
@@ -89,7 +89,7 @@ def run_suite(name):
         ok = False
 
     tail = [ln for ln in out.strip().splitlines() if ln.strip()][-4:]
-    return ok, secs, tail
+    return ok, secs, tail, out
 
 
 def main(argv):
@@ -107,13 +107,29 @@ def main(argv):
     print('runtests: %s  (db %s)' % (BASE, DB))
     print('-' * 60)
     results = []
+    failure_dir = ROOT / 'storage' / 'last-failure'
     for name in suites:
-        ok, secs, tail = run_suite(name)
+        ok, secs, tail, out = run_suite(name)
         results.append((name, ok, secs))
         print('%-14s %-4s  %5.1fs' % (name, 'ok' if ok else 'FAIL', secs))
         if not ok:
             for ln in tail:
                 print('              | ' + ln)
+            failure_dir.mkdir(parents=True, exist_ok=True)
+            log = failure_dir / (name + '.log')
+            log.write_text(out, encoding='utf-8')
+            print('              > full output: %s' % log)
+            board = os.environ.get('RETROBB_TEST_NAME')
+            if board:
+                logs = subprocess.run(
+                    ['docker', 'logs', '--tail', '20', board],
+                    capture_output=True, text=True,
+                )
+                server = ((logs.stdout or '') + (logs.stderr or '')).strip()
+                if server:
+                    print('              > %s last 20 lines:' % board)
+                    for ln in server.splitlines()[-20:]:
+                        print('              | ' + ln)
 
     failed = [n for n, ok, _ in results if not ok]
     print('-' * 60)

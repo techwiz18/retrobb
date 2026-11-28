@@ -8,6 +8,9 @@
 #   database : $RETROBB_TEST_DB   (default retrobb_test — RECREATED each run)
 #   port     : $RETROBB_TEST_PORT (default 8081)
 #   container: $RETROBB_TEST_NAME (default retrobb-test; hostcheck reads it too)
+#   namespace: $RETROBB_TEST_NS   (0-99; derives all of the above and the
+#              install/bin ports, e.g. NS=43 -> retrobb_43, :8143,
+#              retrobb-test-43, install :8243, bin :8343)
 #   fixture  : bin/migrate.php --seed  -> admin/PixelMod/dialup_dan/Guest_2003,
 #              categories/forums/topics at fixed ids 1..N
 #
@@ -15,9 +18,38 @@
 # on :8080. Idempotent: re-running drops and rebuilds retrobb_test.
 set -e
 ROOT="$(pwd)"
-PORT="${RETROBB_TEST_PORT:-8081}"
-DB="${RETROBB_TEST_DB:-retrobb_test}"
-NAME="${RETROBB_TEST_NAME:-retrobb-test}"
+# One namespace derives an isolated board worth of names, so parallel
+# worktrees cannot collide and an agent cannot mix one run's DB with another's
+# port. NS is 0-99; explicit RETROBB_TEST_* variables still win.
+NS="${RETROBB_TEST_NS:-}"
+if [ -n "$NS" ]; then
+    case "$NS" in
+        *[!0-9]*) echo "testenv: RETROBB_TEST_NS must be an integer 0-99 (got '$NS')" >&2; exit 2 ;;
+    esac
+    if [ "$NS" -gt 99 ]; then
+        echo "testenv: RETROBB_TEST_NS must be 0-99 (got '$NS')" >&2; exit 2
+    fi
+fi
+PORT="${RETROBB_TEST_PORT:-${NS:+$((8100 + NS))}}"
+PORT="${PORT:-8081}"
+DB="${RETROBB_TEST_DB:-${NS:+retrobb_$NS}}"
+DB="${DB:-retrobb_test}"
+NAME="${RETROBB_TEST_NAME:-${NS:+retrobb-test-$NS}}"
+NAME="${NAME:-retrobb-test}"
+export RETROBB_INSTALL_DB="${RETROBB_INSTALL_DB:-${NS:+retrobb_install_$NS}}"
+export RETROBB_INSTALL_DB="${RETROBB_INSTALL_DB:-retrobb_install_check}"
+export RETROBB_INSTALL_NAME="${RETROBB_INSTALL_NAME:-${NS:+retrobb-install-$NS}}"
+export RETROBB_INSTALL_NAME="${RETROBB_INSTALL_NAME:-retrobb-install-check}"
+export RETROBB_INSTALL_PORT="${RETROBB_INSTALL_PORT:-${NS:+$((8200 + NS))}}"
+export RETROBB_INSTALL_PORT="${RETROBB_INSTALL_PORT:-8098}"
+export RETROBB_BIN_NAME="${RETROBB_BIN_NAME:-${NS:+retrobb-bin-$NS}}"
+export RETROBB_BIN_NAME="${RETROBB_BIN_NAME:-retrobb-bincheck}"
+export RETROBB_BIN_PORT="${RETROBB_BIN_PORT:-${NS:+$((8300 + NS))}}"
+export RETROBB_BIN_PORT="${RETROBB_BIN_PORT:-8099}"
+export RETROBB_TEST_BASE="${RETROBB_TEST_BASE:-http://localhost:$PORT}"
+export RETROBB_TEST_DB="$DB"
+export RETROBB_TEST_PORT="$PORT"
+export RETROBB_TEST_NAME="$NAME"
 CFG="${ROOT}/storage/test-config.php"
 
 # Run from the repo root. (Do NOT require config.php — it is gitignored, so a
@@ -41,6 +73,20 @@ return [
 ];
 PHP
 
+# The board and the suites must read the same values; hand-copying five env
+# vars is how one run wrote to retrobb_t0 while serving retrobb_test.
+cat > "${ROOT}/storage/test.env" <<ENV
+RETROBB_TEST_BASE=${RETROBB_TEST_BASE}
+RETROBB_TEST_DB=${RETROBB_TEST_DB}
+RETROBB_TEST_PORT=${RETROBB_TEST_PORT}
+RETROBB_TEST_NAME=${RETROBB_TEST_NAME}
+RETROBB_INSTALL_DB=${RETROBB_INSTALL_DB}
+RETROBB_INSTALL_NAME=${RETROBB_INSTALL_NAME}
+RETROBB_INSTALL_PORT=${RETROBB_INSTALL_PORT}
+RETROBB_BIN_NAME=${RETROBB_BIN_NAME}
+RETROBB_BIN_PORT=${RETROBB_BIN_PORT}
+ENV
+
 # MySQL must be up (starts the container if needed).
 sh scripts/mysql-up.sh >/dev/null 2>&1 || true
 if ! docker exec retrobb-mysql mysqladmin ping -h127.0.0.1 -uroot -proot --silent 2>/dev/null; then
@@ -58,6 +104,10 @@ docker run --rm -v "${ROOT}:/app" -v "${CFG}:/app/config.php" -w /app --network 
 
 echo "testenv: starting board on :${PORT}…"
 docker rm -f "${NAME}" >/dev/null 2>&1 || true
+if command -v ss >/dev/null 2>&1 && ss -ltn 2>/dev/null | grep -q "[:.]${PORT} "; then
+    echo "testenv: port ${PORT} is already in use; use RETROBB_TEST_NS=<0-99> or another RETROBB_TEST_PORT" >&2
+    exit 2
+fi
 docker run -d --rm --name "${NAME}" -p "${PORT}:8000" \
   -v "${ROOT}:/app" -v "${CFG}:/app/config.php" -w /app --network retrobb-net \
   retrobb-php php -S 0.0.0.0:8000 -t public public/router.php >/dev/null
@@ -71,4 +121,4 @@ echo
 echo "testenv ready"
 echo "  board : http://localhost:${PORT}"
 echo "  db    : ${DB}"
-echo "  run   : RETROBB_TEST_BASE=http://localhost:${PORT} RETROBB_TEST_DB=${DB} python3 scripts/runtests.py"
+echo "  run   : sh scripts/gate.sh <ns> [suite…]   (or: . storage/test.env && python3 scripts/runtests.py)"
