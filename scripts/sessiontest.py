@@ -187,7 +187,35 @@ code, loc = redirect_to('/settings/profile')
 check('guest settings link returns after login',
       code == 302 and 'next=%2Fsettings%2Fprofile' in loc, '%s %s' % (code, loc))
 
-# 6. No bare CSRF refusal survives outside the shared module (issue #38).
+# 6. A `next` value never becomes an off-site redirect (tab/control chars used
+#    to slip past the old str_starts_with test in the auth controller: the
+#    browser strips the tab and "//evil.com" becomes protocol-relative).
+def next_redirect(path, fields):
+    op = urllib.request.build_opener(NoRedir, urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    _, _, html = get(op, path.split('?')[0])
+    try:
+        op.open(urllib.request.Request(base + path, data=urllib.parse.urlencode(
+            dict(fields, csrf=csrf(html), next='/\t/evil.com')).encode()))
+        return 0, ''
+    except urllib.error.HTTPError as e:
+        return e.code, e.headers.get('Location') or ''
+
+code, loc = next_redirect('/login', {'login': 'dialup_dan', 'password': 'password123'})
+check('login next with a control character lands on the board',
+      code in (302, 303) and loc == '/', '%s %s' % (code, loc))
+
+provider = sql("SELECT `value` FROM settings WHERE `key`='captcha_provider'")
+if provider == 'honeypot':
+    sql("DELETE FROM users WHERE username='redir_probe'")
+    code, loc = next_redirect('/register?next=' + urllib.parse.quote('/\t/evil.com', safe=''), {
+        'username': 'redir_probe', 'email': 'redir_probe@example.com', 'password': 'password123'})
+    check('register next with a control character lands on the board',
+          code in (302, 303) and loc == '/', '%s %s' % (code, loc))
+    sql("DELETE FROM users WHERE username='redir_probe'")
+else:
+    note('register redirect check skipped: captcha provider is ' + (provider or '?'))
+
+# 7. No bare CSRF refusal survives outside the shared module (issue #38).
 for name in ['AuthController', 'PmController', 'ProfileController', 'ReactionController', 'ModController']:
     src = open(os.path.join(ROOT, 'controllers', name + '.php')).read()
     check('refusal goes through the shared module: ' + name,

@@ -24,3 +24,6 @@ public/avatars/*
 dist/
 # Local config (copy config.example.php to config.php and adjust).
 config.php
+# Python bytecode from the suites (never commit).
+__pycache__/
+*.pyc

@@ -89,11 +89,8 @@ class AuthController
         }
         $user = User::find($res['id']);
         Auth::login($user);
-        $next = (string) ($_GET['next'] ?? '/');
-        if (!str_starts_with($next, '/') || str_starts_with($next, '//')) {
-            $next = '/';
-        }
-        redirect($next);
+        // Local paths only: a control character or "//host" never redirects off-site.
+        redirect(Guard::localPath((string) ($_GET['next'] ?? '/')));
     }
 
     public function loginForm(): void
@@ -149,12 +146,7 @@ class AuthController
         $_SESSION[$key] = 0;
         self::loginCleared($tkey);
         Auth::login($user);
-        $next = (string) ($_POST['next'] ?? $_GET['next'] ?? '/');
-        // Local paths only: block "//evil.com" protocol-relative redirects.
-        if (!str_starts_with($next, '/') || str_starts_with($next, '//')) {
-            $next = '/';
-        }
-        redirect($next);
+        redirect(Guard::localPath((string) ($_POST['next'] ?? $_GET['next'] ?? '/')));
     }
 
     public function logout(): void

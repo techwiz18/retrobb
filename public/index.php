@@ -274,7 +274,7 @@ $switcher = function (string $value, string $cookie, array $allowed, string $pic
     redirect($bp . (str_contains($bp, '?') ? '&' : '?') . 'picked=' . $pick);
 };
 $r->post('#^/skin/([a-z0-9]+)$#', function (string $s) use ($switcher): void {
-    $switcher($s, 'retrobb_skin', feature('skin_selector') ? ['classic', 'midnight', 'silver'] : [], 'skin');
+    $switcher($s, 'retrobb_skin', feature('skin_selector') ? \RetroBB\Core\Settings::DEFS['default_skin']['enum'] : [], 'skin');
 });
 // theme switcher (light / dark / auto-follows-OS). Same POST + CSRF rule.
 $r->post('#^/theme/(light|dark|auto)$#', function (string $t) use ($switcher): void {

@@ -39,6 +39,28 @@ def submit(form_page, path, fields):
 def save_settings(fields):
     return submit('/admin/settings', '/admin/settings', fields)
 
+# Capture the board's current values before probing: the suite must restore the
+# exact prior values, not a fresh fixture, to be safe on any board.
+def selected(html, name):
+    block = re.search(r'<select name="%s"[^>]*>(.*?)</select>' % re.escape(name), html, re.S).group(1)
+    return re.search(r'<option value="([^"]+)" selected>', block).group(1)
+
+prior_src = op.open(base + '/admin/settings').read().decode()
+PRIOR = {k: field(prior_src, k) for k in
+         ('board_name', 'board_tagline', 'posts_per_page',
+          'flood_seconds', 'edit_window_mins', 'delete_window_mins')}
+PRIOR_PROVIDER = selected(op.open(base + '/admin/spam').read().decode(), 'captcha_provider')
+PRIOR_FEATURES = op.open(base + '/admin/features').read().decode()
+FEATURE_KEYS = ['feature_alerts', 'feature_mentions', 'feature_reactions', 'feature_pms',
+                'feature_avatars_upload', 'feature_avatars_link', 'skin_selector',
+                'theme_light', 'theme_dark', 'theme_auto']
+
+def feature_form(html):
+    fields = {k: '1' for k in FEATURE_KEYS if re.search(r'name="%s"[^>]*checked' % k, html)}
+    fields['default_skin'] = selected(html, 'default_skin')
+    fields['default_theme'] = selected(html, 'default_theme')
+    return fields
+
 # Each page writes only the keys it owns: a POST aimed at spam/features
 # must not be able to carry another page's key along.
 save_settings({'return': 'settings', 'board_name': 'Registry Probe', 'board_tagline': 'probe'})
@@ -47,26 +69,27 @@ check('spam save cannot alter the board name', settings_field('board_name') == '
 submit('/admin/features', '/admin/features', {'board_name': 'Hijacked'})
 check('features save cannot alter the board name', settings_field('board_name') == 'Registry Probe', settings_field('board_name'))
 # A features POST with no checkboxes turns them all off (existing behaviour);
-# put the seeded defaults back so later suites see a pristine board.
-submit('/admin/features', '/admin/features', {
-    'feature_alerts': '1', 'feature_mentions': '1', 'feature_reactions': '1', 'feature_pms': '1',
-    'feature_avatars_upload': '1', 'feature_avatars_link': '1', 'skin_selector': '1',
-    'default_skin': 'classic', 'default_theme': 'auto',
-    'theme_light': '1', 'theme_dark': '1', 'theme_auto': '1'})
+# the captured values go back at the end of the suite.
 
 # Validation comes from the definition: clamps, truncation, allowlists.
 save_settings({'return': 'settings', 'posts_per_page': '9999', 'board_tagline': 'x' * 250})
 check('settings save clamps through the registry', settings_field('posts_per_page') == '50', settings_field('posts_per_page'))
 check('settings save truncates through the registry', len(settings_field('board_tagline') or '') == 200, len(settings_field('board_tagline') or ''))
+# Existing boards keep a value above an hour (the old code had no upper bound).
+save_settings({'return': 'settings', 'flood_seconds': '7200', 'edit_window_mins': '7200', 'delete_window_mins': '7200'})
+windows = [settings_field(k) for k in ('flood_seconds', 'edit_window_mins', 'delete_window_mins')]
+check('settings save keeps windows above an hour', windows == ['7200', '7200', '7200'], windows)
 submit('/admin/spam', '/admin/settings', {'return': 'spam', 'captcha_provider': 'builtin'})
 submit('/admin/spam', '/admin/settings', {'return': 'spam', 'captcha_provider': 'bogus'})
 spam_html = op.open(base + '/admin/spam').read().decode()
 check('spam save rejects a provider outside the registry allowlist',
       re.search(r'<option value="builtin" selected>', spam_html) is not None)
 
-# Restore the fixture values so later suites see a pristine board.
-save_settings({'return': 'settings', 'board_name': 'RetroBB', 'board_tagline': 'An old-school forum for the modern web', 'posts_per_page': '15'})
-submit('/admin/spam', '/admin/settings', {'return': 'spam', 'captcha_provider': 'honeypot'})
+# Restore the captured values so later suites and the operator's board see the
+# same settings they had before this suite ran.
+save_settings(dict(PRIOR, **{'return': 'settings'}))
+submit('/admin/spam', '/admin/settings', {'return': 'spam', 'captcha_provider': PRIOR_PROVIDER})
+submit('/admin/features', '/admin/features', feature_form(PRIOR_FEATURES))
 # --- shared refusal seam (issue #36) -------------------------------------
 # A stale token must render the board's own page with a message, not bounce
 # to the dashboard and lose what was typed.
@@ -83,6 +106,12 @@ check('csrf refusal preserves submitted input',
       'name="board_name"' in refused and 'CSRF_KEPT_36' in refused)
 after = op.open(base + '/admin/settings').read().decode()
 check('csrf refusal saves nothing', 'CSRF_KEPT_36' not in after)
+# A secret must never be echoed back: the import DB password and the CAPTCHA
+# secret both pass through the same retry form.
+leak = post_raw('/admin/settings', {'csrf': 'stale', 'captcha_secret': 'CSRF_SECRET_45', 'return': 'spam'})
+check('csrf refusal never echoes a captcha secret', 'CSRF_SECRET_45' not in leak)
+leak = post_raw('/admin/import/test', {'csrf': 'stale', 'source': 'phpbb', 'pass': 'CSRF_PASS_45'})
+check('csrf refusal never echoes an import password', 'CSRF_PASS_45' not in leak)
 cat = post_raw('/admin/add-category', {'csrf': 'stale', 'title': 'CSRF_CAT_36'})
 check('csrf refusal is shared by other admin forms',
       'CSRF_CAT_36' in cat and 'session expired' in cat.lower())
@@ -114,6 +143,21 @@ r = subprocess.run(['docker', 'run', '--rm', '-v', ROOT + ':/app:ro', '-w', '/ap
                    capture_output=True, text=True)
 check('return path follows only local paths', r.returncode == 0,
       (r.stdout + r.stderr).strip()[:200])
+
+# --- one allowlist per concept (issue #45) -------------------------------
+# The CAPTCHA provider and skin lists live in Settings::DEFS; the readers must
+# not keep their own copy that can drift.
+def source(rel):
+    return open(os.path.join(ROOT, rel)).read()
+
+check('captcha provider allowlist comes from Settings',
+      "Settings::DEFS['captcha_provider']" in source('core/Captcha.php')
+      and "'honeypot', 'builtin'" not in source('core/Captcha.php'))
+check('skin allowlist comes from Settings',
+      "Settings::DEFS['default_skin']" in source('core/helpers.php')
+      and "Settings::DEFS['default_skin']" in source('public/index.php')
+      and "'classic', 'midnight', 'silver'" not in source('core/helpers.php')
+      and "'classic', 'midnight', 'silver'" not in source('public/index.php'))
 
 # --- AdminCP splits by area (issue #47) ----------------------------------
 # The 28-action class is gone: each area owns one module, the route table

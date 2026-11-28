@@ -251,6 +251,9 @@ class Topic
             if ($ghost) {
                 $now = date('Y-m-d H:i:s');
                 $newUrl = Slug::topicUrl(array_merge($topic, ['id' => $id]));
+                // A ghost stub is board furniture, not user content: the sentinel
+                // body_bbcode is the marker views/HtmlRepair drop, so it is
+                // written raw instead of going through the normal post writer.
                 $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, pinned, locked, views, posts_count, created_at, last_post_at, last_post_user_id, moved_to_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
                     ->execute([$srcForumId, $modId, 'Moved: ' . $topic['title'], Slug::make('moved-' . $topic['title']), 0, 1, 0, 1, $now, $now, $modId, $id]);
                 $gid = (int) $pdo->lastInsertId();

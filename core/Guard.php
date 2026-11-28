@@ -36,7 +36,7 @@ namespace RetroBB\Core;
 final class Guard
 {
     /** Never echoed back into the retry page: a stale token must not leak a secret. */
-    private const SECRET_FIELDS = ['password', 'password2', 'current', 'new', 'new2'];
+    private const SECRET_FIELDS = ['password', 'password2', 'current', 'new', 'new2', 'pass', 'captcha_secret'];
 
     /** Send guests to the login form, then back to $next (the current URL by default). */
     public static function requireLogin(string $next = ''): void
