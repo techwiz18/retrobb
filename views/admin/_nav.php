@@ -3,8 +3,8 @@
 <nav class="adminnav">
   <a href="<?= e(url('/admin')) ?>" class="<?= ($active ?? '') === 'dashboard' ? 'on' : '' ?>">Dashboard</a>
   <?php if ($isSuperNav): ?><a href="<?= e(url('/admin/settings')) ?>" class="<?= ($active ?? '') === 'settings' ? 'on' : '' ?>">Settings</a>
-  <a href="<?= e(url('/admin/features')) ?>" class="<?= ($active ?? '') === 'features' ? 'on' : '' ?>">Features</a><?php endif; ?>
-  <a href="<?= e(url('/admin/spam')) ?>" class="<?= ($active ?? '') === 'spam' ? 'on' : '' ?>">Spam protection</a>
+  <a href="<?= e(url('/admin/features')) ?>" class="<?= ($active ?? '') === 'features' ? 'on' : '' ?>">Features</a>
+  <a href="<?= e(url('/admin/spam')) ?>" class="<?= ($active ?? '') === 'spam' ? 'on' : '' ?>">Spam protection</a><?php endif; ?>
   <a href="<?= e(url('/admin/structure')) ?>" class="<?= ($active ?? '') === 'structure' ? 'on' : '' ?>">Structure</a>
   <a href="<?= e(url('/admin/bans')) ?>" class="<?= ($active ?? '') === 'bans' ? 'on' : '' ?>">Bans</a>
   <a href="<?= e(url('/admin/users')) ?>" class="<?= ($active ?? '') === 'users' ? 'on' : '' ?>">Users</a>

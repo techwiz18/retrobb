@@ -14,10 +14,7 @@ class Moderation
     {
         $reason = mb_substr(trim($reason), 0, 500);
         [$target, $actorSuper] = self::staffContext($userId, $modId);
-        if ($target === 'admin') {
-            return false;
-        }
-        if ($target === 'mod' && !$actorSuper) {
+        if (self::staffTargetRefused($target, $actorSuper)) {
             return false;
         }
         try {
@@ -47,7 +44,10 @@ class Moderation
     public static function warningsFor(int $userId): array
     {
         $st = Db::pdo()->prepare(
-            'SELECT w.*, u.username AS warned_by_name FROM warnings w JOIN users u ON u.id=w.warned_by WHERE w.user_id=? ORDER BY w.id DESC'
+            'SELECT w.*, u.username AS warned_by_name, t.slug AS topic_slug
+             FROM warnings w JOIN users u ON u.id=w.warned_by
+             LEFT JOIN topics t ON t.id=w.topic_id
+             WHERE w.user_id=? ORDER BY w.id DESC'
         );
         $st->execute([$userId]);
         return $st->fetchAll();
@@ -63,10 +63,7 @@ class Moderation
     public static function ban(int $userId, int $modId, string $reason, ?int $days): int
     {
         [$target, $actorSuper] = self::staffContext($userId, $modId);
-        if ($target === 'admin') {
-            return 0;
-        }
-        if ($target === 'mod' && !$actorSuper) {
+        if (self::staffTargetRefused($target, $actorSuper)) {
             return 0;
         }
         $expires = $days === null ? null : date('Y-m-d H:i:s', time() + $days * 86400);
@@ -112,6 +109,67 @@ class Moderation
             return 'Only super admins can ' . $verb . ' staff posts.';
         }
         return null;
+    }
+
+    /** Shared post edit/delete policy (#34): the topic page buttons and the
+        endpoints consume the same rule. Null = allowed, else the refusal
+        message the endpoint flashes. $post must carry the topic's `locked`
+        flag (Post::find does); $firstPostId/$postCount let a listing pass the
+        values it already has instead of re-querying per post. */
+    public static function postActionError(array $post, string $action, ?int $firstPostId = null, ?int $postCount = null): ?string
+    {
+        $me = \RetroBB\Core\Auth::user();
+        if (!$me) {
+            return 'You must be logged in to ' . $action . ' posts.';
+        }
+        if ($err = self::staffPostError($post, (int) $me['id'], \RetroBB\Core\Auth::isSuper(), $action)) {
+            return $err;
+        }
+        if (\RetroBB\Core\Auth::isMod()) {
+            return null;
+        }
+        if ((int) $post['user_id'] !== (int) $me['id']) {
+            return $action === 'edit' ? 'You can only edit your own posts.' : 'You can only delete your own posts.';
+        }
+        if ($action === 'edit') {
+            $mins = \RetroBB\Core\Settings::int('edit_window_mins');
+            if ($mins > 0 && (time() - strtotime((string) $post['created_at'])) > $mins * 60) {
+                return 'The edit window (' . $mins . ' min) has expired.';
+            }
+            return null;
+        }
+        if ((int) ($post['locked'] ?? 0) === 1) {
+            return 'This topic is locked.';
+        }
+        $mins = \RetroBB\Core\Settings::int('delete_window_mins');
+        if ($mins > 0 && (time() - strtotime((string) $post['created_at'])) > $mins * 60) {
+            return 'The delete window (' . $mins . ' min) has expired.';
+        }
+        // First posts anchor their threads: only removable while they're the
+        // only post (which removes the whole topic) — otherwise mods only.
+        $firstPostId ??= Topic::firstPostId((int) $post['topic_id']);
+        if ((int) $post['id'] === $firstPostId) {
+            $postCount ??= Db::countQuery('SELECT COUNT(*) c FROM posts WHERE topic_id=?', [(int) $post['topic_id']]);
+            if ($postCount > 1) {
+                return 'The opening post can only be removed by a moderator.';
+            }
+        }
+        return null;
+    }
+
+    /** Whether the viewer may warn or ban this member: the target shield
+        warn() and ban() enforce, exposed so the profile buttons agree. */
+    public static function canPunish(int $userId): bool
+    {
+        $me = \RetroBB\Core\Auth::user();
+        [$target, $actorSuper] = self::staffContext($userId, (int) ($me['id'] ?? 0));
+        return !self::staffTargetRefused($target, $actorSuper);
+    }
+
+    /** Never admins; staff targets need a super actor. */
+    private static function staffTargetRefused(string $target, bool $actorSuper): bool
+    {
+        return $target === 'admin' || ($target === 'mod' && !$actorSuper);
     }
 
     /** Target group + whether the actor is super. Pre-tier schemas lack the

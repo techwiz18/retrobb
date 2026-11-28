@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace RetroBB\Models;
 
-use RetroBB\Core\BBCode;
 use RetroBB\Core\Db;
 
 class Post
@@ -17,13 +16,6 @@ class Post
         $st->execute([$id]);
         $r = $st->fetch();
         return $r ?: null;
-    }
-
-    public static function updateBody(int $id, string $bbcode): void
-    {
-        Db::pdo()->prepare('UPDATE posts SET body_bbcode=?, body_html=?, edited_at=? WHERE id=?')->execute([
-            $bbcode, BBCode::toHtml($bbcode), date('Y-m-d H:i:s'), $id,
-        ]);
     }
 
     /** Delete a post; if it was the topic's last post, the whole topic goes. */

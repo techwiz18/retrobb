@@ -11,6 +11,7 @@ from _harness import check, finish
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE = os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8081')
 DB = os.environ.get('RETROBB_TEST_DB', 'retrobb_test')
+NAME = os.environ.get('RETROBB_TEST_NAME', 'retrobb-test')
 
 def sql(q):
     r = subprocess.run(['sh', 'scripts/mysql-sql.sh', q], capture_output=True, text=True,
@@ -22,7 +23,7 @@ def set_board_url(v):
         "ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)" % v.replace("'", "''"))
 
 def php(snippet):
-    r = subprocess.run(['docker', 'exec', 'retrobb-test', 'php', '-r', snippet],
+    r = subprocess.run(['docker', 'exec', NAME, 'php', '-r', snippet],
                        capture_output=True, text=True)
     return (r.stdout or '').strip(), r.returncode
 

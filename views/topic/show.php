@@ -1,10 +1,10 @@
-<?php /** @var array $topic */ /** @var array|null $forum */ /** @var array $posts */ /** @var array $reactions */ /** @var int $page */ /** @var int $pages */ /** @var int $perPage */ ?>
+<?php /** @var array $topic */ /** @var array|null $forum */ /** @var array $posts */ /** @var array $reactions */ /** @var array $postActions */ /** @var bool $canModerate */ /** @var int $page */ /** @var int $pages */ /** @var int $perPage */ ?>
 <div class="breadcrumb"><a href="<?= e(url('/')) ?>">Index</a> &raquo; <?php if ($forum): ?><a href="<?= e(\RetroBB\Core\Slug::forumUrl($forum)) ?>"><?= e($forum['name']) ?></a> &raquo;<?php endif; ?> <?= e($topic['title']) ?></div>
 <div class="maintitle"><?= e($topic['title']) ?></div>
 <div class="actionrow">
   <span class="muted">by <?= username_html(['user_id' => $topic['user_id'], 'username' => $topic['author']]) ?> · <?= (int) $topic['views'] ?> views</span>
 </div>
-<?php if (\RetroBB\Core\Auth::isMod()): ?>
+<?php if ($canModerate): ?>
 <div class="modbar">
   <span class="modlabel">Moderation:</span>
   <form method="post" action="<?= e(url('/topic/' . (int) $topic['id'] . '/pinned')) ?>" style="display:inline"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn"><?= ((int) $topic['pinned'] === 1) ? 'Unpin' : 'Pin' ?></button></form>
@@ -24,11 +24,10 @@
     <?php if ($me): ?>
     <span class="postactions">
       <button type="button" class="smallbtn quotebtn" data-post="<?= (int) $p['id'] ?>">Quote</button>
-      <?php if ((int) $p['user_id'] === (int) $me['id'] || \RetroBB\Core\Auth::isMod()): ?>
+      <?php if (!empty($postActions[(int) $p['id']]['edit'])): ?>
         <a class="smallbtn" href="<?= e(url('/post/' . (int) $p['id'] . '/edit')) ?>">Edit</a>
       <?php endif; ?>
-      <?php $canDel = (int) $p['user_id'] === (int) $me['id'] ? ((int) $p['id'] !== (int) ($firstPostId ?? 0) || (int) $total === 1) : \RetroBB\Core\Auth::isMod(); ?>
-      <?php if ($canDel): ?>
+      <?php if (!empty($postActions[(int) $p['id']]['delete'])): ?>
         <form method="post" action="<?= e(url('/post/' . (int) $p['id'] . '/delete')) ?>" style="display:inline" onsubmit="return confirm('Delete this post?')"><?= \RetroBB\Core\Csrf::field() ?><button class="smallbtn danger" type="submit">Delete</button></form>
       <?php endif; ?>
       <?php if ((int) $p['user_id'] !== (int) $me['id']): ?>
@@ -45,7 +44,7 @@
       <?php \RetroBB\Core\Hooks::render_template_hook('postbit_user', ['post' => $p]); ?>
       <small class="postmeta"><?= (int) $p['user_posts'] ?> posts<br>Joined <?= e(substr($p['user_since'], 0, 10)) ?></small>
     </div>
-    <div class="postright"><?= \RetroBB\Core\BBCode::needsRepair($p['body_html']) ? \RetroBB\Core\BBCode::toHtml($p['body_bbcode']) : $p['body_html'] ?><?php $editedTs = strtotime((string) ($p['edited_at'] ?? '')); ?><?php if ($editedTs > 0): ?><div class="editedmark">Edited <?= e(time_ago($p['edited_at'])) ?></div><?php endif; ?></div>
+    <div class="postright"><?= \RetroBB\Core\PostBody::display($p['body_bbcode'], $p['body_html']) ?><?php $editedTs = strtotime((string) ($p['edited_at'] ?? '')); ?><?php if ($editedTs > 0): ?><div class="editedmark">Edited <?= e(time_ago($p['edited_at'])) ?></div><?php endif; ?></div>
   </div>
   <?php if ($me && feature('reactions')): ?>
   <?php $rc = $reactions[(int) $p['id']] ?? []; ?>
@@ -62,7 +61,7 @@
 
 <div id="reply" class="replybox">
 <?php if (\RetroBB\Core\Auth::check()): ?>
-  <?php if ((int) $topic['locked'] === 1 && !\RetroBB\Core\Auth::isMod()): ?>
+  <?php if ((int) $topic['locked'] === 1 && !$canModerate): ?>
     <div class="locked">🔒 This topic is locked.</div>
   <?php else: ?>
   <div class="maintitle">Post a reply</div>

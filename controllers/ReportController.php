@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace RetroBB\Controllers;
 
 use RetroBB\Core\Auth;
-use RetroBB\Core\Csrf;
+use RetroBB\Core\Guard;
 use RetroBB\Core\Modlog;
 use RetroBB\Core\Router;
 use RetroBB\Core\Slug;
@@ -16,33 +16,22 @@ class ReportController
 {
     public function reportForm(int $postId): void
     {
-        if (!Auth::check()) {
-            redirect('/login?next=' . urlencode('/post/' . $postId . '/report'));
-        }
+        Guard::requireLogin('/post/' . $postId . '/report');
         $post = Post::find($postId);
         if (!$post) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/post/' . $postId . '/report']);
-            return;
+            Guard::notFound('/post/' . $postId . '/report');
         }
         View::render('report/new', ['post' => $post, 'pageTitle' => 'Report post — ' . board_name(), 'error' => null]);
     }
 
     public function reportSubmit(int $postId): void
     {
-        if (!Auth::check()) {
-            redirect('/login');
-        }
+        Guard::requireLogin('/post/' . $postId . '/report');
         $post = Post::find($postId);
         if (!$post) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/post/' . $postId . '/report']);
-            return;
+            Guard::notFound('/post/' . $postId . '/report');
         }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            View::render('report/new', ['post' => $post, 'pageTitle' => 'Report post', 'error' => 'Session expired.']);
-            return;
-        }
+        Guard::csrf(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_title']]) . '#p' . $postId);
         if ((int) $post['user_id'] === (int) Auth::user()['id']) {
             View::render('report/new', ['post' => $post, 'pageTitle' => 'Report post', 'error' => 'You cannot report your own post.']);
             return;
@@ -58,20 +47,16 @@ class ReportController
 
     public function queue(): void
     {
-        if (!Auth::isMod()) {
-            http_response_code(403);
-            View::render('errors/403', ['pageTitle' => 'Forbidden']);
-            return;
-        }
+        Guard::requireModerator();
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $data = Report::openList($page);
         $pages = max(1, (int) ceil($data['total'] / 25));
         View::render('report/queue', [
             'reports' => $data['reports'], 'total' => $data['total'],
             'page' => $page, 'pages' => $pages,
-            // AdminCP entry (/admin/reports) keeps the admin chrome; the
-            // ModCP path keeps the mod chrome. Same content either way.
-            'admin' => $this->isAdminContext(),
+            // AdminCP entry (/admin/reports) keeps the admin chrome for
+            // admins; moderators get the ModCP chrome they can navigate.
+            'admin' => $this->adminChrome(),
             'pageTitle' => 'Mod queue — ' . board_name(),
         ]);
     }
@@ -88,8 +73,20 @@ class ReportController
         return str_starts_with($path, '/admin/');
     }
 
+    /** Admin chrome only when the viewer can open the AdminCP links in it. */
+    private function adminChrome(): bool
+    {
+        return $this->isAdminContext() && Auth::isAdmin();
+    }
+
     /** Back to the queue the caller came from (AdminCP or ModCP). */
     private function queueReturn(): void
+    {
+        redirect($this->queuePath());
+    }
+
+    /** The queue whose chrome matches where the caller came from. */
+    private function queuePath(): string
     {
         // Prefix allowlist only: never follow an open referer anywhere
         // else (same rule as the skin/theme switchers). Any /admin/* source
@@ -101,9 +98,9 @@ class ReportController
         $onQueue = $path === '/admin/reports' || $path === '/mod/reports';
         if ($admin || $onQueue || str_starts_with($path, '/mod/report/')) {
             $qs = ($onQueue && is_array($parts) && ($parts['query'] ?? '') !== '') ? '?' . $parts['query'] : '';
-            redirect(($admin ? '/admin/reports' : '/mod/reports') . $qs);
+            return ($admin ? '/admin/reports' : '/mod/reports') . $qs;
         }
-        redirect('/mod/reports');
+        return '/mod/reports';
     }
 
     /** Run $fn with the report row locked; bounce to the queue unless open.
@@ -135,16 +132,8 @@ class ReportController
 
     public function handle(int $id): void
     {
-        if (!Auth::isMod()) {
-            http_response_code(403);
-            echo 'Forbidden';
-            return;
-        }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            http_response_code(419);
-            echo 'CSRF mismatch';
-            return;
-        }
+        Guard::requireModerator();
+        Guard::csrfThenReturn($this->queuePath(), 'Your security token expired — nothing was changed.');
         $status = ($_POST['status'] ?? '') === 'resolved' ? 'resolved' : 'dismissed';
         $note = mb_substr(trim((string) ($_POST['note'] ?? '')), 0, 500);
         // Resolving claims action was taken: a note is required so the
@@ -165,11 +154,7 @@ class ReportController
     /** Resolve form (GET): what did you do about it? Note required on submit. */
     public function resolveForm(int $id, ?string $error = null): void
     {
-        if (!Auth::isMod()) {
-            http_response_code(403);
-            View::render('errors/403', ['pageTitle' => 'Forbidden']);
-            return;
-        }
+        Guard::requireModerator();
         $rep = Report::find($id);
         if (!$rep || $rep['status'] !== 'open') {
             $this->queueReturn();
@@ -178,7 +163,7 @@ class ReportController
         $topic = $post ? \RetroBB\Models\Topic::find((int) $post['topic_id']) : null;
         View::render('report/resolve', [
             'report' => $rep, 'post' => $post, 'topic' => $topic, 'error' => $error,
-            'admin' => $this->isAdminContext(),
+            'admin' => $this->adminChrome(),
             'pageTitle' => 'Resolve report — ' . board_name(),
         ]);
     }
@@ -186,16 +171,8 @@ class ReportController
     /** Delete the reported post and resolve the report. */
     public function deletePost(int $id): void
     {
-        if (!Auth::isMod()) {
-            http_response_code(403);
-            echo 'Forbidden';
-            return;
-        }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            http_response_code(419);
-            echo 'CSRF mismatch';
-            return;
-        }
+        Guard::requireModerator();
+        Guard::csrfThenReturn($this->queuePath(), 'Your security token expired — nothing was changed.');
         // Redirect target escapes the closure: redirect() exits, and exiting
         // inside the lock would roll the delete back.
         $goto = null;
@@ -224,11 +201,7 @@ class ReportController
     /** Warn form (GET): the mod writes the actual warning, not the report text. */
     public function warnForm(int $id, ?string $error = null): void
     {
-        if (!Auth::isMod()) {
-            http_response_code(403);
-            View::render('errors/403', ['pageTitle' => 'Forbidden']);
-            return;
-        }
+        Guard::requireModerator();
         $rep = Report::find($id);
         if (!$rep || $rep['status'] !== 'open') {
             $this->queueReturn();
@@ -237,7 +210,7 @@ class ReportController
         $topic = $post ? \RetroBB\Models\Topic::find((int) $post['topic_id']) : null;
         View::render('report/warn', [
             'report' => $rep, 'post' => $post, 'topic' => $topic, 'error' => $error,
-            'admin' => $this->isAdminContext(),
+            'admin' => $this->adminChrome(),
             'pageTitle' => 'Warn author — ' . board_name(),
         ]);
     }
@@ -245,16 +218,8 @@ class ReportController
     /** Warn the reported post's author and resolve the report. */
     public function warnAuthor(int $id): void
     {
-        if (!Auth::isMod()) {
-            http_response_code(403);
-            echo 'Forbidden';
-            return;
-        }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            http_response_code(419);
-            echo 'CSRF mismatch';
-            return;
-        }
+        Guard::requireModerator();
+        Guard::csrfThenReturn($this->queuePath(), 'Your security token expired — nothing was changed.');
         $reason = mb_substr(trim((string) ($_POST['reason'] ?? '')), 0, 500);
         if (mb_strlen($reason) < 3) {
             $this->warnForm($id, 'Write the warning reason (3+ chars) — the user sees it.');

@@ -1,8 +1,11 @@
-import os, re, sys, urllib.request, urllib.parse, http.cookiejar, urllib.error
+import os, re, subprocess, sys, urllib.request, urllib.parse, http.cookiejar, urllib.error
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _harness import check, finish
+from _harness import check, note, finish
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB = os.environ.get('RETROBB_TEST_DB', 'retrobb_test')
 base = os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def session():
     cj = http.cookiejar.CookieJar()
@@ -61,4 +64,160 @@ post(admin, '/admin/unban/' + m.group(1), {'csrf': csrf(html)})
 login(victim, 'dialup_dan', 'password123')
 _, _, html = get(victim, '/')
 check('login works after unban', 'dialup_dan' in html)
+
+# 3. failed logins are counted in the DB per remote address + account, so a
+#    fresh cookie jar does not reset the count (issue #33). DB truth, not page
+#    text: the user is logged in on the live board while this runs.
+def sql(q):
+    r = subprocess.run(['sh', 'scripts/mysql-sql.sh', q], cwd=ROOT, capture_output=True, text=True,
+                       env=dict(os.environ, RETROBB_TEST_DB=DB))
+    return r.stdout.strip()
+
+def key_row(login):
+    return "SUBSTRING_INDEX(ip,'|',-1)='%s'" % login
+
+def attempts(login='guest_2003'):
+    out = sql('SELECT attempts FROM login_attempts WHERE ' + key_row(login))
+    return int(out) if out else 0
+
+def clear_key(login='guest_2003'):
+    sql('DELETE FROM login_attempts WHERE ' + key_row(login))
+
+def fail_login(op, login, pw='wrong-password'):
+    _, _, html = get(op, '/login')
+    return post(op, '/login', {'csrf': csrf(html), 'login': login, 'password': pw})[1]
+
+def logged_in(op):
+    # The board index also shows Guest_2003 as a post author, so key off nav.
+    return 'Log out' in get(op, '/')[2]
+
+clear_key()
+clear_key('prune_probe')
+# a stale row the one-day prune should remove
+sql("INSERT INTO login_attempts (ip, attempts, last_at) VALUES ('192.0.2.9|prune_probe',3,NOW() - INTERVAL 2 DAY)"
+    " ON DUPLICATE KEY UPDATE last_at=NOW() - INTERVAL 2 DAY")
+
+page = fail_login(session(), 'Guest_2003')  # mixed case: key must be lowercased
+check('failure writes an attempt row keyed ip|login', attempts() == 1, 'attempts=%d' % attempts())
+check('login error is the ordinary one', 'Invalid login.' in page)
+
+for _ in range(9):
+    fail_login(session(), 'guest_2003')  # new cookie jar each time
+check('10 failures in 15 min all counted despite cleared cookies', attempts() == 10, 'attempts=%d' % attempts())
+check('one-day prune removed the stale row', sql("SELECT COUNT(*) FROM login_attempts WHERE " + key_row('prune_probe')) == '0')
+
+throttled = session()
+page = fail_login(throttled, 'guest_2003', 'password123')  # right password, blocked key
+check('blocked attempt rejects the right password', not logged_in(throttled))
+check('blocked attempt shows the ordinary login error', 'Invalid login.' in page)
+
+# a successful login clears the key
+clear_key()
+fail_login(session(), 'guest_2003')
+fail_login(session(), 'guest_2003')
+check('count grows before the successful login', attempts() == 2, 'attempts=%d' % attempts())
+ok = session()
+fail_login(ok, 'guest_2003', 'password123')
+check('successful login works once under the threshold', logged_in(ok))
+check('successful login clears the attempt row', attempts() == 0, 'attempts=%d' % attempts())
+clear_key()
+
+# 4. Refusal seam (issue #38): a stale token re-renders a page with chrome and
+# a message, and the action never runs.
+def stale(op, path, fields):
+    """POST a deliberately stale token; never follow a redirect."""
+    data = urllib.parse.urlencode(dict(fields, csrf='stale')).encode()
+    try:
+        r = op.open(urllib.request.Request(base + path, data=data))
+        return r.status, r.read().decode()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode()
+
+def refused(html):
+    text = html.lower()
+    return ('session expired' in text and '<nav' in html and 'class="footer"' in html
+            and 'csrf mismatch' not in text)
+
+home = get(admin, '/')[2]
+fm = re.search(r'/forum/([a-z0-9\-]+)\.f(\d+)', home)
+fhtml = get(admin, '/forum/%s.f%s' % (fm.group(1), fm.group(2)))[2]
+tm = re.search(r'/topic/([a-z0-9\-]+)\.t(\d+)', fhtml)
+thtml = get(admin, '/topic/%s.t%s' % (tm.group(1), tm.group(2)))[2]
+pid = re.search(r'#p(\d+)', thtml).group(1)
+
+code, body = stale(mod, '/pm/new', {'to': 'admin', 'subject': 'CSRF_PM_38', 'body': 'CSRF_PM_BODY_38'})
+check('pm csrf refusal shows chrome + message', refused(body), code)
+check('pm csrf refusal keeps the typed body', 'CSRF_PM_BODY_38' in body)
+check('pm csrf refusal sends nothing', 'CSRF_PM_38' not in get(mod, '/pm/sent')[2])
+
+code, body = stale(mod, '/post/%s/react' % pid, {'reaction': 'like'})
+check('reaction csrf refusal shows chrome + message', refused(body), code)
+
+code, body = stale(mod, '/settings/profile', {'form': 'profile', 'email': 'x@example.com', 'bio': 'CSRF_BIO_38'})
+check('profile csrf refusal shows chrome + message', refused(body), code)
+check('profile csrf refusal saves nothing', 'CSRF_BIO_38' not in get(mod, '/settings/profile')[2])
+
+code, body = stale(session(), '/login', {'login': 'admin', 'password': 'admin123', 'next': '/pm/sent'})
+check('login csrf refusal shows chrome + message', refused(body), code)
+check('login csrf refusal keeps the destination', 'name="next"' in body and '/pm/sent' in body)
+check('login csrf refusal never echoes the password', 'admin123' not in body)
+
+code, body = stale(mod, '/members/3/warn', {'reason': 'CSRF_WARN_38'})
+check('moderation csrf refusal shows chrome + message', refused(body), code)
+check('moderation csrf refusal records nothing', 'CSRF_WARN_38' not in get(mod, '/members/dialup-dan.u3')[2])
+
+# 5. A guest sent to the login form comes back to where they were going.
+class NoRedir(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, hdrs, newurl):
+        return None
+
+guest = urllib.request.build_opener(NoRedir, urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+
+def redirect_to(path):
+    try:
+        guest.open(base + path)
+        return 0, ''
+    except urllib.error.HTTPError as e:
+        return e.code, e.headers.get('Location') or ''
+
+code, loc = redirect_to('/pm/1')
+check('guest PM link returns to the message after login',
+      code == 302 and 'next=%2Fpm%2F1' in loc, '%s %s' % (code, loc))
+code, loc = redirect_to('/settings/profile')
+check('guest settings link returns after login',
+      code == 302 and 'next=%2Fsettings%2Fprofile' in loc, '%s %s' % (code, loc))
+
+# 6. A `next` value never becomes an off-site redirect (tab/control chars used
+#    to slip past the old str_starts_with test in the auth controller: the
+#    browser strips the tab and "//evil.com" becomes protocol-relative).
+def next_redirect(path, fields):
+    op = urllib.request.build_opener(NoRedir, urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    _, _, html = get(op, path.split('?')[0])
+    try:
+        op.open(urllib.request.Request(base + path, data=urllib.parse.urlencode(
+            dict(fields, csrf=csrf(html), next='/\t/evil.com')).encode()))
+        return 0, ''
+    except urllib.error.HTTPError as e:
+        return e.code, e.headers.get('Location') or ''
+
+code, loc = next_redirect('/login', {'login': 'dialup_dan', 'password': 'password123'})
+check('login next with a control character lands on the board',
+      code in (302, 303) and loc == '/', '%s %s' % (code, loc))
+
+provider = sql("SELECT `value` FROM settings WHERE `key`='captcha_provider'")
+if provider == 'honeypot':
+    sql("DELETE FROM users WHERE username='redir_probe'")
+    code, loc = next_redirect('/register?next=' + urllib.parse.quote('/\t/evil.com', safe=''), {
+        'username': 'redir_probe', 'email': 'redir_probe@example.com', 'password': 'password123'})
+    check('register next with a control character lands on the board',
+          code in (302, 303) and loc == '/', '%s %s' % (code, loc))
+    sql("DELETE FROM users WHERE username='redir_probe'")
+else:
+    note('register redirect check skipped: captcha provider is ' + (provider or '?'))
+
+# 7. No bare CSRF refusal survives outside the shared module (issue #38).
+for name in ['AuthController', 'PmController', 'ProfileController', 'ReactionController', 'ModController']:
+    src = open(os.path.join(ROOT, 'controllers', name + '.php')).read()
+    check('refusal goes through the shared module: ' + name,
+          'CSRF mismatch' not in src and '419' not in src and 'Csrf::verify' not in src)
 finish()
