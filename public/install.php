@@ -203,15 +203,11 @@ $lockWarn = false;
 $justInstalled = false;
 $showConfirm = false;
 
-$defaults = [
+$defaults = array_merge([
     'mysql_host' => '127.0.0.1', 'mysql_port' => '3306', 'mysql_db' => 'retrobb',
     'mysql_user' => 'retrobb', 'mysql_pass' => '',
-    'board_name' => 'RetroBB', 'board_tagline' => 'An old-school forum for the modern web',
-    'board_url' => '', 'default_skin' => 'classic', 'default_theme' => 'auto',
     'admin_user' => '', 'admin_email' => '',
-    'feature_alerts' => '1', 'feature_mentions' => '1', 'feature_reactions' => '1', 'feature_pms' => '1',
-    'skin_selector' => '1', 'theme_light' => '1', 'theme_dark' => '1', 'theme_auto' => '1',
-];
+], \RetroBB\Core\Settings::defaults()); // board/feature defaults live in the registry
 $values = $defaults;
 foreach (($GLOBALS['_SESSION']['rb_install'] ?? []) as $k => $v) {
     if (array_key_exists($k, $values)) {
@@ -371,19 +367,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
         foreach (['skin_selector', 'theme_light', 'theme_dark', 'theme_auto'] as $k) {
             $values[$k] = isset($_POST[$k]) ? '1' : '';
         }
-        if (!in_array($values['default_skin'], ['classic', 'midnight', 'silver'], true)) {
-            $values['default_skin'] = 'classic';
+        $values['default_skin'] = \RetroBB\Core\Settings::coerce('default_skin', $values['default_skin'])
+            ?? (string) \RetroBB\Core\Settings::DEFS['default_skin']['default'];
+        $values['default_theme'] = \RetroBB\Core\Settings::coerce('default_theme', $values['default_theme'])
+            ?? (string) \RetroBB\Core\Settings::DEFS['default_theme']['default'];
+        $nameMax = (int) \RetroBB\Core\Settings::DEFS['board_name']['text'];
+        $tagMax = (int) \RetroBB\Core\Settings::DEFS['board_tagline']['text'];
+        if (mb_strlen($values['board_name']) < 2 || mb_strlen($values['board_name']) > $nameMax) {
+            $errors[] = "Board name must be 2–{$nameMax} characters.";
         }
-        if (!in_array($values['default_theme'], ['light', 'dark', 'auto'], true)) {
-            $values['default_theme'] = 'auto';
+        if (mb_strlen($values['board_tagline']) > $tagMax) {
+            $errors[] = "Tagline must be under {$tagMax} characters.";
         }
-        if (mb_strlen($values['board_name']) < 2 || mb_strlen($values['board_name']) > 80) {
-            $errors[] = 'Board name must be 2–80 characters.';
-        }
-        if (mb_strlen($values['board_tagline']) > 200) {
-            $errors[] = 'Tagline must be under 200 characters.';
-        }
-        if ($values['board_url'] !== '' && !preg_match('#^https?://[^/]+#i', $values['board_url'])) {
+        if (\RetroBB\Core\Settings::coerce('board_url', $values['board_url']) === null) {
             $errors[] = 'Board URL must start with http:// or https:// (or leave it blank).';
         }
         // At least one theme mode must stay on, and the default must be one of them.
@@ -508,24 +504,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && !$installed) {
 
             // --- board + feature settings ---
             $pdo = Db::pdo();
-            $settings = [
-                'board_name' => mb_substr($values['board_name'], 0, 80),
-                'board_tagline' => mb_substr($values['board_tagline'], 0, 200),
-                'board_url' => rtrim($values['board_url'], '/'),
-                'default_skin' => $values['default_skin'],
-                'default_theme' => $values['default_theme'],
-                'feature_alerts' => $values['feature_alerts'] === '1' ? '1' : '0',
-                'feature_mentions' => $values['feature_mentions'] === '1' ? '1' : '0',
-                'feature_reactions' => $values['feature_reactions'] === '1' ? '1' : '0',
-                'feature_pms' => $values['feature_pms'] === '1' ? '1' : '0',
-                'skin_selector' => $values['skin_selector'] === '1' ? '1' : '0',
-                'theme_light' => $values['theme_light'] === '1' ? '1' : '0',
-                'theme_dark' => $values['theme_dark'] === '1' ? '1' : '0',
-                'theme_auto' => $values['theme_auto'] === '1' ? '1' : '0',
-            ];
             $upsert = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
-            foreach ($settings as $k => $v) {
-                $upsert->execute([$k, $v]);
+            // Every key the wizard collected: answers are written, untouched
+            // settings keep the value the board already had (migrate seeded
+            // the definition's default on a fresh install).
+            $picked = $_SESSION['rb_install'] ?? [];
+            foreach (\RetroBB\Core\Settings::defaults() as $k => $fallback) {
+                if (!array_key_exists($k, $picked)) {
+                    continue;
+                }
+                $v = \RetroBB\Core\Settings::coerce($k, (string) $picked[$k]) ?? $fallback;
+                $upsert->execute([$k, $k === 'board_url' ? rtrim($v, '/') : $v]);
             }
 
             // --- owner account ---

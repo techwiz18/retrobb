@@ -7,7 +7,6 @@
 <form method="post" action="<?= e(url('/admin/settings')) ?>" class="form" style="max-width:560px">
 <?= \RetroBB\Core\Csrf::field() ?>
 <input type="hidden" name="return" value="spam">
-<input type="hidden" name="board_name" value="<?= e($map['board_name'] ?? 'RetroBB') ?>">
 <label>CAPTCHA provider<br><select name="captcha_provider">
 <option value="honeypot" <?= $cp === 'honeypot' ? 'selected' : '' ?>>Honeypot only (invisible)</option>
 <option value="builtin" <?= $cp === 'builtin' ? 'selected' : '' ?>>Built-in math question</option>

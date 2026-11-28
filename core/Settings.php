@@ -9,40 +9,47 @@ namespace RetroBB\Core;
  * setting means adding one entry here — the migrator, feature flags and
  * per-page limits all read this list.
  *
- * Rule keys: default (seeded value), int [min,max], bool, enum [allowed],
- * text (max chars), url, feature (alias feature() accepts).
+ * Rule keys: page (AdminCP page that owns the key), default (seeded value),
+ * int [min,max], bool, enum [allowed], text (max chars), url, feature
+ * (alias feature() accepts).
  */
 final class Settings
 {
     public const DEFS = [
-        'board_name' => ['default' => 'RetroBB', 'text' => 80],
-        'board_tagline' => ['default' => 'An old-school forum for the modern web', 'text' => 200],
-        'board_url' => ['default' => '', 'url' => true],
-        'default_skin' => ['default' => 'classic', 'enum' => ['classic', 'midnight', 'silver']],
-        'default_theme' => ['default' => 'auto', 'enum' => ['light', 'dark', 'auto']],
-        'posts_per_page' => ['default' => '15', 'int' => [5, 50]],
-        'topics_per_page' => ['default' => '25', 'int' => [5, 50]],
-        'flood_seconds' => ['default' => '30', 'int' => [0, 3600]],
-        'edit_window_mins' => ['default' => '30', 'int' => [0, 3600]],
-        'delete_window_mins' => ['default' => '30', 'int' => [0, 3600]],
-        'captcha_provider' => ['default' => 'honeypot', 'enum' => ['honeypot', 'builtin', 'turnstile', 'hcaptcha', 'recaptcha']],
-        'captcha_sitekey' => ['default' => '', 'text' => 500],
-        'captcha_secret' => ['default' => '', 'text' => 500],
-        'mail_from' => ['default' => '', 'text' => 500],
-        'feature_avatars_upload' => ['default' => '1', 'bool' => true, 'feature' => 'avatars_upload'],
-        'feature_avatars_link' => ['default' => '1', 'bool' => true, 'feature' => 'avatars_link'],
-        'avatar_max_kb' => ['default' => '100', 'int' => [10, 2048]],
-        'avatar_max_width' => ['default' => '200', 'int' => [16, 2000]],
-        'avatar_max_height' => ['default' => '200', 'int' => [16, 2000]],
-        'feature_alerts' => ['default' => '1', 'bool' => true, 'feature' => 'alerts'],
-        'feature_pms' => ['default' => '1', 'bool' => true, 'feature' => 'pms'],
-        'feature_reactions' => ['default' => '1', 'bool' => true, 'feature' => 'reactions'],
-        'feature_mentions' => ['default' => '1', 'bool' => true, 'feature' => 'mentions'],
-        'skin_selector' => ['default' => '1', 'bool' => true, 'feature' => 'skin_selector'],
-        'theme_light' => ['default' => '1', 'bool' => true],
-        'theme_dark' => ['default' => '1', 'bool' => true],
-        'theme_auto' => ['default' => '1', 'bool' => true],
+        'board_name' => ['page' => 'settings', 'default' => 'RetroBB', 'text' => 80],
+        'board_tagline' => ['page' => 'settings', 'default' => 'An old-school forum for the modern web', 'text' => 200],
+        'board_url' => ['page' => 'settings', 'default' => '', 'url' => true],
+        'default_skin' => ['page' => 'features', 'default' => 'classic', 'enum' => ['classic', 'midnight', 'silver']],
+        'default_theme' => ['page' => 'features', 'default' => 'auto', 'enum' => ['light', 'dark', 'auto']],
+        'posts_per_page' => ['page' => 'settings', 'default' => '15', 'int' => [5, 50]],
+        'topics_per_page' => ['page' => 'settings', 'default' => '25', 'int' => [5, 50]],
+        'flood_seconds' => ['page' => 'settings', 'default' => '30', 'int' => [0, 3600]],
+        'edit_window_mins' => ['page' => 'settings', 'default' => '30', 'int' => [0, 3600]],
+        'delete_window_mins' => ['page' => 'settings', 'default' => '30', 'int' => [0, 3600]],
+        'captcha_provider' => ['page' => 'spam', 'default' => 'honeypot', 'enum' => ['honeypot', 'builtin', 'turnstile', 'hcaptcha', 'recaptcha']],
+        'captcha_sitekey' => ['page' => 'spam', 'default' => '', 'text' => 500],
+        'captcha_secret' => ['page' => 'spam', 'default' => '', 'text' => 500],
+        'mail_from' => ['page' => 'settings', 'default' => '', 'text' => 500],
+        'feature_avatars_upload' => ['page' => 'features', 'default' => '1', 'bool' => true, 'feature' => 'avatars_upload'],
+        'feature_avatars_link' => ['page' => 'features', 'default' => '1', 'bool' => true, 'feature' => 'avatars_link'],
+        'avatar_max_kb' => ['page' => 'settings', 'default' => '100', 'int' => [10, 2048]],
+        'avatar_max_width' => ['page' => 'settings', 'default' => '200', 'int' => [16, 2000]],
+        'avatar_max_height' => ['page' => 'settings', 'default' => '200', 'int' => [16, 2000]],
+        'feature_alerts' => ['page' => 'features', 'default' => '1', 'bool' => true, 'feature' => 'alerts'],
+        'feature_pms' => ['page' => 'features', 'default' => '1', 'bool' => true, 'feature' => 'pms'],
+        'feature_reactions' => ['page' => 'features', 'default' => '1', 'bool' => true, 'feature' => 'reactions'],
+        'feature_mentions' => ['page' => 'features', 'default' => '1', 'bool' => true, 'feature' => 'mentions'],
+        'skin_selector' => ['page' => 'features', 'default' => '1', 'bool' => true, 'feature' => 'skin_selector'],
+        'theme_light' => ['page' => 'features', 'default' => '1', 'bool' => true],
+        'theme_dark' => ['page' => 'features', 'default' => '1', 'bool' => true],
+        'theme_auto' => ['page' => 'features', 'default' => '1', 'bool' => true],
     ];
+
+    /** Keys one AdminCP page owns: the only rows its form may write. */
+    public static function forPage(string $page): array
+    {
+        return array_filter(self::DEFS, fn(array $def) => ($def['page'] ?? '') === $page);
+    }
 
     /** key => seeded default, i.e. the rows a fresh board has. */
     public static function defaults(): array
