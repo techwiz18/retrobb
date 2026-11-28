@@ -14,10 +14,7 @@ class Moderation
     {
         $reason = mb_substr(trim($reason), 0, 500);
         [$target, $actorSuper] = self::staffContext($userId, $modId);
-        if ($target === 'admin') {
-            return false;
-        }
-        if ($target === 'mod' && !$actorSuper) {
+        if (self::staffTargetRefused($target, $actorSuper)) {
             return false;
         }
         try {
@@ -66,10 +63,7 @@ class Moderation
     public static function ban(int $userId, int $modId, string $reason, ?int $days): int
     {
         [$target, $actorSuper] = self::staffContext($userId, $modId);
-        if ($target === 'admin') {
-            return 0;
-        }
-        if ($target === 'mod' && !$actorSuper) {
+        if (self::staffTargetRefused($target, $actorSuper)) {
             return 0;
         }
         $expires = $days === null ? null : date('Y-m-d H:i:s', time() + $days * 86400);
@@ -161,6 +155,21 @@ class Moderation
             }
         }
         return null;
+    }
+
+    /** Whether the viewer may warn or ban this member: the target shield
+        warn() and ban() enforce, exposed so the profile buttons agree. */
+    public static function canPunish(int $userId): bool
+    {
+        $me = \RetroBB\Core\Auth::user();
+        [$target, $actorSuper] = self::staffContext($userId, (int) ($me['id'] ?? 0));
+        return !self::staffTargetRefused($target, $actorSuper);
+    }
+
+    /** Never admins; staff targets need a super actor. */
+    private static function staffTargetRefused(string $target, bool $actorSuper): bool
+    {
+        return $target === 'admin' || ($target === 'mod' && !$actorSuper);
     }
 
     /** Target group + whether the actor is super. Pre-tier schemas lack the

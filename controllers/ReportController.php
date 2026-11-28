@@ -55,9 +55,9 @@ class ReportController
         View::render('report/queue', [
             'reports' => $data['reports'], 'total' => $data['total'],
             'page' => $page, 'pages' => $pages,
-            // AdminCP entry (/admin/reports) keeps the admin chrome; the
-            // ModCP path keeps the mod chrome. Same content either way.
-            'admin' => $this->isAdminContext(),
+            // AdminCP entry (/admin/reports) keeps the admin chrome for
+            // admins; moderators get the ModCP chrome they can navigate.
+            'admin' => $this->adminChrome(),
             'pageTitle' => 'Mod queue — ' . board_name(),
         ]);
     }
@@ -72,6 +72,12 @@ class ReportController
         $ref = $_SERVER['HTTP_REFERER'] ?? '';
         $path = is_string($ref) && $ref !== '' ? (string) (parse_url($ref, PHP_URL_PATH) ?? '') : '';
         return str_starts_with($path, '/admin/');
+    }
+
+    /** Admin chrome only when the viewer can open the AdminCP links in it. */
+    private function adminChrome(): bool
+    {
+        return $this->isAdminContext() && Auth::isAdmin();
     }
 
     /** Back to the queue the caller came from (AdminCP or ModCP). */
@@ -166,7 +172,7 @@ class ReportController
         $topic = $post ? \RetroBB\Models\Topic::find((int) $post['topic_id']) : null;
         View::render('report/resolve', [
             'report' => $rep, 'post' => $post, 'topic' => $topic, 'error' => $error,
-            'admin' => $this->isAdminContext(),
+            'admin' => $this->adminChrome(),
             'pageTitle' => 'Resolve report — ' . board_name(),
         ]);
     }
@@ -215,7 +221,7 @@ class ReportController
         $topic = $post ? \RetroBB\Models\Topic::find((int) $post['topic_id']) : null;
         View::render('report/warn', [
             'report' => $rep, 'post' => $post, 'topic' => $topic, 'error' => $error,
-            'admin' => $this->isAdminContext(),
+            'admin' => $this->adminChrome(),
             'pageTitle' => 'Warn author — ' . board_name(),
         ]);
     }
