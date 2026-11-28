@@ -55,6 +55,7 @@ SUITES = [
     'rebuildcheck',
     'postbodycheck',
     'hostcheck',
+    'subpathcheck',
     'installcheck',
     'bincheck',
 ]
