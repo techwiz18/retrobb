@@ -44,7 +44,7 @@
       <?php \RetroBB\Core\Hooks::render_template_hook('postbit_user', ['post' => $p]); ?>
       <small class="postmeta"><?= (int) $p['user_posts'] ?> posts<br>Joined <?= e(substr($p['user_since'], 0, 10)) ?></small>
     </div>
-    <div class="postright"><?= \RetroBB\Core\BBCode::needsRepair($p['body_html']) ? \RetroBB\Core\BBCode::toHtml($p['body_bbcode']) : $p['body_html'] ?><?php $editedTs = strtotime((string) ($p['edited_at'] ?? '')); ?><?php if ($editedTs > 0): ?><div class="editedmark">Edited <?= e(time_ago($p['edited_at'])) ?></div><?php endif; ?></div>
+    <div class="postright"><?= \RetroBB\Core\PostBody::display($p['body_bbcode'], $p['body_html']) ?><?php $editedTs = strtotime((string) ($p['edited_at'] ?? '')); ?><?php if ($editedTs > 0): ?><div class="editedmark">Edited <?= e(time_ago($p['edited_at'])) ?></div><?php endif; ?></div>
   </div>
   <?php if ($me && feature('reactions')): ?>
   <?php $rc = $reactions[(int) $p['id']] ?? []; ?>

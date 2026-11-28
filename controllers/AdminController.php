@@ -4,33 +4,14 @@ declare(strict_types=1);
 namespace RetroBB\Controllers;
 
 use RetroBB\Core\Auth;
-use RetroBB\Core\Csrf;
 use RetroBB\Core\Db;
+use RetroBB\Core\Guard;
 use RetroBB\Core\Slug;
 use RetroBB\Core\View;
 use RetroBB\Models\User;
 
 class AdminController
 {
-    private function guard(): void
-    {
-        if (!Auth::isAdmin()) {
-            http_response_code(403);
-            View::render('errors/403', ['pageTitle' => 'Forbidden']);
-            exit;
-        }
-    }
-
-    /** Super-only: staff management and site-critical actions. */
-    private function needSuper(): void
-    {
-        if (!Auth::isSuper()) {
-            http_response_code(403);
-            View::render('errors/403', ['pageTitle' => 'Forbidden']);
-            exit;
-        }
-    }
-
     private function cats(): array
     {
         $pdo = Db::pdo();
@@ -50,7 +31,7 @@ class AdminController
 
     public function index(): void
     {
-        $this->guard();
+        Guard::requireAdmin();
         $active = \RetroBB\Models\Moderation::activeBanCount();
         View::render('admin/dashboard', [
             'stats' => \RetroBB\Models\Board::stats(),
@@ -71,31 +52,31 @@ class AdminController
 
     public function settingsPage(): void
     {
-        $this->needSuper();
+        Guard::requireSuper();
         View::render('admin/settings', ['settings' => $this->settingsRows(), 'pageTitle' => 'Settings — AdminCP']);
     }
 
     public function featuresPage(): void
     {
-        $this->needSuper();
+        Guard::requireSuper();
         View::render('admin/features', ['settings' => $this->settingsRows(), 'pageTitle' => 'Features — AdminCP']);
     }
 
     public function spamPage(): void
     {
-        $this->needSuper();
+        Guard::requireSuper();
         View::render('admin/spam', ['settings' => $this->settingsRows(), 'pageTitle' => 'Spam protection — AdminCP']);
     }
 
     public function structurePage(): void
     {
-        $this->guard();
+        Guard::requireAdmin();
         View::render('admin/structure', ['cats' => $this->cats(), 'pageTitle' => 'Structure — AdminCP']);
     }
 
     public function bansPage(): void
     {
-        $this->guard();
+        Guard::requireAdmin();
         $perPage = 50;
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $pages = max(1, (int) ceil(\RetroBB\Models\Moderation::banCount() / $perPage));
@@ -112,7 +93,7 @@ class AdminController
 
     public function usersPage(): void
     {
-        $this->guard();
+        Guard::requireAdmin();
         View::render('admin/users', ['users' => User::all(50), 'pageTitle' => 'Users — AdminCP']);
     }
 
@@ -120,7 +101,7 @@ class AdminController
      *  site owner, so this page is super-only. */
     public function pluginsPage(): void
     {
-        $this->needSuper();
+        Guard::requireSuper();
         View::render('admin/plugins', ['plugins' => $this->pluginList(), 'pageTitle' => 'Plugins — AdminCP']);
     }
 
@@ -162,10 +143,8 @@ class AdminController
 
     public function pluginToggle(string $name): void
     {
-        $this->needSuper();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireSuper();
+        Guard::csrf('/admin');
         $name = preg_replace('/[^A-Za-z0-9_-]/', '', $name);
         if ($name === '' || !is_dir(dirname(__DIR__) . '/plugins/' . $name)) {
             redirect('/admin/plugins');
@@ -206,10 +185,8 @@ class AdminController
         forgets the row plus its "<name>.*" settings. Files stay put. */
     public function pluginUninstall(string $name): void
     {
-        $this->needSuper();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireSuper();
+        Guard::csrf('/admin');
         $name = preg_replace('/[^A-Za-z0-9_-]/', '', $name);
         $dir = dirname(__DIR__) . '/plugins/' . $name;
         if ($name === '' || !is_dir($dir)) {
@@ -260,7 +237,7 @@ class AdminController
 
     public function modlogPage(): void
     {
-        $this->guard();
+        Guard::requireAdmin();
         $modpage = max(1, (int) ($_GET['modpage'] ?? 1));
         $modlog = \RetroBB\Core\Modlog::latest($modpage, 50);
         View::render('admin/modlog', [
@@ -272,10 +249,8 @@ class AdminController
 
     public function saveSettings(): void
     {
-        $this->needSuper();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireSuper();
+        Guard::csrf('/admin');
         $allowed = ['board_name', 'board_tagline', 'board_url', 'posts_per_page', 'topics_per_page',
             'flood_seconds', 'edit_window_mins', 'delete_window_mins', 'captcha_provider', 'captcha_sitekey', 'captcha_secret', 'mail_from',
             'avatar_max_kb', 'avatar_max_width', 'avatar_max_height'];
@@ -311,10 +286,8 @@ class AdminController
 
     public function saveFeatures(): void
     {
-        $this->needSuper();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireSuper();
+        Guard::csrf('/admin');
         $pdo = Db::pdo();
         $upsert = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
         foreach (['feature_alerts', 'feature_mentions', 'feature_reactions', 'feature_pms', 'feature_avatars_upload', 'feature_avatars_link', 'skin_selector'] as $k) {
@@ -365,10 +338,8 @@ class AdminController
 
     public function addForum(): void
     {
-        $this->guard();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireAdmin();
+        Guard::csrf('/admin');
         $pdo = Db::pdo();
         $cat = (int) ($_POST['category_id'] ?? 0);
         $name = trim((string) ($_POST['name'] ?? ''));
@@ -381,10 +352,8 @@ class AdminController
 
     public function addCategory(): void
     {
-        $this->guard();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireAdmin();
+        Guard::csrf('/admin');
         $title = trim((string) ($_POST['title'] ?? ''));
         if ($title !== '') {
             Db::pdo()->prepare('INSERT INTO categories (title, sort) VALUES (?,0)')->execute([$title]);
@@ -394,10 +363,8 @@ class AdminController
 
     public function setGroup(int $id): void
     {
-        $this->needSuper();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireSuper();
+        Guard::csrf('/admin');
         // never demote yourself
         if (Auth::user() && (int) Auth::user()['id'] === $id) {
             redirect('/admin');
@@ -410,10 +377,8 @@ class AdminController
     /** Grant/revoke the super tier. Supers manage supers, never themselves. */
     public function superToggle(int $id): void
     {
-        $this->needSuper();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireSuper();
+        Guard::csrf('/admin');
         $me = Auth::user();
         if ($me && (int) $me['id'] === $id) {
             redirect('/admin/users');
@@ -430,30 +395,24 @@ class AdminController
 
     public function moveCategory(int $id, string $dir): void
     {
-        $this->guard();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireAdmin();
+        Guard::csrf('/admin');
         \RetroBB\Models\Board::moveCategory($id, $dir === 'up' ? -1 : 1);
         redirect('/admin/structure');
     }
 
     public function moveForum(int $id, string $dir): void
     {
-        $this->guard();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireAdmin();
+        Guard::csrf('/admin');
         \RetroBB\Models\Board::moveForum($id, $dir === 'up' ? -1 : 1);
         redirect('/admin/structure');
     }
 
     public function unban(int $banId): void
     {
-        $this->guard();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireAdmin();
+        Guard::csrf('/admin');
         \RetroBB\Models\Moderation::unban($banId, (int) Auth::user()['id'], (string) ($_POST['reason'] ?? ''));
         redirect('/admin/bans');
     }
@@ -468,10 +427,8 @@ class AdminController
      */
     public function repairHtml(): void
     {
-        $this->needSuper();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireSuper();
+        Guard::csrf('/admin');
         try {
             @set_time_limit(120);
             $cursors = $_SESSION['html_repair_cursor'] ?? [];
@@ -507,10 +464,8 @@ class AdminController
     /** One-click database updates after a file upgrade (mirrors bin/migrate.php). */
     public function runMigrate(): void
     {
-        $this->needSuper();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireSuper();
+        Guard::csrf('/admin');
         try {
             @set_time_limit(120);
             if (!defined('RETROBB_INTERNAL_MIGRATE')) {
@@ -525,8 +480,7 @@ class AdminController
         } catch (\Throwable $t) {
             ob_end_clean();
             error_log('RetroBB web migrate failed: ' . $t->getMessage());
-            $_SESSION['flash_error'] = 'Database updates failed — see the PHP error log, or run php bin/migrate.php by hand.';
-            redirect('/admin');
+            Guard::flashThenReturn('/admin', 'Database updates failed — see the PHP error log, or run php bin/migrate.php by hand.');
         }
         \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'migrate', 'board', 0, 'database updates via AdminCP');
         redirect('/admin?migrated=1');
@@ -534,22 +488,18 @@ class AdminController
 
     public function editCategoryForm(int $id): void
     {
-        $this->guard();
+        Guard::requireAdmin();
         $cat = \RetroBB\Models\Board::category($id);
         if (!$cat) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/admin/category/' . $id . '/edit']);
-            return;
+            Guard::notFound('/admin/category/' . $id . '/edit');
         }
         View::render('admin/edit-category', ['cat' => $cat, 'error' => null, 'pageTitle' => 'Edit category — AdminCP']);
     }
 
     public function renameCategory(int $id): void
     {
-        $this->guard();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireAdmin();
+        Guard::csrf('/admin');
         $res = \RetroBB\Models\Board::renameCategory($id, (string) ($_POST['title'] ?? ''));
         if (!$res['ok']) {
             $cat = \RetroBB\Models\Board::category($id);
@@ -566,15 +516,12 @@ class AdminController
 
     public function deleteCategory(int $id): void
     {
-        $this->guard();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireAdmin();
+        Guard::csrf('/admin');
         $cat = \RetroBB\Models\Board::category($id);
         $res = \RetroBB\Models\Board::deleteCategory($id);
         if (!$res['ok']) {
-            $_SESSION['flash_error'] = $res['error'];
-            redirect('/admin/structure');
+            Guard::flashThenReturn('/admin/structure', $res['error']);
         }
         \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'delete', 'category', $id, $cat ? mb_substr($cat['title'], 0, 150) : '');
         $_SESSION['flash_ok'] = 'Category deleted.';
@@ -583,12 +530,10 @@ class AdminController
 
     public function editForumForm(int $id): void
     {
-        $this->guard();
+        Guard::requireAdmin();
         $forum = \RetroBB\Models\Board::forum($id);
         if (!$forum) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/admin/forum/' . $id . '/edit']);
-            return;
+            Guard::notFound('/admin/forum/' . $id . '/edit');
         }
         View::render('admin/edit-forum', [
             'forum' => $forum, 'cats' => $this->cats(), 'error' => null,
@@ -598,10 +543,8 @@ class AdminController
 
     public function renameForum(int $id): void
     {
-        $this->guard();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireAdmin();
+        Guard::csrf('/admin');
         $res = \RetroBB\Models\Board::renameForum(
             $id,
             (string) ($_POST['name'] ?? ''),
@@ -626,15 +569,12 @@ class AdminController
 
     public function deleteForum(int $id): void
     {
-        $this->guard();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin');
-        }
+        Guard::requireAdmin();
+        Guard::csrf('/admin');
         $forum = \RetroBB\Models\Board::forum($id);
         $res = \RetroBB\Models\Board::deleteForum($id);
         if (!$res['ok']) {
-            $_SESSION['flash_error'] = $res['error'];
-            redirect('/admin/structure');
+            Guard::flashThenReturn('/admin/structure', $res['error']);
         }
         \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'delete', 'forum', $id, $forum ? mb_substr($forum['name'], 0, 150) : '');
         $_SESSION['flash_ok'] = 'Forum deleted.';

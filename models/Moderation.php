@@ -135,7 +135,7 @@ class Moderation
             return $action === 'edit' ? 'You can only edit your own posts.' : 'You can only delete your own posts.';
         }
         if ($action === 'edit') {
-            $mins = (int) setting('edit_window_mins', '30');
+            $mins = \RetroBB\Core\Settings::int('edit_window_mins');
             if ($mins > 0 && (time() - strtotime((string) $post['created_at'])) > $mins * 60) {
                 return 'The edit window (' . $mins . ' min) has expired.';
             }
@@ -144,7 +144,7 @@ class Moderation
         if ((int) ($post['locked'] ?? 0) === 1) {
             return 'This topic is locked.';
         }
-        $mins = (int) setting('delete_window_mins', '30');
+        $mins = \RetroBB\Core\Settings::int('delete_window_mins');
         if ($mins > 0 && (time() - strtotime((string) $post['created_at'])) > $mins * 60) {
             return 'The delete window (' . $mins . ' min) has expired.';
         }

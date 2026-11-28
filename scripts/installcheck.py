@@ -9,7 +9,7 @@ Two scenarios:
    zero users still counts as installed.
 """
 import http.cookiejar
-import os, re, subprocess, sys, time, urllib.parse, urllib.request, urllib.error
+import json, os, re, subprocess, sys, time, urllib.parse, urllib.request, urllib.error
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _harness import check, finish
 
@@ -124,6 +124,47 @@ try:
     # migrate but leave users empty, then add content: still installed
     sh('docker', 'run', '--rm', '-v', ROOT + ':/app', '-v', CFG + ':/app/config.php',
        '-w', '/app', '--network', 'retrobb-net', 'retrobb-php', 'php', 'bin/migrate.php')
+
+    # --- settings registry parity (issue #44) ------------------------------
+    # Golden snapshot of the rows a fresh board has always produced; the
+    # registry is only correct if it seeds exactly this.
+    EXPECTED = {
+        'avatar_max_height': '200', 'avatar_max_kb': '100', 'avatar_max_width': '200',
+        'board_name': 'RetroBB', 'board_tagline': 'An old-school forum for the modern web',
+        'board_url': '', 'captcha_provider': 'honeypot', 'captcha_secret': '',
+        'captcha_sitekey': '', 'default_skin': 'classic', 'default_theme': 'auto',
+        'delete_window_mins': '30', 'edit_window_mins': '30',
+        'feature_alerts': '1', 'feature_avatars_link': '1', 'feature_avatars_upload': '1',
+        'feature_mentions': '1', 'feature_pms': '1', 'feature_reactions': '1',
+        'flood_seconds': '30', 'mail_from': '', 'posts_per_page': '15',
+        'skin_selector': '1', 'theme_auto': '1', 'theme_dark': '1', 'theme_light': '1',
+        'topics_per_page': '25',
+    }
+    raw = sh('docker', 'exec', 'retrobb-mysql', 'mysql', '-uroot', '-proot', '-N', '-B', DB,
+             '-e', "SELECT `key`, `value` FROM settings").stdout
+    rows = dict(line.split('\t', 1) for line in raw.splitlines() if '\t' in line)
+    check('fresh migrate seeds exactly the golden settings', rows == EXPECTED,
+          str(sorted(set(rows.items()) ^ set(EXPECTED.items()))))
+
+    def php(code):
+        r = sh('docker', 'run', '--rm', '-v', ROOT + ':/app', '-v', CFG + ':/app/config.php',
+               '-w', '/app', '--network', 'retrobb-net', 'retrobb-php', 'php', '-r', code)
+        return r.stdout.strip()
+
+    reg = php('require "core/Settings.php"; echo json_encode(\RetroBB\Core\Settings::defaults());')
+    check('registry defaults are the fresh-board rows', reg and json.loads(reg) == EXPECTED, reg[:200])
+    check('registry coerce clamps a per-page limit',
+          php('require "core/Settings.php"; echo \RetroBB\Core\Settings::coerce("posts_per_page", "999");') == '50')
+    check('registry coerce falls back for a non-numeric limit',
+          php('require "core/Settings.php"; echo \RetroBB\Core\Settings::coerce("posts_per_page", "abc");') == '15')
+    check('registry coerce rejects an unknown captcha provider',
+          php('require "core/Settings.php"; var_export(\RetroBB\Core\Settings::coerce("captcha_provider", "bogus"));') == 'NULL')
+    check('registry coerce truncates a long tagline',
+          php('require "core/Settings.php"; echo strlen(\RetroBB\Core\Settings::coerce("board_tagline", str_repeat("x", 250)));') == '200')
+    check('registry maps feature aliases to keys',
+          php('require "core/Settings.php"; echo implode(",", [\RetroBB\Core\Settings::featureKey("alerts"), \RetroBB\Core\Settings::featureKey("skin_selector"), \RetroBB\Core\Settings::featureKey("brand_new")]);')
+          == 'feature_alerts,skin_selector,feature_brand_new')
+
     sh('docker', 'exec', 'retrobb-mysql', 'mysql', '-uroot', '-proot', '-N', '-B', DB,
        '-e', "INSERT INTO categories (title, sort) VALUES ('Existing',0)")
     code, body, _ = req(new_opener(), FRESH, '/install.php')

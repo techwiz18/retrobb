@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/Settings.php';
+
 // Global helpers (no namespace for brevity in views).
 
 /** Current package version. Bump on release; -dev/-beta suffixes sort below releases. */
@@ -224,18 +226,12 @@ function update_check(): array
     return [$cached !== '' ? $cached : null, null];
 }
 
-/** Board-wide feature flag. Unknown features default ON (opt-out model). */
+/** Board-wide feature flag (definitions in core/Settings.php). Unknown features default ON (opt-out model). */
 function feature(string $name): bool
 {
-    $map = [
-        'alerts' => 'feature_alerts',
-        'pms' => 'feature_pms',
-        'reactions' => 'feature_reactions',
-        'mentions' => 'feature_mentions',
-        'skin_selector' => 'skin_selector',
-    ];
-    $key = $map[$name] ?? ('feature_' . $name);
-    return setting($key, '1') === '1';
+    $key = \RetroBB\Core\Settings::featureKey($name);
+    $default = \RetroBB\Core\Settings::defaults()[$key] ?? '1';
+    return setting($key, $default) === '1';
 }
 
 /** Which theme modes (light/dark/auto) the owner lets users pick. Never empty. */
@@ -390,7 +386,7 @@ function php_shorthand_bytes(string $v): int
  */
 function avatar_limits(): array
 {
-    $bytes = max(10, min(2048, (int) setting('avatar_max_kb', '100'))) * 1024;
+    $bytes = \RetroBB\Core\Settings::int('avatar_max_kb') * 1024;
     foreach ([ini_get('upload_max_filesize'), ini_get('post_max_size')] as $h) {
         $cap = is_string($h) ? php_shorthand_bytes($h) : 0;
         if ($cap > 0) {
@@ -399,8 +395,8 @@ function avatar_limits(): array
     }
     return [
         'bytes' => $bytes,
-        'width' => max(16, min(2000, (int) setting('avatar_max_width', '200'))),
-        'height' => max(16, min(2000, (int) setting('avatar_max_height', '200'))),
+        'width' => \RetroBB\Core\Settings::int('avatar_max_width'),
+        'height' => \RetroBB\Core\Settings::int('avatar_max_height'),
     ];
 }
 

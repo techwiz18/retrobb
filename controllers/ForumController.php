@@ -29,7 +29,7 @@ class ForumController
             redirect($canonical, 301);
         }
         $page = max(1, (int) ($_GET['page'] ?? 1));
-        $perPage = max(5, min(50, (int) setting('topics_per_page', '25')));
+        $perPage = \RetroBB\Core\Settings::int('topics_per_page');
         $data = Board::topics($id, $page, $perPage);
         $pages = (int) ceil($data['total'] / $perPage);
         $me = \RetroBB\Core\Auth::user();

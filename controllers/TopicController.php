@@ -63,7 +63,7 @@ class TopicController
         } elseif (isset($_GET['page'])) {
             $page = max(1, (int) $_GET['page']);
         }
-        $perPage = max(5, min(50, (int) setting('posts_per_page', '15')));
+        $perPage = \RetroBB\Core\Settings::int('posts_per_page');
         $data = Topic::posts($id, $page, $perPage);
         $pages = max(1, (int) ceil($data['total'] / $perPage));
         $forum = Board::forum((int) $topic['forum_id']);
@@ -412,7 +412,7 @@ class TopicController
             \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'retitle', 'topic', (int) $post['topic_id'], mb_substr((string) $_POST['title'], 0, 150));
             $post['topic_slug'] = \RetroBB\Core\Slug::make((string) $_POST['title']);
         }
-        \RetroBB\Models\Post::updateBody($postId, $body);
+        \RetroBB\Core\PostBody::update($postId, $body);
         \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'edit', 'post', $postId, "topic {$post['topic_id']}");
         redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
     }
