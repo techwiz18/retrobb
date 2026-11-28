@@ -53,6 +53,7 @@ SUITES = [
     'viewcount',
     'viewstrict',
     'rebuildcheck',
+    'postbodycheck',
     'hostcheck',
     'installcheck',
     'bincheck',

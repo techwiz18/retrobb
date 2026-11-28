@@ -401,7 +401,7 @@ class TopicController
             \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'retitle', 'topic', (int) $post['topic_id'], mb_substr((string) $_POST['title'], 0, 150));
             $post['topic_slug'] = \RetroBB\Core\Slug::make((string) $_POST['title']);
         }
-        \RetroBB\Models\Post::updateBody($postId, $body);
+        \RetroBB\Core\PostBody::update($postId, $body);
         \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'edit', 'post', $postId, "topic {$post['topic_id']}");
         redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
     }
