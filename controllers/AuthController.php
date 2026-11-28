@@ -17,7 +17,9 @@ class AuthController
         // is one REMOTE_ADDR, so a bare-IP bucket lets 10 bad guesses lock
         // out all logins (finding: audit). An attacker can still lock one
         // known account — standard trade-off, 10 tries is the cost.
-        return $ip . '|' . mb_strtolower(trim($login));
+        // Bound to the column width (191) or a long email login would make the
+        // insert throw and the throttle silently stop counting.
+        return mb_substr($ip . '|' . mb_strtolower(trim($login)), 0, 191);
     }
 
     private static function loginBlocked(string $key): bool
@@ -46,7 +48,7 @@ class AuthController
         }
         try {
             $pdo = \RetroBB\Core\Db::pdo();
-            $pdo->prepare('INSERT INTO login_attempts (ip, attempts, last_at) VALUES (?,1,NOW()) ON DUPLICATE KEY UPDATE attempts=attempts+1, last_at=NOW()')->execute([$ip]);
+            $pdo->prepare('INSERT INTO login_attempts (ip, attempts, last_at) VALUES (?,1,NOW()) ON DUPLICATE KEY UPDATE attempts=attempts+1, last_at=NOW()')->execute([$key]);
             $pdo->exec("DELETE FROM login_attempts WHERE last_at < NOW() - INTERVAL 1 DAY");
         } catch (\Throwable) {
             // Pre-migration boards keep the session throttle only.
@@ -59,7 +61,7 @@ class AuthController
             return;
         }
         try {
-            \RetroBB\Core\Db::pdo()->prepare('DELETE FROM login_attempts WHERE ip=?')->execute([$ip]);
+            \RetroBB\Core\Db::pdo()->prepare('DELETE FROM login_attempts WHERE ip=?')->execute([$key]);
         } catch (\Throwable) {
         }
     }
