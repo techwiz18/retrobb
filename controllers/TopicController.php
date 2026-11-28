@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace RetroBB\Controllers;
 
 use RetroBB\Core\Auth;
-use RetroBB\Core\Csrf;
+use RetroBB\Core\Guard;
 use RetroBB\Core\Slug;
 use RetroBB\Core\View;
 use RetroBB\Models\Board;
@@ -15,18 +15,15 @@ class TopicController
 {
     public function show(string $segment): void
     {
+        $path = '/topic/' . $segment;
         $parsed = Slug::parseSuffixed($segment, 't');
         if (!$parsed) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/topic/' . $segment]);
-            return;
+            Guard::notFound($path);
         }
         [$slug, $id] = $parsed;
         $topic = Topic::find($id);
         if (!$topic) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/topic/' . $segment]);
-            return;
+            Guard::notFound($path);
         }
         // "Moved" ghosts redirect straight to the topic's new home.
         if (!empty($topic['moved_to_id'])) {
@@ -105,33 +102,22 @@ class TopicController
 
     public function newForm(int $forumId): void
     {
-        if (!Auth::check()) {
-            redirect('/login?next=' . urlencode('/new-topic/' . $forumId));
-        }
+        Guard::requireLogin('/new-topic/' . $forumId);
         $forum = Board::forum($forumId);
         if (!$forum) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/new-topic/' . $forumId]);
-            return;
+            Guard::notFound('/new-topic/' . $forumId);
         }
         View::render('topic/new', ['forum' => $forum, 'pageTitle' => 'New topic — ' . board_name(), 'error' => null]);
     }
 
     public function newSubmit(int $forumId): void
     {
-        if (!Auth::check()) {
-            redirect('/login');
-        }
+        Guard::requireLogin('/new-topic/' . $forumId);
         $forum = Board::forum($forumId);
         if (!$forum) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/new-topic/' . $forumId]);
-            return;
+            Guard::notFound('/new-topic/' . $forumId);
         }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            View::render('topic/new', ['forum' => $forum, 'pageTitle' => 'New topic', 'error' => 'Session expired. Try again.']);
-            return;
-        }
+        Guard::csrf(Slug::forumUrl($forum));
         $res = Topic::create($forumId, (int) Auth::user()['id'], (string) ($_POST['title'] ?? ''), (string) ($_POST['body'] ?? ''));
         if (!$res['ok']) {
             View::render('topic/new', ['forum' => $forum, 'pageTitle' => 'New topic', 'error' => $res['error']]);
@@ -142,42 +128,33 @@ class TopicController
 
     public function reply(string $segment): void
     {
-        if (!Auth::check()) {
-            redirect('/login');
-        }
+        Guard::requireLogin('/topic/' . $segment);
         $parsed = Slug::parseSuffixed($segment, 't');
         if (!$parsed) {
-            redirect('/');
+            Guard::notFound('/topic/' . $segment);
         }
         [, $id] = $parsed;
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect(Slug::topicUrl(Topic::find($id) ?? ['id' => $id, 'title' => 'topic']));
-        }
-        $res = Topic::reply($id, (int) Auth::user()['id'], (string) ($_POST['body'] ?? ''));
         $topic = Topic::find($id);
+        if (!$topic) {
+            Guard::notFound('/topic/' . $segment);
+        }
+        Guard::csrf(Slug::topicUrl($topic));
+        $res = Topic::reply($id, (int) Auth::user()['id'], (string) ($_POST['body'] ?? ''));
         if (!$res['ok']) {
             $_SESSION['flash_error'] = $res['error'];
         }
-        redirect(Slug::topicUrl($topic ?? ['id' => $id, 'title' => 'topic']) . '#reply');
+        redirect(Slug::topicUrl($topic) . '#reply');
     }
 
     public function toggleFlag(int $id, string $flag): void
     {
-        if (!Auth::isMod()) {
-            http_response_code(403);
-            echo 'Forbidden';
-            return;
-        }
-        // POST-only: no token-via-URL fallback.
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            http_response_code(419);
-            echo 'CSRF mismatch';
-            return;
-        }
+        Guard::requireModerator();
         $topic = Topic::find($id);
         if (!$topic) {
-            redirect('/');
+            Guard::notFound('/topic/' . $id . '/' . $flag);
         }
+        // POST-only: no token-via-URL fallback.
+        Guard::csrf(Slug::topicUrl($topic));
         Topic::setFlags($id, $flag, ((int) $topic[$flag] === 1) ? 0 : 1);
         \RetroBB\Core\Modlog::log((int) Auth::user()['id'], (((int) $topic[$flag] === 1) ? 'un' : '') . $flag, 'topic', $id, mb_substr($topic['title'], 0, 150));
         redirect(Slug::topicUrl($topic));
@@ -185,47 +162,27 @@ class TopicController
 
     public function delete(int $id): void
     {
-        if (!Auth::isMod()) {
-            http_response_code(403);
-            echo 'Forbidden';
-            return;
-        }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            http_response_code(419);
-            echo 'CSRF mismatch';
-            return;
-        }
+        Guard::requireModerator();
         $topic = Topic::find($id);
-        if ($topic && (int) ($topic['user_id'] ?? 0) !== (int) Auth::user()['id']
+        if (!$topic) {
+            Guard::notFound('/topic/' . $id . '/delete');
+        }
+        Guard::csrf(Slug::topicUrl($topic));
+        if ((int) ($topic['user_id'] ?? 0) !== (int) Auth::user()['id']
             && ($topic['author_group'] ?? 'member') !== 'member' && !Auth::isSuper()) {
-            $_SESSION['flash_error'] = 'Only super admins can delete staff topics.';
-            redirect(Slug::topicUrl($topic));
+            Guard::forbidden('Only super admins can delete staff topics.');
         }
         Topic::delete($id);
-        \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'delete', 'topic', $id, $topic ? mb_substr($topic['title'], 0, 150) : '');
-        redirect($topic ? Slug::forumUrl(['id' => $topic['forum_id'], 'name' => $topic['forum_name']]) : '/');
-    }
-
-    private function needMod(): bool
-    {
-        if (!Auth::isMod()) {
-            http_response_code(403);
-            View::render('errors/403', ['pageTitle' => 'Forbidden']);
-            return false;
-        }
-        return true;
+        \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'delete', 'topic', $id, mb_substr($topic['title'], 0, 150));
+        redirect(Slug::forumUrl(['id' => $topic['forum_id'], 'name' => $topic['forum_name']]));
     }
 
     public function moveForm(int $id): void
     {
-        if (!$this->needMod()) {
-            return;
-        }
+        Guard::requireModerator();
         $topic = Topic::find($id);
         if (!$topic) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/topic/' . $id . '/move']);
-            return;
+            Guard::notFound('/topic/' . $id . '/move');
         }
         View::render('topic/move', [
             'topic' => $topic, 'cats' => Board::index(),
@@ -235,18 +192,12 @@ class TopicController
 
     public function moveSubmit(int $id): void
     {
-        if (!$this->needMod()) {
-            return;
-        }
+        Guard::requireModerator();
         $topic = Topic::find($id);
         if (!$topic) {
-            redirect('/');
+            Guard::notFound('/topic/' . $id . '/move');
         }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            http_response_code(419);
-            echo 'CSRF mismatch';
-            return;
-        }
+        Guard::csrf(Slug::topicUrl($topic));
         $res = Topic::move($id, (int) ($_POST['forum_id'] ?? 0), isset($_POST['ghost']), (int) Auth::user()['id']);
         if (!$res['ok']) {
             View::render('topic/move', [
@@ -261,14 +212,10 @@ class TopicController
 
     public function splitForm(int $id): void
     {
-        if (!$this->needMod()) {
-            return;
-        }
+        Guard::requireModerator();
         $topic = Topic::find($id);
         if (!$topic) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/topic/' . $id . '/split']);
-            return;
+            Guard::notFound('/topic/' . $id . '/split');
         }
         $all = Topic::posts($id, 1, 10000);
         View::render('topic/split', [
@@ -279,18 +226,12 @@ class TopicController
 
     public function splitSubmit(int $id): void
     {
-        if (!$this->needMod()) {
-            return;
-        }
+        Guard::requireModerator();
         $topic = Topic::find($id);
         if (!$topic) {
-            redirect('/');
+            Guard::notFound('/topic/' . $id . '/split');
         }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            http_response_code(419);
-            echo 'CSRF mismatch';
-            return;
-        }
+        Guard::csrf(Slug::topicUrl($topic));
         $ids = array_map('intval', (array) ($_POST['post_ids'] ?? []));
         $res = Topic::split($id, $ids, (string) ($_POST['title'] ?? ''), (int) Auth::user()['id']);
         if (!$res['ok']) {
@@ -307,14 +248,10 @@ class TopicController
 
     public function mergeForm(int $id): void
     {
-        if (!$this->needMod()) {
-            return;
-        }
+        Guard::requireModerator();
         $topic = Topic::find($id);
         if (!$topic) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/topic/' . $id . '/merge']);
-            return;
+            Guard::notFound('/topic/' . $id . '/merge');
         }
         View::render('topic/merge', [
             'topic' => $topic,
@@ -326,18 +263,12 @@ class TopicController
 
     public function mergeSubmit(int $id): void
     {
-        if (!$this->needMod()) {
-            return;
-        }
+        Guard::requireModerator();
         $topic = Topic::find($id);
         if (!$topic) {
-            redirect('/');
+            Guard::notFound('/topic/' . $id . '/merge');
         }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            http_response_code(419);
-            echo 'CSRF mismatch';
-            return;
-        }
+        Guard::csrf(Slug::topicUrl($topic));
         // Accept a topic id or a full/partial URL containing ".t123".
         $raw = (string) ($_POST['target'] ?? '');
         $targetId = 0;
@@ -367,9 +298,7 @@ class TopicController
         }
         $post = \RetroBB\Models\Post::find($postId);
         if (!$post) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/post/' . $postId . '/edit']);
-            return;
+            Guard::notFound('/post/' . $postId . '/edit');
         }
         $allowed = Moderation::postActionError($post, 'edit');
         if ($allowed !== null) {
@@ -386,7 +315,7 @@ class TopicController
         }
         $post = \RetroBB\Models\Post::find($postId);
         if (!$post) {
-            redirect('/');
+            Guard::notFound('/post/' . $postId . '/edit');
         }
         $isFirst = $postId === Topic::firstPostId((int) $post['topic_id']);
         $allowed = Moderation::postActionError($post, 'edit');
@@ -394,10 +323,7 @@ class TopicController
             $_SESSION['flash_error'] = $allowed;
             redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
         }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            View::render('topic/edit', ['post' => $post, 'is_first' => $isFirst, 'pageTitle' => 'Edit post', 'error' => 'Session expired.']);
-            return;
-        }
+        Guard::csrf(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
         $body = trim((string) ($_POST['body'] ?? ''));
         if (mb_strlen($body) < 2 || mb_strlen($body) > 20000) {
             View::render('topic/edit', ['post' => $post, 'is_first' => $isFirst, 'pageTitle' => 'Edit post', 'error' => 'Post is too short or too long.']);
@@ -424,18 +350,14 @@ class TopicController
         }
         $post = \RetroBB\Models\Post::find($postId);
         if (!$post) {
-            redirect('/');
+            Guard::notFound('/post/' . $postId);
         }
         $allowed = Moderation::postActionError($post, 'delete');
         if ($allowed !== null) {
             $_SESSION['flash_error'] = $allowed;
             redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
         }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            http_response_code(419);
-            echo 'CSRF mismatch';
-            return;
-        }
+        Guard::csrf(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
         $topicId = \RetroBB\Models\Post::delete($postId);
         \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'delete', 'post', $postId, "topic {$post['topic_id']}");
         if ($topicId === null) {

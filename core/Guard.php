@@ -67,6 +67,17 @@ final class Guard
         }
     }
 
+    /**
+     * The visitor may not do this (a per-record rule, after the role check):
+     * render the 403 page with board chrome, and optionally say why.
+     */
+    public static function forbidden(string $message = ''): never
+    {
+        http_response_code(403);
+        View::render('errors/403', ['pageTitle' => 'Forbidden', 'message' => $message]);
+        exit;
+    }
+
     /** The record does not exist: render the 404 page and stop. */
     public static function notFound(string $path = ''): never
     {
@@ -137,12 +148,5 @@ final class Guard
             && !str_starts_with($path, '//')
             && !str_contains($path, '\\')
             && preg_match('/[\x00-\x1F\x7F]/', $path) === 0;
-    }
-
-    private static function forbidden(): never
-    {
-        http_response_code(403);
-        View::render('errors/403', ['pageTitle' => 'Forbidden']);
-        exit;
     }
 }
