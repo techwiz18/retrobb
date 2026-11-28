@@ -63,7 +63,7 @@ class TopicController
         } elseif (isset($_GET['page'])) {
             $page = max(1, (int) $_GET['page']);
         }
-        $perPage = max(5, min(50, (int) setting('posts_per_page', '15')));
+        $perPage = \RetroBB\Core\Settings::int('posts_per_page');
         $data = Topic::posts($id, $page, $perPage);
         $pages = max(1, (int) ceil($data['total'] / $perPage));
         $forum = Board::forum((int) $topic['forum_id']);
@@ -422,7 +422,7 @@ class TopicController
         if ((int) $post['user_id'] !== (int) $me['id']) {
             return 'You can only edit your own posts.';
         }
-        $mins = (int) setting('edit_window_mins', '30');
+        $mins = \RetroBB\Core\Settings::int('edit_window_mins');
         if ($mins > 0 && (time() - strtotime($post['created_at'])) > $mins * 60) {
             return 'The edit window (' . $mins . ' min) has expired.';
         }
@@ -448,7 +448,7 @@ class TopicController
         if ((int) ($post['locked'] ?? 0) === 1) {
             return 'This topic is locked.';
         }
-        $mins = (int) setting('delete_window_mins', '30');
+        $mins = \RetroBB\Core\Settings::int('delete_window_mins');
         if ($mins > 0 && (time() - strtotime($post['created_at'])) > $mins * 60) {
             return 'The delete window (' . $mins . ' min) has expired.';
         }
