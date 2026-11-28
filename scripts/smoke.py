@@ -19,8 +19,26 @@ class NoRedir(urllib.request.HTTPRedirectHandler):
         return None
 op2 = urllib.request.build_opener(NoRedir)
 
+def all_canonical(paths, label):
+    """Every emitted entity link must already be the canonical URL (no 301)."""
+    bad = []
+    for p in paths:
+        try:
+            op2.open(base + p.split('#')[0])
+        except urllib.error.HTTPError as e:
+            bad.append('%s -> %s' % (p, e.code))
+    check(label, paths and not bad, '%d links%s' % (len(paths), '' if not bad else '; ' + '; '.join(bad[:3])))
+
+def links(html, pattern):
+    return sorted(set(re.findall(pattern, html)))
+
 # discover a live topic (ids/slugs are fixture-defined but discover anyway)
 home = op.open(base + '/').read().decode()
+all_canonical(
+    links(home, r'href="(/topic/[^"#]+\.t\d+)"')
+    + links(home, r'href="(/forum/[^"#]+\.f\d+)"')
+    + links(home, r'href="(/members/[^"#]+\.u\d+)"'),
+    'board index links are canonical')
 fm = re.search(r'/forum/([a-z0-9\-]+)\.f(\d+)', home)
 fhtml = op.open(base + '/forum/%s.f%s' % (fm.group(1), fm.group(2))).read().decode()
 tm = re.search(r'/topic/([a-z0-9\-]+)\.t(\d+)', fhtml)
@@ -39,4 +57,6 @@ check('reply form csrf present', bool(m2))
 rresp = op.open(urllib.request.Request(base + tpath + '/reply', data=urllib.parse.urlencode(
     {'csrf': m2.group(1), 'body': 'Automated test reply [b]works[/b] :)'}).encode()))
 check('reply posted', 'Automated test reply' in op.open(base + tpath).read().decode())
+profile = op.open(base + '/members/admin.u1').read().decode()
+all_canonical(links(profile, r'href="(/topic/[^"#]+\.t\d+)"'), 'profile recent post links are canonical')
 finish()

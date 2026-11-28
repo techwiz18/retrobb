@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace RetroBB\Models;
 
-use RetroBB\Core\BBCode;
 use RetroBB\Core\Db;
+use RetroBB\Core\PostBody;
 use RetroBB\Core\Slug;
 
 class Topic
@@ -73,9 +73,7 @@ class Topic
             $st = $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, created_at, last_post_at, last_post_user_id, posts_count) VALUES (?,?,?,?,?,?,?,1)');
             $st->execute([$forumId, $userId, $title, Slug::make($title), $now, $now, $userId]);
             $tid = (int) $pdo->lastInsertId();
-            $html = BBCode::toHtml($bbcode);
-            $pdo->prepare('INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)')->execute([$tid, $userId, $bbcode, $html, $now]);
-            $pid = (int) $pdo->lastInsertId();
+            $pid = PostBody::insert($tid, $userId, $bbcode, $now);
             $pdo->prepare('UPDATE forums SET topics_count=topics_count+1, posts_count=posts_count+1, last_topic_id=? WHERE id=?')->execute([$tid, $forumId]);
             $pdo->prepare('UPDATE users SET posts_count=posts_count+1 WHERE id=?')->execute([$userId]);
             \RetroBB\Core\Hooks::do_action('topic_created', $tid);
@@ -108,9 +106,7 @@ class Topic
         $pdo = Db::pdo();
         return Db::transact(function () use ($pdo, $topicId, $topic, $userId, $bbcode): array {
             $now = date('Y-m-d H:i:s');
-            $html = BBCode::toHtml($bbcode);
-            $pdo->prepare('INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)')->execute([$topicId, $userId, $bbcode, $html, $now]);
-            $pid = (int) $pdo->lastInsertId();
+            $pid = PostBody::insert($topicId, $userId, $bbcode, $now);
             $pdo->prepare('UPDATE topics SET posts_count=posts_count+1, last_post_at=?, last_post_user_id=? WHERE id=?')->execute([$now, $userId, $topicId]);
             $pdo->prepare('UPDATE forums SET posts_count=posts_count+1, last_topic_id=? WHERE id=?')->execute([$topicId, $topic['forum_id']]);
             $pdo->prepare('UPDATE users SET posts_count=posts_count+1 WHERE id=?')->execute([$userId]);
@@ -185,7 +181,7 @@ class Topic
         if ($isMod) {
             return 0;
         }
-        $secs = max(0, (int) setting('flood_seconds', '30'));
+        $secs = \RetroBB\Core\Settings::int('flood_seconds');
         if ($secs === 0) {
             return 0;
         }
@@ -255,10 +251,13 @@ class Topic
             if ($ghost) {
                 $now = date('Y-m-d H:i:s');
                 $newUrl = Slug::topicUrl(array_merge($topic, ['id' => $id]));
+                // A ghost stub is board furniture, not user content: the sentinel
+                // body_bbcode is the marker views/HtmlRepair drop, so it is
+                // written raw instead of going through the normal post writer.
                 $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, pinned, locked, views, posts_count, created_at, last_post_at, last_post_user_id, moved_to_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
                     ->execute([$srcForumId, $modId, 'Moved: ' . $topic['title'], Slug::make('moved-' . $topic['title']), 0, 1, 0, 1, $now, $now, $modId, $id]);
                 $gid = (int) $pdo->lastInsertId();
-                $html = BBCode::toHtml('This topic has moved here: [url=' . $newUrl . ']' . $topic['title'] . '[/url]');
+                $html = PostBody::render('This topic has moved here: [url=' . $newUrl . ']' . $topic['title'] . '[/url]');
                 $pdo->prepare('INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)')
                     ->execute([$gid, $modId, 'moved-stub', $html, $now]);
             }

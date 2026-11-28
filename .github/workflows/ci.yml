@@ -50,3 +50,13 @@ jobs:
 
       - name: Regression suite
         run: python3 scripts/runtests.py
+
+      # Tests must not dirty the worktree: catches stray scratch files, a
+      # regenerated tracked artifact, or a suite writing where it shouldn't.
+      - name: Worktree clean after the suite
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "tracked files changed during the suite:"
+            git status --porcelain
+            exit 1
+          fi

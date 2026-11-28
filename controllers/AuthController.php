@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace RetroBB\Controllers;
 
 use RetroBB\Core\Auth;
-use RetroBB\Core\Csrf;
+use RetroBB\Core\Guard;
 use RetroBB\Core\View;
 use RetroBB\Models\User;
 
@@ -17,7 +17,9 @@ class AuthController
         // is one REMOTE_ADDR, so a bare-IP bucket lets 10 bad guesses lock
         // out all logins (finding: audit). An attacker can still lock one
         // known account — standard trade-off, 10 tries is the cost.
-        return $ip . '|' . mb_strtolower(trim($login));
+        // Bound to the column width (191) or a long email login would make the
+        // insert throw and the throttle silently stop counting.
+        return mb_substr($ip . '|' . mb_strtolower(trim($login)), 0, 191);
     }
 
     private static function loginBlocked(string $key): bool
@@ -46,7 +48,7 @@ class AuthController
         }
         try {
             $pdo = \RetroBB\Core\Db::pdo();
-            $pdo->prepare('INSERT INTO login_attempts (ip, attempts, last_at) VALUES (?,1,NOW()) ON DUPLICATE KEY UPDATE attempts=attempts+1, last_at=NOW()')->execute([$ip]);
+            $pdo->prepare('INSERT INTO login_attempts (ip, attempts, last_at) VALUES (?,1,NOW()) ON DUPLICATE KEY UPDATE attempts=attempts+1, last_at=NOW()')->execute([$key]);
             $pdo->exec("DELETE FROM login_attempts WHERE last_at < NOW() - INTERVAL 1 DAY");
         } catch (\Throwable) {
             // Pre-migration boards keep the session throttle only.
@@ -59,7 +61,7 @@ class AuthController
             return;
         }
         try {
-            \RetroBB\Core\Db::pdo()->prepare('DELETE FROM login_attempts WHERE ip=?')->execute([$ip]);
+            \RetroBB\Core\Db::pdo()->prepare('DELETE FROM login_attempts WHERE ip=?')->execute([$key]);
         } catch (\Throwable) {
         }
     }
@@ -74,10 +76,7 @@ class AuthController
 
     public function registerSubmit(): void
     {
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            View::render('auth/register', ['pageTitle' => 'Register', 'errors' => ['Session expired.']]);
-            return;
-        }
+        Guard::csrf('/');
         $cap = \RetroBB\Core\Captcha::verify($_POST);
         if (!$cap['ok']) {
             View::render('auth/register', ['pageTitle' => 'Register', 'errors' => [$cap['error'] ?? 'CAPTCHA failed.']]);
@@ -90,11 +89,8 @@ class AuthController
         }
         $user = User::find($res['id']);
         Auth::login($user);
-        $next = (string) ($_GET['next'] ?? '/');
-        if (!str_starts_with($next, '/') || str_starts_with($next, '//')) {
-            $next = '/';
-        }
-        redirect($next);
+        // Local paths only: a control character or "//host" never redirects off-site.
+        redirect(Guard::localPath((string) ($_GET['next'] ?? '/')));
     }
 
     public function loginForm(): void
@@ -107,10 +103,7 @@ class AuthController
 
     public function loginSubmit(): void
     {
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            View::render('auth/login', ['pageTitle' => 'Log in', 'error' => 'Session expired.']);
-            return;
-        }
+        Guard::csrf('/');
         $login = trim((string) ($_POST['login'] ?? ''));
         $pass = (string) ($_POST['password'] ?? '');
         // IP+account throttle (the session counter alone resets with cookies).
@@ -153,19 +146,12 @@ class AuthController
         $_SESSION[$key] = 0;
         self::loginCleared($tkey);
         Auth::login($user);
-        $next = (string) ($_POST['next'] ?? $_GET['next'] ?? '/');
-        // Local paths only: block "//evil.com" protocol-relative redirects.
-        if (!str_starts_with($next, '/') || str_starts_with($next, '//')) {
-            $next = '/';
-        }
-        redirect($next);
+        redirect(Guard::localPath((string) ($_POST['next'] ?? $_GET['next'] ?? '/')));
     }
 
     public function logout(): void
     {
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/');
-        }
+        Guard::csrf('/');
         Auth::logout();
         redirect('/');
     }
@@ -183,10 +169,7 @@ class AuthController
         if (Auth::check()) {
             redirect('/');
         }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            View::render('auth/forgot', ['pageTitle' => 'Forgot password', 'sent' => false]);
-            return;
-        }
+        Guard::csrf('/login');
         // Session throttle on top of the per-user one in the model.
         $_SESSION['pwreset_attempts'] = ($_SESSION['pwreset_attempts'] ?? 0) + 1;
         if ($_SESSION['pwreset_attempts'] > 10) {
@@ -238,10 +221,7 @@ class AuthController
             redirect('/');
         }
         $token = (string) ($_POST['token'] ?? '');
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            View::render('auth/reset', ['pageTitle' => 'Set new password', 'token' => $token, 'error' => 'Session expired.']);
-            return;
-        }
+        Guard::csrf('/login');
         $pass = (string) ($_POST['password'] ?? '');
         $pass2 = (string) ($_POST['password2'] ?? '');
         if ($pass !== $pass2) {

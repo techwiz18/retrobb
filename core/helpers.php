@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/Settings.php';
+
 // Global helpers (no namespace for brevity in views).
 
 /** Current package version. Bump on release; -dev/-beta suffixes sort below releases. */
@@ -123,35 +125,15 @@ function config_value(string $key, mixed $default = null): mixed
 /**
  * True when the request already addresses the canonical URL. Compares
  * base-relative paths (subpath deploys) and ignores pagination suffixes,
- * so both /topic/x and /forum/topic/x match without redirect loops.
+ * so both /topic/x and /forum/topic/x match without redirect loops. The
+ * prefix itself is decided only by Router::stripBase().
  */
 function is_canonical(string $canonical): bool
 {
-    $path = \RetroBB\Core\Router::currentPath();
-    $base = strtok($path, '?');
-    $base = (string) preg_replace('#/page-\d+$#', '', $base);
-    // Strip the subpath prefix from BOTH sides: currentPath() is raw now
-    // (dispatch handles the fallback), so /forum/topic/x must compare equal
-    // to its stripped form without redirect-looping, while genuine
-    // /forum/<slug>.fN routes still match their canonical exactly.
-    if (($b = base_path()) !== '' && ($base === $b || str_starts_with($base, $b . '/'))) {
-        $stripped = substr($base, strlen($b)) ?: '/';
-        // Only accept the stripped form when it is a real app path — a bare
-        // '/<slug>.fN' is never canonical (forum routes live under /forum/).
-        // Compare against both raw and stripped to avoid loops.
-        if ($stripped !== $base) {
-            $canon = $canonical;
-            if (str_starts_with($canon, $b . '/')) {
-                $canon = substr($canon, strlen($b));
-            }
-            return $base === $canonical || $stripped === $canon;
-        }
-    }
-    $canon = $canonical;
-    if (($b = base_path()) !== '' && str_starts_with($canon, $b . '/')) {
-        $canon = substr($canon, strlen($b));
-    }
-    return $base === $canonical || $base === $canon;
+    $path = (string) strtok(\RetroBB\Core\Router::currentPath(), '?');
+    $path = (string) preg_replace('#/page-\d+$#', '', $path);
+    return (\RetroBB\Core\Router::stripBase($path) ?? $path)
+        === (\RetroBB\Core\Router::stripBase($canonical) ?? $canonical);
 }
 
 /**
@@ -224,18 +206,12 @@ function update_check(): array
     return [$cached !== '' ? $cached : null, null];
 }
 
-/** Board-wide feature flag. Unknown features default ON (opt-out model). */
+/** Board-wide feature flag (definitions in core/Settings.php). Unknown features default ON (opt-out model). */
 function feature(string $name): bool
 {
-    $map = [
-        'alerts' => 'feature_alerts',
-        'pms' => 'feature_pms',
-        'reactions' => 'feature_reactions',
-        'mentions' => 'feature_mentions',
-        'skin_selector' => 'skin_selector',
-    ];
-    $key = $map[$name] ?? ('feature_' . $name);
-    return setting($key, '1') === '1';
+    $key = \RetroBB\Core\Settings::featureKey($name);
+    $default = \RetroBB\Core\Settings::defaults()[$key] ?? '1';
+    return setting($key, $default) === '1';
 }
 
 /** Which theme modes (light/dark/auto) the owner lets users pick. Never empty. */
@@ -259,12 +235,13 @@ function cookie_choice(string $cookie, array $allowed, string $default): string
 
 function skin(): string
 {
-    $d = setting('default_skin', 'classic');
-    $d = in_array($d, ['classic', 'midnight', 'silver'], true) ? $d : 'classic';
+    $skins = \RetroBB\Core\Settings::DEFS['default_skin']['enum'];
+    $d = setting('default_skin', $skins[0]);
+    $d = in_array($d, $skins, true) ? $d : $skins[0];
     if (!feature('skin_selector')) {
         return $d;
     }
-    return cookie_choice('retrobb_skin', ['classic', 'midnight', 'silver'], $d);
+    return cookie_choice('retrobb_skin', $skins, $d);
 }
 
 function theme(): string
@@ -390,7 +367,7 @@ function php_shorthand_bytes(string $v): int
  */
 function avatar_limits(): array
 {
-    $bytes = max(10, min(2048, (int) setting('avatar_max_kb', '100'))) * 1024;
+    $bytes = \RetroBB\Core\Settings::int('avatar_max_kb') * 1024;
     foreach ([ini_get('upload_max_filesize'), ini_get('post_max_size')] as $h) {
         $cap = is_string($h) ? php_shorthand_bytes($h) : 0;
         if ($cap > 0) {
@@ -399,8 +376,8 @@ function avatar_limits(): array
     }
     return [
         'bytes' => $bytes,
-        'width' => max(16, min(2000, (int) setting('avatar_max_width', '200'))),
-        'height' => max(16, min(2000, (int) setting('avatar_max_height', '200'))),
+        'width' => \RetroBB\Core\Settings::int('avatar_max_width'),
+        'height' => \RetroBB\Core\Settings::int('avatar_max_height'),
     ];
 }
 

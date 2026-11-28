@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace RetroBB\Controllers;
 
+use RetroBB\Core\Guard;
 use RetroBB\Core\Slug;
 use RetroBB\Core\View;
 use RetroBB\Models\Board;
@@ -13,23 +14,19 @@ class ForumController
     {
         $parsed = Slug::parseSuffixed($segment, 'f');
         if (!$parsed) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/forum/' . $segment]);
-            return;
+            Guard::notFound('/forum/' . $segment);
         }
         [$slug, $id] = $parsed;
         $forum = Board::forum($id);
         if (!$forum) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/forum/' . $segment]);
-            return;
+            Guard::notFound('/forum/' . $segment);
         }
         $canonical = Slug::forumUrl($forum);
         if (!\is_canonical($canonical)) {
             redirect($canonical, 301);
         }
         $page = max(1, (int) ($_GET['page'] ?? 1));
-        $perPage = max(5, min(50, (int) setting('topics_per_page', '25')));
+        $perPage = \RetroBB\Core\Settings::int('topics_per_page');
         $data = Board::topics($id, $page, $perPage);
         $pages = (int) ceil($data['total'] / $perPage);
         $me = \RetroBB\Core\Auth::user();

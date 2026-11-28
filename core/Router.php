@@ -23,6 +23,20 @@ class Router
         $this->add('POST', $pattern, $handler);
     }
 
+    /**
+     * The one place that decides whether a request path sits under the
+     * subpath prefix and what it is without it. Returns null when the path is
+     * outside the prefix (or there is no prefix); '/' for the prefix root.
+     */
+    public static function stripBase(string $path): ?string
+    {
+        $base = \base_path();
+        if ($base === '' || ($path !== $base && !str_starts_with($path, $base . '/'))) {
+            return null;
+        }
+        return substr($path, strlen($base)) ?: '/';
+    }
+
     public function dispatch(string $method, string $path): void
     {
         $method = strtoupper($method);
@@ -36,16 +50,13 @@ class Router
         // but is a real forum URL once re-prefixed. It runs last so bare app
         // routes (/members, /topic/x, ...) always win over it.
         $candidates = [];
-        $base = \base_path();
-        if ($base !== '' && ($path === $base || str_starts_with($path, $base . '/'))) {
-            $stripped = substr($path, strlen($base)) ?: '/';
-            if ($stripped !== $path) {
-                $candidates[] = $stripped;
-            }
+        $stripped = self::stripBase($path);
+        if ($stripped !== null) {
+            $candidates[] = $stripped;
         }
         $candidates[] = $path;
-        if ($base !== '' && $path !== '/' && $path !== $base && !str_starts_with($path, $base . '/')) {
-            $candidates[] = $base . $path;
+        if ($stripped === null && $path !== '/' && \base_path() !== '') {
+            $candidates[] = \base_path() . $path;
         }
         foreach ($candidates as $try) {
             foreach ($this->routes as [$m, $pattern, $handler]) {
@@ -70,8 +81,7 @@ class Router
                 }
             }
         }
-        http_response_code(404);
-        View::render('errors/404', ['path' => $path]);
+        Guard::notFound($path);
     }
 
     public static function currentPath(): string

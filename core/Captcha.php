@@ -12,8 +12,9 @@ class Captcha
 {
     public static function provider(): string
     {
-        $p = setting('captcha_provider', 'honeypot');
-        return in_array($p, ['honeypot', 'builtin', 'turnstile', 'hcaptcha', 'recaptcha'], true) ? $p : 'honeypot';
+        $def = Settings::DEFS['captcha_provider'];
+        $p = setting('captcha_provider', (string) $def['default']);
+        return in_array($p, $def['enum'], true) ? $p : (string) $def['default'];
     }
 
     public static function isExternal(): bool

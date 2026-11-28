@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace RetroBB\Models;
 
-use RetroBB\Core\BBCode;
 use RetroBB\Core\Db;
+use RetroBB\Core\PostBody;
 use RetroBB\Core\Slug;
 
 class Pm
@@ -30,7 +30,7 @@ class Pm
             $subject = '(no subject)';
         }
         // Same anti-spam flood control as forum posts (mods bypass).
-        $flood = max(0, (int) setting('flood_seconds', '30'));
+        $flood = \RetroBB\Core\Settings::int('flood_seconds');
         if ($flood > 0 && !\RetroBB\Core\Auth::isMod()) {
             $st = Db::pdo()->prepare('SELECT created_at FROM pms WHERE sender_id=? ORDER BY id DESC LIMIT 1');
             $st->execute([$senderId]);
@@ -51,7 +51,7 @@ class Pm
         }
         Db::pdo()->prepare(
             'INSERT INTO pms (sender_id, recipient_id, subject, body_bbcode, body_html, created_at, reply_to_id) VALUES (?,?,?,?,?,?,?)'
-        )->execute([$senderId, $recipientId, mb_substr($subject, 0, 120), $bbcode, BBCode::toHtml($bbcode), date('Y-m-d H:i:s'), $replyTo]);
+        )->execute([$senderId, $recipientId, mb_substr($subject, 0, 120), $bbcode, PostBody::render($bbcode), date('Y-m-d H:i:s'), $replyTo]);
         return ['ok' => true, 'id' => (int) Db::pdo()->lastInsertId()];
     }
 

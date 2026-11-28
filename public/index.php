@@ -8,9 +8,11 @@ require_once $root . '/core/Slug.php';
 require_once $root . '/core/Hooks.php';
 require_once $root . '/core/Auth.php';
 require_once $root . '/core/Csrf.php';
+require_once $root . '/core/Guard.php';
 require_once $root . '/core/Passwords.php';
 require_once $root . '/core/Mail.php';
 require_once $root . '/core/BBCode.php';
+require_once $root . '/core/PostBody.php';
 require_once $root . '/core/HtmlRepair.php';
 require_once $root . '/core/Mentions.php';
 require_once $root . '/core/Import/Base.php';
@@ -40,7 +42,10 @@ require_once $root . '/controllers/ReportController.php';
 require_once $root . '/controllers/ModController.php';
 require_once $root . '/controllers/AuthController.php';
 require_once $root . '/controllers/ProfileController.php';
-require_once $root . '/controllers/AdminController.php';
+require_once $root . '/controllers/Admin/StructureAdminController.php';
+require_once $root . '/controllers/Admin/UsersAdminController.php';
+require_once $root . '/controllers/Admin/PluginsAdminController.php';
+require_once $root . '/controllers/Admin/MaintenanceAdminController.php';
 require_once $root . '/controllers/ImportController.php';
 require_once $root . '/controllers/SitemapController.php';
 require_once $root . '/controllers/SearchController.php';
@@ -88,10 +93,7 @@ Auth::validateSession();
 // Matched tightly: '/installer' and friends must fall through to the
 // installer redirect, not into a 500 on the missing config.
 $reqPath = Router::currentPath();
-$bp = base_path();
-$reqStripped = ($bp !== '' && ($reqPath === $bp || str_starts_with($reqPath, $bp . '/')))
-    ? (substr($reqPath, strlen($bp)) ?: '/') : $reqPath;
-$onInstall = $reqPath === '/install.php' || $reqStripped === '/install.php';
+$onInstall = $reqPath === '/install.php' || Router::stripBase($reqPath) === '/install.php';
 if (!is_file($root . '/config.php') && !$onInstall) {
     // Fresh upload: no config yet, so there is nothing to connect to.
     redirect('/install.php');
@@ -209,21 +211,21 @@ $r->get('#^/members/([^/]+)$#', [\RetroBB\Controllers\ProfileController::class, 
 $r->post('#^/members/(\d+)/warn$#', [\RetroBB\Controllers\ProfileController::class, 'warn']);
 $r->post('#^/members/(\d+)/ban$#', [\RetroBB\Controllers\ProfileController::class, 'ban']);
 $r->post('#^/members/unban/(\d+)$#', [\RetroBB\Controllers\ProfileController::class, 'unban']);
-$r->get('#^/admin$#', [\RetroBB\Controllers\AdminController::class, 'index']);
-$r->get('#^/admin/settings$#', [\RetroBB\Controllers\AdminController::class, 'settingsPage']);
-$r->get('#^/admin/features$#', [\RetroBB\Controllers\AdminController::class, 'featuresPage']);
-$r->post('#^/admin/features$#', [\RetroBB\Controllers\AdminController::class, 'saveFeatures']);
+$r->get('#^/admin$#', [\RetroBB\Controllers\Admin\MaintenanceAdminController::class, 'index']);
+$r->get('#^/admin/settings$#', [\RetroBB\Controllers\Admin\MaintenanceAdminController::class, 'settingsPage']);
+$r->get('#^/admin/features$#', [\RetroBB\Controllers\Admin\MaintenanceAdminController::class, 'featuresPage']);
+$r->post('#^/admin/features$#', [\RetroBB\Controllers\Admin\MaintenanceAdminController::class, 'saveFeatures']);
 $r->get('#^/admin/import$#', [\RetroBB\Controllers\ImportController::class, 'form']);
-$r->get('#^/admin/plugins$#', [\RetroBB\Controllers\AdminController::class, 'pluginsPage']);
-$r->post('#^/admin/plugin/([A-Za-z0-9_-]+)$#', [\RetroBB\Controllers\AdminController::class, 'pluginToggle']);
-$r->post('#^/admin/plugin/([A-Za-z0-9_-]+)/uninstall$#', [\RetroBB\Controllers\AdminController::class, 'pluginUninstall']);
+$r->get('#^/admin/plugins$#', [\RetroBB\Controllers\Admin\PluginsAdminController::class, 'pluginsPage']);
+$r->post('#^/admin/plugin/([A-Za-z0-9_-]+)$#', [\RetroBB\Controllers\Admin\PluginsAdminController::class, 'pluginToggle']);
+$r->post('#^/admin/plugin/([A-Za-z0-9_-]+)/uninstall$#', [\RetroBB\Controllers\Admin\PluginsAdminController::class, 'pluginUninstall']);
 $r->post('#^/admin/import/test$#', [\RetroBB\Controllers\ImportController::class, 'test']);
 $r->post('#^/admin/import/run$#', [\RetroBB\Controllers\ImportController::class, 'run']);
-$r->get('#^/admin/spam$#', [\RetroBB\Controllers\AdminController::class, 'spamPage']);
-$r->get('#^/admin/structure$#', [\RetroBB\Controllers\AdminController::class, 'structurePage']);
-$r->get('#^/admin/bans$#', [\RetroBB\Controllers\AdminController::class, 'bansPage']);
-$r->get('#^/admin/users$#', [\RetroBB\Controllers\AdminController::class, 'usersPage']);
-$r->get('#^/admin/modlog$#', [\RetroBB\Controllers\AdminController::class, 'modlogPage']);
+$r->get('#^/admin/spam$#', [\RetroBB\Controllers\Admin\MaintenanceAdminController::class, 'spamPage']);
+$r->get('#^/admin/structure$#', [\RetroBB\Controllers\Admin\StructureAdminController::class, 'structurePage']);
+$r->get('#^/admin/bans$#', [\RetroBB\Controllers\Admin\UsersAdminController::class, 'bansPage']);
+$r->get('#^/admin/users$#', [\RetroBB\Controllers\Admin\UsersAdminController::class, 'usersPage']);
+$r->get('#^/admin/modlog$#', [\RetroBB\Controllers\Admin\MaintenanceAdminController::class, 'modlogPage']);
 // AdminCP entry to the shared mod queue (same content as /mod/reports but
 // with the admin chrome, so AdminCP never kicks out to ModCP).
 $r->get('#^/admin/reports$#', [\RetroBB\Controllers\ReportController::class, 'queue']);
@@ -231,22 +233,22 @@ $r->get('#^/admin/reports$#', [\RetroBB\Controllers\ReportController::class, 'qu
 // shared; queueReturn sends the mod back to whichever queue they came from).
 $r->get('#^/admin/report/(\d+)/resolve$#', [\RetroBB\Controllers\ReportController::class, 'resolveForm']);
 $r->get('#^/admin/report/(\d+)/warn$#', [\RetroBB\Controllers\ReportController::class, 'warnForm']);
-$r->post('#^/admin/settings$#', [\RetroBB\Controllers\AdminController::class, 'saveSettings']);
-$r->post('#^/admin/add-forum$#', [\RetroBB\Controllers\AdminController::class, 'addForum']);
-$r->post('#^/admin/add-category$#', [\RetroBB\Controllers\AdminController::class, 'addCategory']);
-$r->post('#^/admin/user/(\d+)/group$#', [\RetroBB\Controllers\AdminController::class, 'setGroup']);
-$r->post('#^/admin/user/(\d+)/super$#', [\RetroBB\Controllers\AdminController::class, 'superToggle']);
-$r->post('#^/admin/category/(\d+)/move/(up|down)$#', [\RetroBB\Controllers\AdminController::class, 'moveCategory']);
-$r->get('#^/admin/category/(\d+)/edit$#', [\RetroBB\Controllers\AdminController::class, 'editCategoryForm']);
-$r->post('#^/admin/category/(\d+)/rename$#', [\RetroBB\Controllers\AdminController::class, 'renameCategory']);
-$r->post('#^/admin/category/(\d+)/delete$#', [\RetroBB\Controllers\AdminController::class, 'deleteCategory']);
-$r->post('#^/admin/forum/(\d+)/move/(up|down)$#', [\RetroBB\Controllers\AdminController::class, 'moveForum']);
-$r->get('#^/admin/forum/(\d+)/edit$#', [\RetroBB\Controllers\AdminController::class, 'editForumForm']);
-$r->post('#^/admin/forum/(\d+)/rename$#', [\RetroBB\Controllers\AdminController::class, 'renameForum']);
-$r->post('#^/admin/forum/(\d+)/delete$#', [\RetroBB\Controllers\AdminController::class, 'deleteForum']);
-$r->post('#^/admin/unban/(\d+)$#', [\RetroBB\Controllers\AdminController::class, 'unban']);
-$r->post('#^/admin/migrate$#', [\RetroBB\Controllers\AdminController::class, 'runMigrate']);
-$r->post('#^/admin/repair-html$#', [\RetroBB\Controllers\AdminController::class, 'repairHtml']);
+$r->post('#^/admin/settings$#', [\RetroBB\Controllers\Admin\MaintenanceAdminController::class, 'saveSettings']);
+$r->post('#^/admin/add-forum$#', [\RetroBB\Controllers\Admin\StructureAdminController::class, 'addForum']);
+$r->post('#^/admin/add-category$#', [\RetroBB\Controllers\Admin\StructureAdminController::class, 'addCategory']);
+$r->post('#^/admin/user/(\d+)/group$#', [\RetroBB\Controllers\Admin\UsersAdminController::class, 'setGroup']);
+$r->post('#^/admin/user/(\d+)/super$#', [\RetroBB\Controllers\Admin\UsersAdminController::class, 'superToggle']);
+$r->post('#^/admin/category/(\d+)/move/(up|down)$#', [\RetroBB\Controllers\Admin\StructureAdminController::class, 'moveCategory']);
+$r->get('#^/admin/category/(\d+)/edit$#', [\RetroBB\Controllers\Admin\StructureAdminController::class, 'editCategoryForm']);
+$r->post('#^/admin/category/(\d+)/rename$#', [\RetroBB\Controllers\Admin\StructureAdminController::class, 'renameCategory']);
+$r->post('#^/admin/category/(\d+)/delete$#', [\RetroBB\Controllers\Admin\StructureAdminController::class, 'deleteCategory']);
+$r->post('#^/admin/forum/(\d+)/move/(up|down)$#', [\RetroBB\Controllers\Admin\StructureAdminController::class, 'moveForum']);
+$r->get('#^/admin/forum/(\d+)/edit$#', [\RetroBB\Controllers\Admin\StructureAdminController::class, 'editForumForm']);
+$r->post('#^/admin/forum/(\d+)/rename$#', [\RetroBB\Controllers\Admin\StructureAdminController::class, 'renameForum']);
+$r->post('#^/admin/forum/(\d+)/delete$#', [\RetroBB\Controllers\Admin\StructureAdminController::class, 'deleteForum']);
+$r->post('#^/admin/unban/(\d+)$#', [\RetroBB\Controllers\Admin\UsersAdminController::class, 'unban']);
+$r->post('#^/admin/migrate$#', [\RetroBB\Controllers\Admin\MaintenanceAdminController::class, 'runMigrate']);
+$r->post('#^/admin/repair-html$#', [\RetroBB\Controllers\Admin\MaintenanceAdminController::class, 'repairHtml']);
 $r->get('#^/sitemap\.xml$#', [\RetroBB\Controllers\SitemapController::class, 'xml']);
 $r->get('#^/sitemap\.xsl$#', [\RetroBB\Controllers\SitemapController::class, 'xsl']);
 $r->get('#^/search$#', [\RetroBB\Controllers\SearchController::class, 'index']);
@@ -272,7 +274,7 @@ $switcher = function (string $value, string $cookie, array $allowed, string $pic
     redirect($bp . (str_contains($bp, '?') ? '&' : '?') . 'picked=' . $pick);
 };
 $r->post('#^/skin/([a-z0-9]+)$#', function (string $s) use ($switcher): void {
-    $switcher($s, 'retrobb_skin', feature('skin_selector') ? ['classic', 'midnight', 'silver'] : [], 'skin');
+    $switcher($s, 'retrobb_skin', feature('skin_selector') ? \RetroBB\Core\Settings::DEFS['default_skin']['enum'] : [], 'skin');
 });
 // theme switcher (light / dark / auto-follows-OS). Same POST + CSRF rule.
 $r->post('#^/theme/(light|dark|auto)$#', function (string $t) use ($switcher): void {
