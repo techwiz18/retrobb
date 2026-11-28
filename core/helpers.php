@@ -235,12 +235,13 @@ function cookie_choice(string $cookie, array $allowed, string $default): string
 
 function skin(): string
 {
-    $d = setting('default_skin', 'classic');
-    $d = in_array($d, ['classic', 'midnight', 'silver'], true) ? $d : 'classic';
+    $skins = \RetroBB\Core\Settings::DEFS['default_skin']['enum'];
+    $d = setting('default_skin', $skins[0]);
+    $d = in_array($d, $skins, true) ? $d : $skins[0];
     if (!feature('skin_selector')) {
         return $d;
     }
-    return cookie_choice('retrobb_skin', ['classic', 'midnight', 'silver'], $d);
+    return cookie_choice('retrobb_skin', $skins, $d);
 }
 
 function theme(): string

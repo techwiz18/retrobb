@@ -75,6 +75,7 @@ class TopicController
         $postActions = [];
         if ($me) {
             foreach ($data['posts'] as $p) {
+                // postActionError reads the topic's lock off the row, as Post::find does.
                 $p['locked'] = (int) $topic['locked'];
                 $postActions[(int) $p['id']] = [
                     'edit' => Moderation::postActionError($p, 'edit', $firstPostId, (int) $data['total']) === null,
@@ -293,9 +294,7 @@ class TopicController
 
     public function editPostForm(int $postId): void
     {
-        if (!Auth::check()) {
-            redirect('/login');
-        }
+        Guard::requireLogin('/post/' . $postId . '/edit');
         $post = \RetroBB\Models\Post::find($postId);
         if (!$post) {
             Guard::notFound('/post/' . $postId . '/edit');
@@ -309,9 +308,7 @@ class TopicController
 
     public function editPostSubmit(int $postId): void
     {
-        if (!Auth::check()) {
-            redirect('/login');
-        }
+        Guard::requireLogin('/post/' . $postId . '/edit');
         $post = \RetroBB\Models\Post::find($postId);
         if (!$post) {
             Guard::notFound('/post/' . $postId . '/edit');
@@ -343,10 +340,13 @@ class TopicController
 
     public function deletePost(int $postId): void
     {
-        if (!Auth::check()) {
-            redirect('/login');
-        }
+        // The button lives on the topic page, so return there after login; the
+        // record is fetched first only to name that page (a guest still learns
+        // nothing about whether the post exists).
         $post = \RetroBB\Models\Post::find($postId);
+        Guard::requireLogin($post
+            ? Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId
+            : '/');
         if (!$post) {
             Guard::notFound('/post/' . $postId);
         }
