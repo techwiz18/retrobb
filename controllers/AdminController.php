@@ -6,6 +6,7 @@ namespace RetroBB\Controllers;
 use RetroBB\Core\Auth;
 use RetroBB\Core\Db;
 use RetroBB\Core\Guard;
+use RetroBB\Core\Settings;
 use RetroBB\Core\Slug;
 use RetroBB\Core\View;
 use RetroBB\Models\User;
@@ -220,35 +221,23 @@ class AdminController
     {
         Guard::requireSuper();
         Guard::csrf('/admin');
-        $allowed = ['board_name', 'board_tagline', 'board_url', 'posts_per_page', 'topics_per_page',
-            'flood_seconds', 'edit_window_mins', 'delete_window_mins', 'captcha_provider', 'captcha_sitekey', 'captcha_secret', 'mail_from',
-            'avatar_max_kb', 'avatar_max_width', 'avatar_max_height'];
+        // The page targeted by the form owns its keys (Settings::DEFS): a
+        // settings POST can never write captcha rows, nor spam a board name.
+        $page = ($_POST['return'] ?? '') === 'spam' ? 'spam' : 'settings';
         $pdo = Db::pdo();
-        foreach ($allowed as $k) {
-            if (isset($_POST[$k])) {
-                $v = substr(trim((string) $_POST[$k]), 0, 500);
-                if (in_array($k, ['posts_per_page', 'topics_per_page'], true)) {
-                    $v = (string) max(5, min(50, (int) $v));
-                }
-                if (in_array($k, ['flood_seconds', 'edit_window_mins', 'delete_window_mins'], true)) {
-                    $v = (string) max(0, min(3600, (int) $v));
-                }
-                if ($k === 'avatar_max_kb') {
-                    $v = (string) max(10, min(2048, (int) $v));
-                }
-                if (in_array($k, ['avatar_max_width', 'avatar_max_height'], true)) {
-                    $v = (string) max(16, min(2000, (int) $v));
-                }
-                if ($k === 'captcha_provider' && !in_array($v, ['honeypot', 'builtin', 'turnstile', 'hcaptcha', 'recaptcha'], true)) {
-                    continue;
-                }
-                if ($k === 'board_url' && $v !== '' && !preg_match('#^https?://[^/]+#i', $v)) {
-                    $_SESSION['flash_error'] = 'Board URL was not saved — use a full address like https://example.com (path must match the install subpath, if any).';
-                    continue;
-                }
-                // Native upsert (MySQL reports rows-changed, so UPDATE-then-check misfires).
-                $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)')->execute([$k, $v]);
+        $upsert = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
+        foreach (array_keys(Settings::forPage($page)) as $k) {
+            if (!isset($_POST[$k])) {
+                continue;
             }
+            $v = Settings::coerce($k, (string) $_POST[$k]);
+            if ($v === null) {
+                if ($k === 'board_url') {
+                    $_SESSION['flash_error'] = 'Board URL was not saved — use a full address like https://example.com (path must match the install subpath, if any).';
+                }
+                continue;
+            }
+            $upsert->execute([$k, $v]);
         }
         redirect($this->settingsReturn());
     }
@@ -257,44 +246,37 @@ class AdminController
     {
         Guard::requireSuper();
         Guard::csrf('/admin');
-        $pdo = Db::pdo();
-        $upsert = $pdo->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
-        foreach (['feature_alerts', 'feature_mentions', 'feature_reactions', 'feature_pms', 'feature_avatars_upload', 'feature_avatars_link', 'skin_selector'] as $k) {
-            $upsert->execute([$k, isset($_POST[$k]) ? '1' : '0']);
-        }
-        foreach (['theme_light', 'theme_dark', 'theme_auto'] as $k) {
-            $upsert->execute([$k, isset($_POST[$k]) ? '1' : '0']);
+        $vals = [];
+        foreach (Settings::forPage('features') as $k => $def) {
+            // Checkboxes are absent when unticked; typed rules coerce the rest.
+            $vals[$k] = empty($def['bool'])
+                ? (Settings::coerce($k, (string) ($_POST[$k] ?? '')) ?? (string) $def['default'])
+                : (isset($_POST[$k]) ? '1' : '0');
         }
         // At least one theme mode must stay on, or members get a broken picker.
-        if (!isset($_POST['theme_light']) && !isset($_POST['theme_dark']) && !isset($_POST['theme_auto'])) {
-            $upsert->execute(['theme_auto', '1']);
+        if ($vals['theme_light'] !== '1' && $vals['theme_dark'] !== '1' && $vals['theme_auto'] !== '1') {
+            $vals['theme_auto'] = '1';
         }
         $effectiveThemes = array_values(array_filter(
             ['light', 'dark', 'auto'],
-            fn($m) => isset($_POST['theme_' . $m])
+            fn($m) => $vals['theme_' . $m] === '1'
         ));
-        if (!$effectiveThemes) {
-            $effectiveThemes = ['auto'];
-        }
-        $skin = (string) ($_POST['default_skin'] ?? 'classic');
-        $upsert->execute(['default_skin', in_array($skin, ['classic', 'midnight', 'silver'], true) ? $skin : 'classic']);
-        $thm = (string) ($_POST['default_theme'] ?? 'auto');
-        if (!in_array($thm, ['light', 'dark', 'auto'], true)) {
-            $thm = 'auto';
-        }
         // A default nobody may pick is a contradiction: coerce it to an
         // allowed mode (prefer auto) and tell the admin it happened.
         $fixedTheme = false;
-        if (!in_array($thm, $effectiveThemes, true)) {
+        if (!in_array($vals['default_theme'], $effectiveThemes, true)) {
             foreach (['auto', 'light', 'dark'] as $m) {
                 if (in_array($m, $effectiveThemes, true)) {
-                    $thm = $m;
+                    $vals['default_theme'] = $m;
                     break;
                 }
             }
             $fixedTheme = true;
         }
-        $upsert->execute(['default_theme', $thm]);
+        $upsert = Db::pdo()->prepare('INSERT INTO settings (`key`, `value`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `value`=VALUES(`value`)');
+        foreach ($vals as $k => $v) {
+            $upsert->execute([$k, $v]);
+        }
         redirect('/admin/features?saved=1' . ($fixedTheme ? '&fixed-theme=1' : ''));
     }
 
