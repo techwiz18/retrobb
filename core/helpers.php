@@ -125,35 +125,15 @@ function config_value(string $key, mixed $default = null): mixed
 /**
  * True when the request already addresses the canonical URL. Compares
  * base-relative paths (subpath deploys) and ignores pagination suffixes,
- * so both /topic/x and /forum/topic/x match without redirect loops.
+ * so both /topic/x and /forum/topic/x match without redirect loops. The
+ * prefix itself is decided only by Router::stripBase().
  */
 function is_canonical(string $canonical): bool
 {
-    $path = \RetroBB\Core\Router::currentPath();
-    $base = strtok($path, '?');
-    $base = (string) preg_replace('#/page-\d+$#', '', $base);
-    // Strip the subpath prefix from BOTH sides: currentPath() is raw now
-    // (dispatch handles the fallback), so /forum/topic/x must compare equal
-    // to its stripped form without redirect-looping, while genuine
-    // /forum/<slug>.fN routes still match their canonical exactly.
-    if (($b = base_path()) !== '' && ($base === $b || str_starts_with($base, $b . '/'))) {
-        $stripped = substr($base, strlen($b)) ?: '/';
-        // Only accept the stripped form when it is a real app path — a bare
-        // '/<slug>.fN' is never canonical (forum routes live under /forum/).
-        // Compare against both raw and stripped to avoid loops.
-        if ($stripped !== $base) {
-            $canon = $canonical;
-            if (str_starts_with($canon, $b . '/')) {
-                $canon = substr($canon, strlen($b));
-            }
-            return $base === $canonical || $stripped === $canon;
-        }
-    }
-    $canon = $canonical;
-    if (($b = base_path()) !== '' && str_starts_with($canon, $b . '/')) {
-        $canon = substr($canon, strlen($b));
-    }
-    return $base === $canonical || $base === $canon;
+    $path = (string) strtok(\RetroBB\Core\Router::currentPath(), '?');
+    $path = (string) preg_replace('#/page-\d+$#', '', $path);
+    return (\RetroBB\Core\Router::stripBase($path) ?? $path)
+        === (\RetroBB\Core\Router::stripBase($canonical) ?? $canonical);
 }
 
 /**

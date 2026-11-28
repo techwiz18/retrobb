@@ -74,4 +74,103 @@ check('self super-revoke blocked', 'Board name' in super_s.open(base + '/admin/s
 
 # clean up the promoted admin
 post(super_s, '/admin/users', '/admin/user/3/group', {'group': 'member'})
+
+# --- Plugin lifecycle has one owner (issue #46) --------------------------
+# A fixture plugin with no row must read as enabled when it loads, when it is
+# listed, and when it is toggled; the toggle is one atomic write (parallel
+# flips land on the parity value); uninstall loads a disabled plugin's
+# bootstrap through the same accessor so its hook still fires.
+import glob, shutil, subprocess
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB = os.environ.get('RETROBB_TEST_DB', 'retrobb_test')
+TESTCFG = os.path.join(ROOT, 'storage', 'test-config.php')
+plugname = 'zz46-lifecycle-%d' % os.getpid()
+marker = 'zz46-marker-%d' % os.getpid()
+pdir = os.path.join(ROOT, 'plugins', plugname)
+unmark = os.path.join(ROOT, 'storage', plugname + '.uninstalled')
+
+
+def sql(q):
+    r = subprocess.run(['sh', 'scripts/mysql-sql.sh', q], capture_output=True, text=True,
+                       cwd=ROOT, env=dict(os.environ, RETROBB_TEST_DB=DB))
+    return r.stdout.strip()
+
+
+def toggle(name):
+    return post(super_s, '/admin/plugins', '/admin/plugin/' + name, {})
+
+
+def row_state(name):
+    return sql("SELECT COUNT(*), COALESCE(MAX(enabled), -1) FROM plugins WHERE name='%s'" % name)
+
+
+def listing_says(page, word):
+    pos = page.find('<b>%s</b>' % plugname)
+    return pos >= 0 and word in page[pos:pos + 600]
+
+
+for stale in glob.glob(os.path.join(ROOT, 'plugins', 'zz46-lifecycle-*')):
+    shutil.rmtree(stale, ignore_errors=True)
+try:
+    os.makedirs(pdir)
+    with open(os.path.join(pdir, 'plugin.json'), 'w') as f:
+        f.write('{"name":"%s","version":"0","description":"lifecycle probe","author":"test"}' % plugname)
+    with open(os.path.join(pdir, 'bootstrap.php'), 'w') as f:
+        f.write("""<?php
+declare(strict_types=1);
+use RetroBB\\Core\\Hooks;
+Hooks::add_action('footer', function () { echo '<span id="%s">%s</span>'; });
+Hooks::add_action('plugin_uninstalled', function ($name) {
+    file_put_contents(dirname(__DIR__, 2) . '/storage/%s.uninstalled', (string) $name);
+});
+""" % (marker, marker, plugname))
+
+    home, _ = get(super_s, '/')
+    page, _ = get(super_s, '/admin/plugins')
+    check('no-row plugin loads by default', marker in home)
+    check('no-row plugin lists as on', listing_says(page, '[on]'))
+    check('no-row plugin has no stored row', row_state(plugname) == '0\t-1', row_state(plugname))
+
+    body, _ = toggle(plugname)
+    check('first toggle of a no-row plugin stores off', row_state(plugname) == '1\t0', row_state(plugname))
+    check('toggle did not error', 'Could not save plugin state.' not in body)
+    page, _ = get(super_s, '/admin/plugins')
+    home, _ = get(super_s, '/')
+    check('listing agrees with the stored off state', listing_says(page, '[off]'))
+    check('disabled plugin no longer loads', marker not in home)
+
+    body, _ = toggle(plugname)
+    check('second toggle stores on', row_state(plugname) == '1\t1', row_state(plugname))
+    check('toggle back did not error', 'Could not save plugin state.' not in body)
+
+    # Disabled plugins do not load, so uninstall must fetch the bootstrap itself.
+    toggle(plugname)
+    check('fixture disabled before uninstall', row_state(plugname) == '1\t0', row_state(plugname))
+    post(super_s, '/admin/plugins', '/admin/plugin/%s/uninstall' % plugname, {})
+    check('uninstall fires the disabled plugin hook', os.path.exists(unmark))
+    check('uninstall forgets the row and files', row_state(plugname) == '0\t-1' and not os.path.isdir(pdir),
+          row_state(plugname))
+
+    # Eight parallel flips from "no row" (= enabled) must land on enabled and
+    # leave a single intact row, never a torn/duplicated one.
+    php = ('require "/app/core/Db.php"; require "/app/core/Plugins.php";'
+           '\\RetroBB\\Core\\Plugins::toggle("%s");' % plugname)
+    procs = [subprocess.Popen(
+        ['docker', 'run', '--rm', '-v', ROOT + ':/app', '-v', TESTCFG + ':/app/config.php',
+         '-w', '/app', '--network', 'retrobb-net', 'retrobb-php', 'php', '-r', php],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) for _ in range(8)]
+    codes = []
+    for p in procs:
+        out, err = p.communicate()
+        codes.append(p.returncode if p.returncode == 0 else (err or out).strip().splitlines()[-1:])
+    check('eight concurrent toggles all succeed', all(c == 0 for c in codes), codes)
+    check('concurrent toggles leave one intact row at even parity',
+          row_state(plugname) == '1\t1', row_state(plugname))
+finally:
+    sql("DELETE FROM plugins WHERE name='%s'" % plugname)
+    shutil.rmtree(pdir, ignore_errors=True)
+    if os.path.exists(unmark):
+        os.remove(unmark)
+
 finish()
