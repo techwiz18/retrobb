@@ -33,16 +33,12 @@ class ProfileController
     {
         $parsed = Slug::parseSuffixed($segment, 'u');
         if (!$parsed) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/members/' . $segment]);
-            return;
+            Guard::notFound('/members/' . $segment);
         }
         [$uname, $id] = $parsed;
         $user = User::find($id);
         if (!$user) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/members/' . $segment]);
-            return;
+            Guard::notFound('/members/' . $segment);
         }
         $canonical = Slug::memberUrl($user);
         if (!\is_canonical($canonical)) {

@@ -10,17 +10,6 @@ use RetroBB\Models\Pm;
 
 class PmController
 {
-    /** 404 when the owner disabled PMs board-wide. Returns false if handled. */
-    private function guard(string $path): bool
-    {
-        if (!feature('pms')) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => $path]);
-            return false;
-        }
-        return true;
-    }
-
     /** Counts for the Inbox/Sent/Drafts/Trash tabs. */
     private function tabs(int $me): array
     {
@@ -34,9 +23,7 @@ class PmController
 
     public function inbox(): void
     {
-        if (!$this->guard('/pm')) {
-            return;
-        }
+        Guard::requireFeature('pms', '/pm');
         Guard::requireLogin('/pm');
         $me = (int) Auth::user()['id'];
         $page = max(1, (int) ($_GET['page'] ?? 1));
@@ -51,9 +38,7 @@ class PmController
 
     public function sent(): void
     {
-        if (!$this->guard('/pm/sent')) {
-            return;
-        }
+        Guard::requireFeature('pms', '/pm/sent');
         Guard::requireLogin('/pm/sent');
         $me = (int) Auth::user()['id'];
         $page = max(1, (int) ($_GET['page'] ?? 1));
@@ -68,9 +53,7 @@ class PmController
 
     public function trash(): void
     {
-        if (!$this->guard('/pm/trash')) {
-            return;
-        }
+        Guard::requireFeature('pms', '/pm/trash');
         Guard::requireLogin('/pm/trash');
         $me = (int) Auth::user()['id'];
         $page = max(1, (int) ($_GET['page'] ?? 1));
@@ -85,16 +68,12 @@ class PmController
 
     public function show(int $id): void
     {
-        if (!$this->guard('/pm/' . $id)) {
-            return;
-        }
+        Guard::requireFeature('pms', '/pm/' . $id);
         Guard::requireLogin('/pm/' . $id);
         $me = (int) Auth::user()['id'];
         $pm = Pm::findFor($id, $me);
         if (!$pm) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/pm/' . $id]);
-            return;
+            Guard::notFound('/pm/' . $id);
         }
         if ((int) $pm['recipient_id'] === $me) {
             Pm::markRead($id, $me);
@@ -112,9 +91,7 @@ class PmController
 
     public function delete(int $id): void
     {
-        if (!$this->guard('/pm/' . $id)) {
-            return;
-        }
+        Guard::requireFeature('pms', '/pm/' . $id);
         Guard::requireLogin('/pm');
         Guard::csrf('/pm');
         $me = (int) Auth::user()['id'];
@@ -126,9 +103,7 @@ class PmController
 
     public function newForm(): void
     {
-        if (!$this->guard('/pm/new')) {
-            return;
-        }
+        Guard::requireFeature('pms', '/pm/new');
         Guard::requireLogin('/pm/new');
         $me = (int) Auth::user()['id'];
         $to = trim((string) ($_GET['to'] ?? ''));
@@ -157,9 +132,7 @@ class PmController
 
     public function newSubmit(): void
     {
-        if (!$this->guard('/pm/new')) {
-            return;
-        }
+        Guard::requireFeature('pms', '/pm/new');
         Guard::requireLogin('/pm/new');
         Guard::csrf('/pm/new');
         $me = (int) Auth::user()['id'];
@@ -202,9 +175,7 @@ class PmController
 
     public function drafts(): void
     {
-        if (!$this->guard('/pm/drafts')) {
-            return;
-        }
+        Guard::requireFeature('pms', '/pm/drafts');
         Guard::requireLogin('/pm/drafts');
         $me = (int) Auth::user()['id'];
         View::render('pm/drafts', [
@@ -215,16 +186,12 @@ class PmController
 
     public function draftForm($id = null): void
     {
-        if (!$this->guard('/pm/draft')) {
-            return;
-        }
+        Guard::requireFeature('pms', '/pm/draft');
         Guard::requireLogin($id ? '/pm/draft/' . (int) $id : '/pm/draft/new');
         $me = (int) Auth::user()['id'];
         $draft = $id ? Pm::findDraft((int) $id, $me) : null;
         if ($id && !$draft) {
-            http_response_code(404);
-            View::render('errors/404', ['path' => '/pm/draft/' . (int) $id]);
-            return;
+            Guard::notFound('/pm/draft/' . (int) $id);
         }
         $blank = ['id' => 0, 'to_name' => trim((string) ($_GET['to'] ?? '')), 'subject' => '', 'body_bbcode' => '', 'reply_to_id' => 0];
         View::render('pm/draft', [
@@ -237,9 +204,7 @@ class PmController
     /** Save (or send) a draft. Two submit buttons: "Save draft" and "Send". */
     public function draftSubmit($id = null): void
     {
-        if (!$this->guard('/pm/draft')) {
-            return;
-        }
+        Guard::requireFeature('pms', '/pm/draft');
         Guard::requireLogin($id ? '/pm/draft/' . (int) $id : '/pm/draft/new');
         Guard::csrf($id ? '/pm/draft/' . (int) $id : '/pm/draft/new');
         $me = (int) Auth::user()['id'];
@@ -289,9 +254,7 @@ class PmController
 
     public function draftDiscard(int $id): void
     {
-        if (!$this->guard('/pm/draft')) {
-            return;
-        }
+        Guard::requireFeature('pms', '/pm/draft');
         Guard::requireLogin('/pm/drafts');
         Guard::csrf('/pm/drafts');
         Pm::discardDraft($id, (int) Auth::user()['id']);

@@ -13,6 +13,7 @@ namespace RetroBB\Core;
  *
  *   Guard::requireAdmin();                 // staff page
  *   Guard::requireSuper();                 // site-critical action
+ *   Guard::requireFeature('pms', '/pm');   // a board feature that is switched off
  *   Guard::csrf('/admin');                 // every POST handler, before the write
  *   Guard::notFound('/admin/category/3/edit'); // a missing record
  *   Guard::flashThenReturn('/admin/structure', 'Saved.'); // after a write
@@ -24,8 +25,9 @@ namespace RetroBB\Core;
  * Guests are refused by requireAdmin() (they are not staff) with the normal
  * 403 page, so AdminCP never reveals whether a page exists. requireLogin() is
  * for member-only pages: it sends guests to the login form and brings them
- * back afterwards. Topic/report/PM/profile callers adopt these in #37/#38;
- * AdminCP is the first caller.
+ * back afterwards. Every controller goes through these; core/Guard.php is the
+ * only place a refusal is rendered, and scripts/guardcheck.py fails the suite
+ * if one comes back.
  *
  * Return paths: every destination goes through localPath(), so a request
  * value can never become an off-site redirect. HTTP_REFERER is never
@@ -89,6 +91,14 @@ final class Guard
         exit;
     }
 
+    /** A switched-off feature does not exist: render the 404 page and stop. */
+    public static function requireFeature(string $feature, string $path = ''): void
+    {
+        if (!feature($feature)) {
+            self::notFound($path);
+        }
+    }
+
     /**
      * Enforce the posted form token. On failure, render a normal page that
      * repeats the submitted fields behind a fresh token so the visitor can
@@ -120,6 +130,20 @@ final class Guard
             'fields' => $fields,
         ]);
         exit;
+    }
+
+    /**
+     * Enforce the posted form token. A stale token flashes $message and
+     * returns to $path instead of re-showing the form — for one-button
+     * actions (a queue decision) where the submitted fields are not worth
+     * repeating.
+     */
+    public static function csrfThenReturn(string $path, string $message): void
+    {
+        $token = $_POST['csrf'] ?? null;
+        if (!Csrf::verify(is_string($token) ? $token : null)) {
+            self::flashThenReturn($path, $message);
+        }
     }
 
     /** Flash a message and redirect to a local path (never off-site). */
