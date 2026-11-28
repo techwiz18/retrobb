@@ -86,6 +86,58 @@ check('modlog has warn', 'warn' in ml.lower())
 check('modlog has ban', 'ban' in ml.lower())
 check('modlog has unban', 'unban' in ml.lower())
 
+# --- shared refusal seam (issue #37) -------------------------------------
+def raw(op, path, fields, referer=None):
+    """POST without following the outcome away; returns (body, code)."""
+    req = urllib.request.Request(base + path, data=urllib.parse.urlencode(fields).encode())
+    if referer:
+        req.add_header('Referer', base + referer)
+    try:
+        r = op.open(req)
+        return r.read().decode(), r.status
+    except urllib.error.HTTPError as e:
+        return e.read().decode(), e.code
+
+def chrome(html):
+    return '<nav' in html and 'class="footer"' in html
+
+topic1 = mod.open(base + '/topic/welcome-to-retrobb.t1').read().decode()
+tid = re.search(r'/topic/(\d+)/pinned', topic1).group(1)
+staff_pid = None
+for pid, who in re.findall(r'id="p(\d+)" data-username="([^"]+)"', topic1):
+    if who == 'admin':
+        staff_pid = pid
+        break
+check('found a post by another staffer', staff_pid is not None)
+
+# A mod may not touch another staffer's post: one error page, not a bounce.
+body, code = raw(mod, f'/post/{staff_pid}/delete', {'csrf': csrf(topic1)})
+check('staff-post refusal is the 403 page', code == 403, code)
+check('staff-post refusal keeps board chrome', chrome(body))
+check('staff-post refusal says why', 'Only super admins' in body)
+check('staff-post refusal is not a bare string', body.strip() != 'Forbidden')
+check('staff post survived the refusal',
+      f'id="p{staff_pid}"' in mod.open(base + '/topic/welcome-to-retrobb.t1').read().decode())
+
+# A stale token renders the retry page with board chrome, never a bare 419.
+body, code = raw(mod, f'/topic/{tid}/pinned', {'csrf': 'stale'})
+check('topic csrf refusal is a rendered page', code != 419 and 'CSRF mismatch' not in body, code)
+check('topic csrf refusal keeps board chrome', chrome(body))
+check('topic csrf refusal explains itself', 'session expired' in body.lower(), body[:80])
+
+# Members never reach a staff action, and still get the board's own page.
+body, code = raw(reporter, f'/topic/{tid}/pinned', {'csrf': csrf(thtml)})
+check('member topic action is the 403 page', code == 403 and chrome(body), code)
+check('member topic action is not a bare string', body.strip() != 'Forbidden')
+
+# A missing topic is the shared 404 page with chrome.
+try:
+    reporter.open(base + '/topic/nope.t999999')
+    code, body = 200, ''
+except urllib.error.HTTPError as e:
+    code, body = e.code, e.read().decode()
+check('missing topic is the shared 404 page', code == 404 and chrome(body), code)
+
 try:
     reporter.open(base + '/mod/reports')
     check('member cannot reach mod queue', False, 'reached queue')
