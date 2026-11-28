@@ -30,7 +30,7 @@ class Pm
             $subject = '(no subject)';
         }
         // Same anti-spam flood control as forum posts (mods bypass).
-        $flood = max(0, (int) setting('flood_seconds', '30'));
+        $flood = \RetroBB\Core\Settings::int('flood_seconds');
         if ($flood > 0 && !\RetroBB\Core\Auth::isMod()) {
             $st = Db::pdo()->prepare('SELECT created_at FROM pms WHERE sender_id=? ORDER BY id DESC LIMIT 1');
             $st->execute([$senderId]);

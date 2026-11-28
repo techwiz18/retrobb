@@ -14,6 +14,7 @@ if (PHP_SAPI !== 'cli' && !defined('RETROBB_INTERNAL_MIGRATE')) {
 
 $root = dirname(__DIR__);
 require_once $root . '/core/Db.php';
+require_once $root . '/core/Settings.php';
 
 use RetroBB\Core\Db;
 
@@ -74,36 +75,9 @@ if ($pfiles !== []) {
     }
 }
 
-// default settings
-$defaults = [
-    'board_name' => 'RetroBB',
-    'board_tagline' => 'An old-school forum for the modern web',
-    'board_url' => '',
-    'default_skin' => 'classic',
-    'posts_per_page' => '15',
-    'topics_per_page' => '25',
-    'flood_seconds' => '30',
-    'edit_window_mins' => '30',
-    'delete_window_mins' => '30',
-    'captcha_provider' => 'honeypot',
-    'captcha_sitekey' => '',
-    'captcha_secret' => '',
-    'mail_from' => '',
-    'feature_avatars_upload' => '1',
-    'feature_avatars_link' => '1',
-    'avatar_max_kb' => '100',
-    'avatar_max_width' => '200',
-    'avatar_max_height' => '200',
-    'feature_alerts' => '1',
-    'feature_pms' => '1',
-    'feature_reactions' => '1',
-    'feature_mentions' => '1',
-    'skin_selector' => '1',
-    'theme_light' => '1',
-    'theme_dark' => '1',
-    'theme_auto' => '1',
-    'default_theme' => 'auto',
-];
+// default settings: definitions live in core/Settings.php (issue #44). The
+// migrator seeds only their defaults.
+$defaults = \RetroBB\Core\Settings::defaults();
 // Super-admin bootstrap for pre-tier boards: the first admin becomes super,
 // but only when nobody holds it yet (never clobber an existing choice).
 // Wrapped in a closure because the demo seed at the end of this file creates
