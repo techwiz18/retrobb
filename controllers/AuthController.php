@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace RetroBB\Controllers;
 
 use RetroBB\Core\Auth;
-use RetroBB\Core\Csrf;
+use RetroBB\Core\Guard;
 use RetroBB\Core\View;
 use RetroBB\Models\User;
 
@@ -74,10 +74,7 @@ class AuthController
 
     public function registerSubmit(): void
     {
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            View::render('auth/register', ['pageTitle' => 'Register', 'errors' => ['Session expired.']]);
-            return;
-        }
+        Guard::csrf('/');
         $cap = \RetroBB\Core\Captcha::verify($_POST);
         if (!$cap['ok']) {
             View::render('auth/register', ['pageTitle' => 'Register', 'errors' => [$cap['error'] ?? 'CAPTCHA failed.']]);
@@ -107,10 +104,7 @@ class AuthController
 
     public function loginSubmit(): void
     {
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            View::render('auth/login', ['pageTitle' => 'Log in', 'error' => 'Session expired.']);
-            return;
-        }
+        Guard::csrf('/');
         $login = trim((string) ($_POST['login'] ?? ''));
         $pass = (string) ($_POST['password'] ?? '');
         // IP+account throttle (the session counter alone resets with cookies).
@@ -163,9 +157,7 @@ class AuthController
 
     public function logout(): void
     {
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/');
-        }
+        Guard::csrf('/');
         Auth::logout();
         redirect('/');
     }
@@ -183,10 +175,7 @@ class AuthController
         if (Auth::check()) {
             redirect('/');
         }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            View::render('auth/forgot', ['pageTitle' => 'Forgot password', 'sent' => false]);
-            return;
-        }
+        Guard::csrf('/login');
         // Session throttle on top of the per-user one in the model.
         $_SESSION['pwreset_attempts'] = ($_SESSION['pwreset_attempts'] ?? 0) + 1;
         if ($_SESSION['pwreset_attempts'] > 10) {
@@ -238,10 +227,7 @@ class AuthController
             redirect('/');
         }
         $token = (string) ($_POST['token'] ?? '');
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            View::render('auth/reset', ['pageTitle' => 'Set new password', 'token' => $token, 'error' => 'Session expired.']);
-            return;
-        }
+        Guard::csrf('/login');
         $pass = (string) ($_POST['password'] ?? '');
         $pass2 = (string) ($_POST['password2'] ?? '');
         if ($pass !== $pass2) {

@@ -3,6 +3,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _harness import check, finish
 
 base = os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def session():
     cj = http.cookiejar.CookieJar()
@@ -61,4 +62,75 @@ post(admin, '/admin/unban/' + m.group(1), {'csrf': csrf(html)})
 login(victim, 'dialup_dan', 'password123')
 _, _, html = get(victim, '/')
 check('login works after unban', 'dialup_dan' in html)
+
+# 3. Refusal seam (issue #38): a stale token re-renders a page with chrome and
+# a message, and the action never runs.
+def stale(op, path, fields):
+    """POST a deliberately stale token; never follow a redirect."""
+    data = urllib.parse.urlencode(dict(fields, csrf='stale')).encode()
+    try:
+        r = op.open(urllib.request.Request(base + path, data=data))
+        return r.status, r.read().decode()
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode()
+
+def refused(html):
+    text = html.lower()
+    return ('session expired' in text and '<nav' in html and 'class="footer"' in html
+            and 'csrf mismatch' not in text)
+
+home = get(admin, '/')[2]
+fm = re.search(r'/forum/([a-z0-9\-]+)\.f(\d+)', home)
+fhtml = get(admin, '/forum/%s.f%s' % (fm.group(1), fm.group(2)))[2]
+tm = re.search(r'/topic/([a-z0-9\-]+)\.t(\d+)', fhtml)
+thtml = get(admin, '/topic/%s.t%s' % (tm.group(1), tm.group(2)))[2]
+pid = re.search(r'#p(\d+)', thtml).group(1)
+
+code, body = stale(mod, '/pm/new', {'to': 'admin', 'subject': 'CSRF_PM_38', 'body': 'CSRF_PM_BODY_38'})
+check('pm csrf refusal shows chrome + message', refused(body), code)
+check('pm csrf refusal keeps the typed body', 'CSRF_PM_BODY_38' in body)
+check('pm csrf refusal sends nothing', 'CSRF_PM_38' not in get(mod, '/pm/sent')[2])
+
+code, body = stale(mod, '/post/%s/react' % pid, {'reaction': 'like'})
+check('reaction csrf refusal shows chrome + message', refused(body), code)
+
+code, body = stale(mod, '/settings/profile', {'form': 'profile', 'email': 'x@example.com', 'bio': 'CSRF_BIO_38'})
+check('profile csrf refusal shows chrome + message', refused(body), code)
+check('profile csrf refusal saves nothing', 'CSRF_BIO_38' not in get(mod, '/settings/profile')[2])
+
+code, body = stale(session(), '/login', {'login': 'admin', 'password': 'admin123', 'next': '/pm/sent'})
+check('login csrf refusal shows chrome + message', refused(body), code)
+check('login csrf refusal keeps the destination', 'name="next"' in body and '/pm/sent' in body)
+check('login csrf refusal never echoes the password', 'admin123' not in body)
+
+code, body = stale(mod, '/members/3/warn', {'reason': 'CSRF_WARN_38'})
+check('moderation csrf refusal shows chrome + message', refused(body), code)
+check('moderation csrf refusal records nothing', 'CSRF_WARN_38' not in get(mod, '/members/dialup-dan.u3')[2])
+
+# 4. A guest sent to the login form comes back to where they were going.
+class NoRedir(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, hdrs, newurl):
+        return None
+
+guest = urllib.request.build_opener(NoRedir, urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+
+def redirect_to(path):
+    try:
+        guest.open(base + path)
+        return 0, ''
+    except urllib.error.HTTPError as e:
+        return e.code, e.headers.get('Location') or ''
+
+code, loc = redirect_to('/pm/1')
+check('guest PM link returns to the message after login',
+      code == 302 and 'next=%2Fpm%2F1' in loc, '%s %s' % (code, loc))
+code, loc = redirect_to('/settings/profile')
+check('guest settings link returns after login',
+      code == 302 and 'next=%2Fsettings%2Fprofile' in loc, '%s %s' % (code, loc))
+
+# 5. No bare CSRF refusal survives outside the shared module (issue #38).
+for name in ['AuthController', 'PmController', 'ProfileController', 'ReactionController', 'ModController']:
+    src = open(os.path.join(ROOT, 'controllers', name + '.php')).read()
+    check('refusal goes through the shared module: ' + name,
+          'CSRF mismatch' not in src and '419' not in src and 'Csrf::verify' not in src)
 finish()

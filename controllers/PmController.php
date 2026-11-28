@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace RetroBB\Controllers;
 
 use RetroBB\Core\Auth;
-use RetroBB\Core\Csrf;
+use RetroBB\Core\Guard;
 use RetroBB\Core\View;
 use RetroBB\Models\Pm;
 
@@ -37,9 +37,7 @@ class PmController
         if (!$this->guard('/pm')) {
             return;
         }
-        if (!Auth::check()) {
-            redirect('/login?next=' . urlencode('/pm'));
-        }
+        Guard::requireLogin('/pm');
         $me = (int) Auth::user()['id'];
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $data = Pm::inbox($me, $page);
@@ -56,9 +54,7 @@ class PmController
         if (!$this->guard('/pm/sent')) {
             return;
         }
-        if (!Auth::check()) {
-            redirect('/login?next=' . urlencode('/pm/sent'));
-        }
+        Guard::requireLogin('/pm/sent');
         $me = (int) Auth::user()['id'];
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $data = Pm::outbox($me, $page);
@@ -75,9 +71,7 @@ class PmController
         if (!$this->guard('/pm/trash')) {
             return;
         }
-        if (!Auth::check()) {
-            redirect('/login?next=' . urlencode('/pm/trash'));
-        }
+        Guard::requireLogin('/pm/trash');
         $me = (int) Auth::user()['id'];
         $page = max(1, (int) ($_GET['page'] ?? 1));
         $data = Pm::trash($me, $page);
@@ -94,9 +88,7 @@ class PmController
         if (!$this->guard('/pm/' . $id)) {
             return;
         }
-        if (!Auth::check()) {
-            redirect('/login');
-        }
+        Guard::requireLogin('/pm/' . $id);
         $me = (int) Auth::user()['id'];
         $pm = Pm::findFor($id, $me);
         if (!$pm) {
@@ -123,14 +115,8 @@ class PmController
         if (!$this->guard('/pm/' . $id)) {
             return;
         }
-        if (!Auth::check()) {
-            redirect('/login');
-        }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            http_response_code(419);
-            echo 'CSRF mismatch';
-            return;
-        }
+        Guard::requireLogin('/pm');
+        Guard::csrf('/pm');
         $me = (int) Auth::user()['id'];
         if (Pm::deleteFor($id, $me)) {
             $_SESSION['flash_ok'] = 'Message deleted.';
@@ -143,9 +129,7 @@ class PmController
         if (!$this->guard('/pm/new')) {
             return;
         }
-        if (!Auth::check()) {
-            redirect('/login?next=' . urlencode('/pm/new'));
-        }
+        Guard::requireLogin('/pm/new');
         $me = (int) Auth::user()['id'];
         $to = trim((string) ($_GET['to'] ?? ''));
         $subject = '';
@@ -176,9 +160,8 @@ class PmController
         if (!$this->guard('/pm/new')) {
             return;
         }
-        if (!Auth::check()) {
-            redirect('/login');
-        }
+        Guard::requireLogin('/pm/new');
+        Guard::csrf('/pm/new');
         $me = (int) Auth::user()['id'];
         $toName = trim((string) ($_POST['to'] ?? ''));
         $replyTo = max(0, (int) ($_POST['reply_to'] ?? 0));
@@ -193,10 +176,6 @@ class PmController
                 'pageTitle' => 'New message',
             ];
         };
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            View::render('pm/new', $compose('Session expired.'));
-            return;
-        }
         // "Save draft" keeps the half-written message (and its reply link).
         if (isset($_POST['save'])) {
             $res = Pm::saveDraft($me, $toName, (string) ($_POST['subject'] ?? ''), (string) ($_POST['body'] ?? ''), 0, $replyTo);
@@ -226,9 +205,7 @@ class PmController
         if (!$this->guard('/pm/drafts')) {
             return;
         }
-        if (!Auth::check()) {
-            redirect('/login?next=' . urlencode('/pm/drafts'));
-        }
+        Guard::requireLogin('/pm/drafts');
         $me = (int) Auth::user()['id'];
         View::render('pm/drafts', [
             'items' => Pm::drafts($me), 'tabs' => $this->tabs($me),
@@ -241,9 +218,7 @@ class PmController
         if (!$this->guard('/pm/draft')) {
             return;
         }
-        if (!Auth::check()) {
-            redirect('/login?next=' . urlencode('/pm/drafts'));
-        }
+        Guard::requireLogin($id ? '/pm/draft/' . (int) $id : '/pm/draft/new');
         $me = (int) Auth::user()['id'];
         $draft = $id ? Pm::findDraft((int) $id, $me) : null;
         if ($id && !$draft) {
@@ -265,9 +240,8 @@ class PmController
         if (!$this->guard('/pm/draft')) {
             return;
         }
-        if (!Auth::check()) {
-            redirect('/login');
-        }
+        Guard::requireLogin($id ? '/pm/draft/' . (int) $id : '/pm/draft/new');
+        Guard::csrf($id ? '/pm/draft/' . (int) $id : '/pm/draft/new');
         $me = (int) Auth::user()['id'];
         $draftId = $id ? (int) $id : 0;
         $draftReplyTo = max(0, (int) ($_POST['reply_to'] ?? 0));
@@ -283,11 +257,6 @@ class PmController
             'error' => null,
             'pageTitle' => 'Draft — ' . board_name(),
         ];
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            $vars['error'] = 'Session expired.';
-            View::render('pm/draft', $vars);
-            return;
-        }
         $send = ($_POST['send'] ?? '') !== '';
         if ($send) {
             $to = Pm::resolveRecipient((string) ($_POST['to'] ?? ''));
@@ -323,14 +292,8 @@ class PmController
         if (!$this->guard('/pm/draft')) {
             return;
         }
-        if (!Auth::check()) {
-            redirect('/login');
-        }
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            http_response_code(419);
-            echo 'CSRF mismatch';
-            return;
-        }
+        Guard::requireLogin('/pm/drafts');
+        Guard::csrf('/pm/drafts');
         Pm::discardDraft($id, (int) Auth::user()['id']);
         $_SESSION['flash_ok'] = 'Draft discarded.';
         redirect('/pm/drafts');
