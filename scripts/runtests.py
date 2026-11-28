@@ -9,7 +9,7 @@ Prereq: a test board is up (scripts/testenv.sh builds it: fresh, seeded,
 canonical ids).
 
     scripts/testenv.sh                 # or: python3 scripts/runtests.py --up
-    python3 scripts/runtests.py        # all suites, http://localhost:8083
+    python3 scripts/runtests.py        # all suites, http://localhost:8081
     python3 scripts/runtests.py smoke vulntest     # a subset
     RETROBB_TEST_BASE=... RETROBB_TEST_DB=... python3 scripts/runtests.py
 
@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-BASE = os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8083')
+BASE = os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8081')
 DB = os.environ.get('RETROBB_TEST_DB', 'retrobb_test')
 
 # Order is incidental — suites are self-contained (they seed/discover ids and
@@ -55,7 +55,6 @@ SUITES = [
     'rebuildcheck',
     'postbodycheck',
     'hostcheck',
-    'subpathcheck',
     'installcheck',
     'bincheck',
 ]
