@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace RetroBB\Models;
 
-use RetroBB\Core\BBCode;
 use RetroBB\Core\Db;
+use RetroBB\Core\PostBody;
 use RetroBB\Core\Slug;
 
 class Pm
@@ -51,7 +51,7 @@ class Pm
         }
         Db::pdo()->prepare(
             'INSERT INTO pms (sender_id, recipient_id, subject, body_bbcode, body_html, created_at, reply_to_id) VALUES (?,?,?,?,?,?,?)'
-        )->execute([$senderId, $recipientId, mb_substr($subject, 0, 120), $bbcode, BBCode::toHtml($bbcode), date('Y-m-d H:i:s'), $replyTo]);
+        )->execute([$senderId, $recipientId, mb_substr($subject, 0, 120), $bbcode, PostBody::render($bbcode), date('Y-m-d H:i:s'), $replyTo]);
         return ['ok' => true, 'id' => (int) Db::pdo()->lastInsertId()];
     }
 

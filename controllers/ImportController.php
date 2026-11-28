@@ -4,9 +4,9 @@ declare(strict_types=1);
 namespace RetroBB\Controllers;
 
 use RetroBB\Core\Auth;
-use RetroBB\Core\BBCode;
 use RetroBB\Core\Csrf;
 use RetroBB\Core\Db;
+use RetroBB\Core\PostBody;
 use RetroBB\Core\Slug;
 use RetroBB\Core\View;
 
@@ -362,9 +362,7 @@ class ImportController
         if ($author <= 0) {
             $author = $this->guestId();
         }
-        Db::pdo()->prepare(
-            'INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)'
-        )->execute([$topicId, $author, $r['body'], BBCode::toHtml($r['body']), $r['created']]);
+        PostBody::insert($topicId, $author, $r['body'], $r['created']);
         Db::pdo()->prepare('UPDATE users SET posts_count=posts_count+1 WHERE id=?')->execute([$author]);
     }
 
