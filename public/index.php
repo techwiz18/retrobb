@@ -90,10 +90,7 @@ Auth::validateSession();
 // Matched tightly: '/installer' and friends must fall through to the
 // installer redirect, not into a 500 on the missing config.
 $reqPath = Router::currentPath();
-$bp = base_path();
-$reqStripped = ($bp !== '' && ($reqPath === $bp || str_starts_with($reqPath, $bp . '/')))
-    ? (substr($reqPath, strlen($bp)) ?: '/') : $reqPath;
-$onInstall = $reqPath === '/install.php' || $reqStripped === '/install.php';
+$onInstall = $reqPath === '/install.php' || Router::stripBase($reqPath) === '/install.php';
 if (!is_file($root . '/config.php') && !$onInstall) {
     // Fresh upload: no config yet, so there is nothing to connect to.
     redirect('/install.php');

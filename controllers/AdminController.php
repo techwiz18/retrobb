@@ -108,16 +108,7 @@ class AdminController
     /** @return array{name,version,description,author,enabled}[] */
     private function pluginList(): array
     {
-        $pdo = Db::pdo();
-        try {
-            $rows = $pdo->query('SELECT name, enabled FROM plugins')->fetchAll();
-            $enabled = [];
-            foreach ($rows as $r) {
-                $enabled[$r['name']] = (int) $r['enabled'];
-            }
-        } catch (\Throwable) {
-            $enabled = [];
-        }
+        $states = \RetroBB\Core\Plugins::states();
         $out = [];
         foreach (glob(dirname(__DIR__) . '/plugins/*', GLOB_ONLYDIR) ?: [] as $dir) {
             $name = basename($dir);
@@ -134,7 +125,7 @@ class AdminController
                 'version' => (string) ($meta['version'] ?? ''),
                 'description' => (string) ($meta['description'] ?? ''),
                 'author' => (string) ($meta['author'] ?? ''),
-                'enabled' => $enabled[$name] ?? 1,
+                'enabled' => \RetroBB\Core\Plugins::isEnabled($name, $states) ? 1 : 0,
             ];
         }
         usort($out, fn($a, $b) => strcmp($a['name'], $b['name']));
@@ -150,26 +141,7 @@ class AdminController
             redirect('/admin/plugins');
         }
         try {
-            $pdo = Db::pdo();
-            $cur = $pdo->prepare('SELECT enabled FROM plugins WHERE name=?');
-            $cur->execute([$name]);
-            $row = $cur->fetch();
-            if ($row) {
-                // Atomic single-statement toggle: two super-admins clicking
-                // at once can't read the same value and write it back twice.
-                $pdo->prepare('UPDATE plugins SET enabled = 1 - enabled WHERE name=?')->execute([$name]);
-                $chk = $pdo->prepare('SELECT enabled FROM plugins WHERE name=?');
-                $chk->execute([$name]);
-                $r2 = $chk->fetch();
-                $next = $r2 ? (int) $r2['enabled'] : 1 - (int) $row['enabled'];
-            } else {
-                // First toggle of a never-toggled plugin disables it (new
-                // plugins run enabled until an admin says otherwise).
-                $pdo->prepare('INSERT INTO plugins (name, enabled) VALUES (?, 0)')->execute([$name]);
-                $next = 0;
-            }
-            $pdo->prepare('INSERT INTO plugins (name, enabled) VALUES (?, ?) ON DUPLICATE KEY UPDATE enabled=VALUES(enabled)')
-                ->execute([$name, $next]);
+            $next = \RetroBB\Core\Plugins::toggle($name);
             \RetroBB\Core\Modlog::log((int) Auth::user()['id'], $next ? 'plugin_enable' : 'plugin_disable', 'plugin', 0, $name);
             // Lifecycle hook (issue #20): seeding on enable, cleanup on
             // disable — replaces every-request CREATE TABLE IF NOT EXISTS.
@@ -193,13 +165,10 @@ class AdminController
             redirect('/admin/plugins');
         }
         try {
-            // Disabled plugins never load their bootstrap, so load it here
-            // (require_once = no-op when already loaded) — otherwise the
-            // hook below would fire with no listener.
-            $boot = $dir . '/bootstrap.php';
-            if (is_file($boot)) {
-                require_once $boot;
-            }
+            // Disabled plugins never load their bootstrap, so fetch it through
+            // the shared accessor (require_once = no-op when already loaded) —
+            // otherwise the hook below would fire with no listener.
+            \RetroBB\Core\Plugins::loadOne($name);
             \RetroBB\Core\Hooks::do_action('plugin_uninstalled', $name);
             $pdo = Db::pdo();
             $pdo->prepare('DELETE FROM plugins WHERE name=?')->execute([$name]);
