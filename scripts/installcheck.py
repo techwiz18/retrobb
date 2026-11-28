@@ -16,9 +16,9 @@ from _harness import check, finish
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LOCK = os.path.join(ROOT, 'storage', 'installed.lock')
 CFG = os.path.join(ROOT, 'storage', 'test-install-config.php')
-DB = 'retrobb_install_check'
-NAME = 'retrobb-install-check'
-PORT = 8098
+DB = os.environ.get('RETROBB_INSTALL_DB', 'retrobb_install_check')
+NAME = os.environ.get('RETROBB_INSTALL_NAME', 'retrobb-install-check')
+PORT = int(os.environ.get('RETROBB_INSTALL_PORT', '8098'))
 BASE = os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8081')
 FRESH = 'http://localhost:%d' % PORT
 

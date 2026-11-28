@@ -10,8 +10,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _harness import check, finish
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-NAME = 'retrobb-bincheck'
-PORT = 8099
+NAME = os.environ.get('RETROBB_BIN_NAME', 'retrobb-bincheck')
+PORT = int(os.environ.get('RETROBB_BIN_PORT', '8099'))
 BASE = os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8081')
 RAW = 'http://localhost:%d' % PORT
 
