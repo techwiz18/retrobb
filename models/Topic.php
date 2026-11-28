@@ -182,7 +182,7 @@ class Topic
         if ($isMod) {
             return 0;
         }
-        $secs = max(0, (int) setting('flood_seconds', '30'));
+        $secs = \RetroBB\Core\Settings::int('flood_seconds');
         if ($secs === 0) {
             return 0;
         }
