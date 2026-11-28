@@ -117,6 +117,52 @@ class Moderation
         return null;
     }
 
+    /** Shared post edit/delete policy (#34): the topic page buttons and the
+        endpoints consume the same rule. Null = allowed, else the refusal
+        message the endpoint flashes. $post must carry the topic's `locked`
+        flag (Post::find does); $firstPostId/$postCount let a listing pass the
+        values it already has instead of re-querying per post. */
+    public static function postActionError(array $post, string $action, ?int $firstPostId = null, ?int $postCount = null): ?string
+    {
+        $me = \RetroBB\Core\Auth::user();
+        if (!$me) {
+            return 'You must be logged in to ' . $action . ' posts.';
+        }
+        if ($err = self::staffPostError($post, (int) $me['id'], \RetroBB\Core\Auth::isSuper(), $action)) {
+            return $err;
+        }
+        if (\RetroBB\Core\Auth::isMod()) {
+            return null;
+        }
+        if ((int) $post['user_id'] !== (int) $me['id']) {
+            return $action === 'edit' ? 'You can only edit your own posts.' : 'You can only delete your own posts.';
+        }
+        if ($action === 'edit') {
+            $mins = \RetroBB\Core\Settings::int('edit_window_mins');
+            if ($mins > 0 && (time() - strtotime((string) $post['created_at'])) > $mins * 60) {
+                return 'The edit window (' . $mins . ' min) has expired.';
+            }
+            return null;
+        }
+        if ((int) ($post['locked'] ?? 0) === 1) {
+            return 'This topic is locked.';
+        }
+        $mins = \RetroBB\Core\Settings::int('delete_window_mins');
+        if ($mins > 0 && (time() - strtotime((string) $post['created_at'])) > $mins * 60) {
+            return 'The delete window (' . $mins . ' min) has expired.';
+        }
+        // First posts anchor their threads: only removable while they're the
+        // only post (which removes the whole topic) — otherwise mods only.
+        $firstPostId ??= Topic::firstPostId((int) $post['topic_id']);
+        if ((int) $post['id'] === $firstPostId) {
+            $postCount ??= Db::countQuery('SELECT COUNT(*) c FROM posts WHERE topic_id=?', [(int) $post['topic_id']]);
+            if ($postCount > 1) {
+                return 'The opening post can only be removed by a moderator.';
+            }
+        }
+        return null;
+    }
+
     /** Target group + whether the actor is super. Pre-tier schemas lack the
      *  column: then every admin counts as super (old behavior preserved). */
     private static function staffContext(int $userId, int $modId): array

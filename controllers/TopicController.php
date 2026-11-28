@@ -5,10 +5,10 @@ namespace RetroBB\Controllers;
 
 use RetroBB\Core\Auth;
 use RetroBB\Core\Csrf;
-use RetroBB\Core\Db;
 use RetroBB\Core\Slug;
 use RetroBB\Core\View;
 use RetroBB\Models\Board;
+use RetroBB\Models\Moderation;
 use RetroBB\Models\Topic;
 
 class TopicController
@@ -68,8 +68,22 @@ class TopicController
         $pages = max(1, (int) ceil($data['total'] / $perPage));
         $forum = Board::forum((int) $topic['forum_id']);
         $reactions = feature('reactions') ? \RetroBB\Models\Reaction::countsForPosts(array_map(fn($p) => (int) $p['id'], $data['posts'])) : [];
-        if ($me = Auth::user()) {
+        $me = Auth::user();
+        if ($me) {
             \RetroBB\Models\TopicRead::markRead((int) $me['id'], $id);
+        }
+        // One policy decides the buttons and the endpoints (#34); the view
+        // only reads these booleans.
+        $firstPostId = Topic::firstPostId($id);
+        $postActions = [];
+        if ($me) {
+            foreach ($data['posts'] as $p) {
+                $p['locked'] = (int) $topic['locked'];
+                $postActions[(int) $p['id']] = [
+                    'edit' => Moderation::postActionError($p, 'edit', $firstPostId, (int) $data['total']) === null,
+                    'delete' => Moderation::postActionError($p, 'delete', $firstPostId, (int) $data['total']) === null,
+                ];
+            }
         }
 
         View::render('topic/show', [
@@ -77,7 +91,8 @@ class TopicController
             'forum' => $forum,
             'posts' => $data['posts'],
             'reactions' => $reactions,
-            'firstPostId' => Topic::firstPostId($id),
+            'postActions' => $postActions,
+            'canModerate' => Auth::isMod(),
             'total' => $data['total'],
             'page' => $page,
             'pages' => $pages,
@@ -189,16 +204,6 @@ class TopicController
         Topic::delete($id);
         \RetroBB\Core\Modlog::log((int) Auth::user()['id'], 'delete', 'topic', $id, $topic ? mb_substr($topic['title'], 0, 150) : '');
         redirect($topic ? Slug::forumUrl(['id' => $topic['forum_id'], 'name' => $topic['forum_name']]) : '/');
-    }
-
-    /** Staff-authored posts need a super actor (mods exempt for own posts). */
-    private function staffPostBlocked(array $post, string $verb): ?string
-    {
-        $me = Auth::user();
-        if (!$me) {
-            return null;
-        }
-        return \RetroBB\Models\Moderation::staffPostError($post, (int) $me['id'], Auth::isSuper(), $verb);
     }
 
     private function needMod(): bool
@@ -357,14 +362,17 @@ class TopicController
 
     public function editPostForm(int $postId): void
     {
+        if (!Auth::check()) {
+            redirect('/login');
+        }
         $post = \RetroBB\Models\Post::find($postId);
         if (!$post) {
             http_response_code(404);
             View::render('errors/404', ['path' => '/post/' . $postId . '/edit']);
             return;
         }
-        $allowed = $this->canEditPost($post);
-        if ($allowed !== true) {
+        $allowed = Moderation::postActionError($post, 'edit');
+        if ($allowed !== null) {
             $_SESSION['flash_error'] = $allowed;
             redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
         }
@@ -373,13 +381,16 @@ class TopicController
 
     public function editPostSubmit(int $postId): void
     {
+        if (!Auth::check()) {
+            redirect('/login');
+        }
         $post = \RetroBB\Models\Post::find($postId);
         if (!$post) {
             redirect('/');
         }
         $isFirst = $postId === Topic::firstPostId((int) $post['topic_id']);
-        $allowed = $this->canEditPost($post);
-        if ($allowed !== true) {
+        $allowed = Moderation::postActionError($post, 'edit');
+        if ($allowed !== null) {
             $_SESSION['flash_error'] = $allowed;
             redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
         }
@@ -406,72 +417,17 @@ class TopicController
         redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
     }
 
-    /** @return true|string true if allowed, else an error message */
-    private function canEditPost(array $post): bool|string
-    {
-        $me = Auth::user();
-        if (!$me) {
-            redirect('/login');
-        }
-        if ($err = $this->staffPostBlocked($post, 'edit')) {
-            return $err;
-        }
-        if (Auth::isMod()) {
-            return true;
-        }
-        if ((int) $post['user_id'] !== (int) $me['id']) {
-            return 'You can only edit your own posts.';
-        }
-        $mins = \RetroBB\Core\Settings::int('edit_window_mins');
-        if ($mins > 0 && (time() - strtotime($post['created_at'])) > $mins * 60) {
-            return 'The edit window (' . $mins . ' min) has expired.';
-        }
-        return true;
-    }
-
-    /** @return true|string true if allowed, else an error message */
-    private function canDeletePost(array $post): bool|string
-    {
-        $me = Auth::user();
-        if (!$me) {
-            redirect('/login');
-        }
-        if ($err = $this->staffPostBlocked($post, 'delete')) {
-            return $err;
-        }
-        if (Auth::isMod()) {
-            return true;
-        }
-        if ((int) $post['user_id'] !== (int) $me['id']) {
-            return 'You can only delete your own posts.';
-        }
-        if ((int) ($post['locked'] ?? 0) === 1) {
-            return 'This topic is locked.';
-        }
-        $mins = \RetroBB\Core\Settings::int('delete_window_mins');
-        if ($mins > 0 && (time() - strtotime($post['created_at'])) > $mins * 60) {
-            return 'The delete window (' . $mins . ' min) has expired.';
-        }
-        // First posts anchor their threads: only removable while they're the
-        // only post (which removes the whole topic) — otherwise mods only.
-        $firstId = Topic::firstPostId((int) $post['topic_id']);
-        if ((int) $post['id'] === $firstId) {
-            $n = (int) Db::pdo()->query('SELECT COUNT(*) c FROM posts WHERE topic_id=' . (int) $post['topic_id'])->fetch()['c'];
-            if ($n > 1) {
-                return 'The opening post can only be removed by a moderator.';
-            }
-        }
-        return true;
-    }
-
     public function deletePost(int $postId): void
     {
+        if (!Auth::check()) {
+            redirect('/login');
+        }
         $post = \RetroBB\Models\Post::find($postId);
         if (!$post) {
             redirect('/');
         }
-        $allowed = $this->canDeletePost($post);
-        if ($allowed !== true) {
+        $allowed = Moderation::postActionError($post, 'delete');
+        if ($allowed !== null) {
             $_SESSION['flash_error'] = $allowed;
             redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
         }
