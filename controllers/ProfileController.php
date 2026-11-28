@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace RetroBB\Controllers;
 
+use RetroBB\Core\Guard;
 use RetroBB\Core\Slug;
 use RetroBB\Core\View;
 use RetroBB\Models\User;
@@ -63,26 +64,10 @@ class ProfileController
         ]);
     }
 
-    private function needMod(): bool
-    {
-        if (!\RetroBB\Core\Auth::isMod()) {
-            http_response_code(403);
-            \RetroBB\Core\View::render('errors/403', ['pageTitle' => 'Forbidden']);
-            return false;
-        }
-        return true;
-    }
-
     public function warn(int $id): void
     {
-        if (!$this->needMod()) {
-            return;
-        }
-        if (!\RetroBB\Core\Csrf::verify($_POST['csrf'] ?? null)) {
-            http_response_code(419);
-            echo 'CSRF mismatch';
-            return;
-        }
+        Guard::requireModerator();
+        Guard::csrf('/members');
         $user = User::find($id);
         if (!$user) {
             redirect('/members');
@@ -104,14 +89,8 @@ class ProfileController
 
     public function ban(int $id): void
     {
-        if (!$this->needMod()) {
-            return;
-        }
-        if (!\RetroBB\Core\Csrf::verify($_POST['csrf'] ?? null)) {
-            http_response_code(419);
-            echo 'CSRF mismatch';
-            return;
-        }
+        Guard::requireModerator();
+        Guard::csrf('/members');
         $user = User::find($id);
         if (!$user) {
             redirect('/members');
@@ -141,14 +120,8 @@ class ProfileController
 
     public function unban(int $banId): void
     {
-        if (!$this->needMod()) {
-            return;
-        }
-        if (!\RetroBB\Core\Csrf::verify($_POST['csrf'] ?? null)) {
-            http_response_code(419);
-            echo 'CSRF mismatch';
-            return;
-        }
+        Guard::requireModerator();
+        Guard::csrf('/members');
         $unbannedId = \RetroBB\Models\Moderation::unban($banId, (int) \RetroBB\Core\Auth::user()['id'], (string) ($_POST['reason'] ?? ''));
         $_SESSION['flash_ok'] = 'Ban lifted.';
         // Land on the member profile: mods can see it, while /admin/bans
@@ -159,10 +132,8 @@ class ProfileController
 
     public function settingsForm(): void
     {
+        Guard::requireLogin('/settings/profile');
         $me = \RetroBB\Core\Auth::user();
-        if (!$me) {
-            redirect('/login?next=' . urlencode('/settings/profile'));
-        }
         $user = User::find((int) $me['id']);
         \RetroBB\Core\View::render('profile/edit', [
             'edituser' => $user, 'pageTitle' => 'Edit profile — ' . board_name(),
@@ -172,15 +143,10 @@ class ProfileController
 
     public function settingsSubmit(): void
     {
+        Guard::requireLogin('/settings/profile');
+        Guard::csrf('/settings/profile');
         $me = \RetroBB\Core\Auth::user();
-        if (!$me) {
-            redirect('/login');
-        }
         $user = User::find((int) $me['id']);
-        if (!\RetroBB\Core\Csrf::verify($_POST['csrf'] ?? null)) {
-            \RetroBB\Core\View::render('profile/edit', ['edituser' => $user, 'pageTitle' => 'Edit profile', 'error' => 'Session expired.']);
-            return;
-        }
         $which = (string) ($_POST['form'] ?? 'profile');
         if ($which === 'password') {
             if ((string) ($_POST['new'] ?? '') !== (string) ($_POST['new2'] ?? '')) {

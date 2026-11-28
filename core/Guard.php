@@ -33,6 +33,9 @@ namespace RetroBB\Core;
  */
 final class Guard
 {
+    /** Never echoed back into the retry page: a stale token must not leak a secret. */
+    private const SECRET_FIELDS = ['password', 'password2', 'current', 'new', 'new2'];
+
     /** Send guests to the login form, then back to $next (the current URL by default). */
     public static function requireLogin(string $next = ''): void
     {
@@ -91,8 +94,9 @@ final class Guard
      * repeats the submitted fields behind a fresh token so the visitor can
      * retry; the action itself never runs. $cancel is where "Cancel" goes.
      *
-     * Call once, first thing in a POST handler. File uploads are not repeated
-     * (HTML cannot pre-fill them); every other scalar field is kept.
+     * Call once, first thing in a POST handler. File uploads and password
+     * fields are not repeated (HTML cannot pre-fill a file, and a secret must
+     * not be echoed); every other scalar field is kept.
      */
     public static function csrf(string $cancel = '/'): void
     {
@@ -102,7 +106,7 @@ final class Guard
         }
         $fields = [];
         foreach ($_POST as $name => $value) {
-            if ($name === 'csrf' || !is_scalar($value)) {
+            if ($name === 'csrf' || !is_scalar($value) || in_array($name, self::SECRET_FIELDS, true)) {
                 continue;
             }
             $fields[(string) $name] = (string) $value;
