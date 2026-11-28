@@ -104,6 +104,23 @@ import glob, shutil, subprocess
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB = os.environ.get('RETROBB_TEST_DB', 'retrobb_test')
 TESTCFG = os.path.join(ROOT, 'storage', 'test-config.php')
+
+# Every AdminCP GET page still resolves after the split by area (issue #47).
+# Ids come from the canonical seed, so a 404 would mean a lost route.
+MODULES = {'StructureAdminController', 'UsersAdminController',
+           'PluginsAdminController', 'MaintenanceAdminController'}
+pages, seen = [], set()
+for line in open(os.path.join(ROOT, 'public', 'index.php')).read().splitlines():
+    m = re.search(r"\$r->get\('#\^([^#]+)\$#', \[\\RetroBB\\Controllers\\Admin\\(\w+)::class", line)
+    if m and m.group(2) in MODULES:
+        path = re.sub(r'\(\\d\+\)', '1', m.group(1))
+        if path not in seen:
+            seen.add(path)
+            pages.append(path)
+check('route table covers every AdminCP module page', len(pages) == 11, len(pages))
+for path in pages:
+    body, code = get(super_s, path)
+    check('AdminCP GET %s still renders' % path, code == 200, code)
 plugname = 'zz46-lifecycle-%d' % os.getpid()
 marker = 'zz46-marker-%d' % os.getpid()
 pdir = os.path.join(ROOT, 'plugins', plugname)
