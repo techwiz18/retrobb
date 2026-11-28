@@ -75,5 +75,6 @@ except urllib.error.HTTPError as e:
     url, body, code = e.geturl(), e.read().decode(), e.code
 check('resolve form refusal returns to the admin queue',
       code == 200 and url.rstrip('/').endswith('/admin/reports'), url)
-check('resolve form refusal keeps admin chrome', 'Structure' in body)
+check('resolve form refusal keeps chrome the mod can use',
+      'ModCP' in body and 'Structure' not in body)
 finish()
