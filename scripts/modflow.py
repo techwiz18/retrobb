@@ -47,7 +47,7 @@ def post(op, formpage, path, fields):
         r = op.open(urllib.request.Request(base + path, data=urllib.parse.urlencode(fields).encode()))
         return r.read().decode(), None
     except urllib.error.HTTPError as e:
-        return '', e.code
+        return e.read().decode(), e.code
 
 admin, mod, reporter = session(), session(), session()
 login(admin, 'admin', 'admin123')

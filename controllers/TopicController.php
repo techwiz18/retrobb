@@ -302,8 +302,7 @@ class TopicController
         }
         $allowed = Moderation::postActionError($post, 'edit');
         if ($allowed !== null) {
-            $_SESSION['flash_error'] = $allowed;
-            redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
+            Guard::forbidden($allowed);
         }
         View::render('topic/edit', ['post' => $post, 'is_first' => $postId === Topic::firstPostId((int) $post['topic_id']), 'pageTitle' => 'Edit post — ' . board_name(), 'error' => null]);
     }
@@ -320,8 +319,7 @@ class TopicController
         $isFirst = $postId === Topic::firstPostId((int) $post['topic_id']);
         $allowed = Moderation::postActionError($post, 'edit');
         if ($allowed !== null) {
-            $_SESSION['flash_error'] = $allowed;
-            redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
+            Guard::forbidden($allowed);
         }
         Guard::csrf(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
         $body = trim((string) ($_POST['body'] ?? ''));
@@ -354,8 +352,7 @@ class TopicController
         }
         $allowed = Moderation::postActionError($post, 'delete');
         if ($allowed !== null) {
-            $_SESSION['flash_error'] = $allowed;
-            redirect(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
+            Guard::forbidden($allowed);
         }
         Guard::csrf(Slug::topicUrl(['id' => $post['topic_id'], 'title' => $post['topic_slug']]) . '#p' . $postId);
         $topicId = \RetroBB\Models\Post::delete($postId);
