@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace RetroBB\Models;
 
-use RetroBB\Core\BBCode;
 use RetroBB\Core\Db;
 use RetroBB\Core\PostBody;
 use RetroBB\Core\Slug;
@@ -255,7 +254,7 @@ class Topic
                 $pdo->prepare('INSERT INTO topics (forum_id, user_id, title, slug, pinned, locked, views, posts_count, created_at, last_post_at, last_post_user_id, moved_to_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
                     ->execute([$srcForumId, $modId, 'Moved: ' . $topic['title'], Slug::make('moved-' . $topic['title']), 0, 1, 0, 1, $now, $now, $modId, $id]);
                 $gid = (int) $pdo->lastInsertId();
-                $html = BBCode::toHtml('This topic has moved here: [url=' . $newUrl . ']' . $topic['title'] . '[/url]');
+                $html = PostBody::render('This topic has moved here: [url=' . $newUrl . ']' . $topic['title'] . '[/url]');
                 $pdo->prepare('INSERT INTO posts (topic_id, user_id, body_bbcode, body_html, created_at) VALUES (?,?,?,?,?)')
                     ->execute([$gid, $modId, 'moved-stub', $html, $now]);
             }

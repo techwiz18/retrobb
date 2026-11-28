@@ -26,6 +26,7 @@ require_once $root . '/core/Hooks.php';
 require_once $root . '/core/BBCode.php';
 require_once $root . '/core/Mentions.php';
 require_once $root . '/core/PostBody.php';
+require_once $root . '/core/Auth.php';
 require_once $root . '/models/User.php';
 
 use RetroBB\Core\Hooks;
@@ -79,12 +80,52 @@ t('update stamps edited_at', !empty($row['edited_at']));
 
 $pdo->prepare('DELETE FROM posts WHERE id=?')->execute([$pid]);
 
+// import-shaped insert: caller's created_at is kept and the html is what the
+// old direct BBCode::toHtml write produced, so imported posts look unchanged.
+$imported = '[quote=OldUser]hello[/quote]' . "\n\n" . '[url=https://example.com]site[/url]';
+$iid = PostBody::insert(1, 1, $imported, '2005-01-02 03:04:05');
+$row = $pdo->query('SELECT body_bbcode, body_html, created_at FROM posts WHERE id=' . $iid)->fetch();
+t('import insert keeps created_at', $row['created_at'] === '2005-01-02 03:04:05');
+t('import insert renders like the old writer', $row['body_html'] === \RetroBB\Core\BBCode::toHtml($imported));
+$pdo->prepare('DELETE FROM posts WHERE id=?')->execute([$iid]);
+
+// private message compose writes both forms through the module
+require_once $root . '/models/Pm.php';
+$pmBb = '[b]pm[/b] <script>bad</script>';
+$res = \RetroBB\Models\Pm::send(1, 2, 'postbodycheck', $pmBb);
+t('pm send accepted', $res['ok'] === true, $res['error'] ?? '');
+if ($res['ok']) {
+    $row = $pdo->query('SELECT body_bbcode, body_html FROM pms WHERE id=' . (int) $res['id'])->fetch();
+    t('pm stores bbcode', $row['body_bbcode'] === $pmBb);
+    t('pm stores module html', $row['body_html'] === PostBody::render($pmBb));
+    t('pm html escapes', str_contains($row['body_html'], '&lt;script&gt;'));
+    $pdo->prepare('DELETE FROM pms WHERE id=?')->execute([(int) $res['id']]);
+}
+
 exit($GLOBALS['failed'] ? 1 : 0);
 '''
+
+def source(rel: str) -> str:
+    with open(os.path.join(ROOT, rel), encoding='utf-8') as fh:
+        return fh.read()
+
 
 if not os.path.isfile(CFG):
     check('test config exists', False, CFG)
     finish()
+
+# Every remaining writer/reader goes through the module, and no view decides
+# whether stored html is trustworthy.
+pm_view = source('views/pm/show.php')
+check('pm view renders through PostBody', 'PostBody::display' in pm_view)
+check('pm view does not call the repair check', 'needsRepair' not in pm_view)
+pm_model = source('models/Pm.php')
+check('pm compose renders through PostBody', 'PostBody::render' in pm_model and 'BBCode::toHtml' not in pm_model)
+importer = source('controllers/ImportController.php')
+check('importer writes through PostBody', 'PostBody::insert' in importer and 'BBCode::toHtml' not in importer)
+topic_model = source('models/Topic.php')
+check('topic model renders its stub through PostBody',
+      'PostBody::render' in topic_model and 'BBCode::toHtml' not in topic_model)
 
 proc = subprocess.run(
     ['docker', 'run', '--rm', '-i', '-v', ROOT + ':/app', '-v', CFG + ':/app/config.php',
