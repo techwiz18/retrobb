@@ -47,7 +47,10 @@ class Moderation
     public static function warningsFor(int $userId): array
     {
         $st = Db::pdo()->prepare(
-            'SELECT w.*, u.username AS warned_by_name FROM warnings w JOIN users u ON u.id=w.warned_by WHERE w.user_id=? ORDER BY w.id DESC'
+            'SELECT w.*, u.username AS warned_by_name, t.slug AS topic_slug
+             FROM warnings w JOIN users u ON u.id=w.warned_by
+             LEFT JOIN topics t ON t.id=w.topic_id
+             WHERE w.user_id=? ORDER BY w.id DESC'
         );
         $st->execute([$userId]);
         return $st->fetchAll();

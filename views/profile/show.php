@@ -22,7 +22,7 @@
 <div class="recent-list">
 <?php foreach ($recent as $r): ?>
   <div class="recent-row">
-    <a href="<?= e(url('/topic/' . ($r['slug'] ?: 'topic') . '.t' . (int) $r['id'])) ?>"><?= e($r['title']) ?></a>
+    <a href="<?= e(\RetroBB\Core\Slug::topicUrl($r)) ?>"><?= e($r['title']) ?></a>
     <span class="recent-date"><?= e(time_ago($r['created_at'])) ?></span>
   </div>
 <?php endforeach; ?>
@@ -32,7 +32,7 @@
 <div class="maintitle">Warnings (<?= count($warnings) ?>)</div>
 <div class="recent-list">
 <?php foreach ($warnings as $w): ?>
-  <div class="recent-row"><span><?= e($w['reason']) ?><?php if (!empty($w['topic_id'])): ?> — <a href="<?= e(url('/topic/x.t' . (int) $w['topic_id'] . (!empty($w['post_id']) ? '#p' . (int) $w['post_id'] : ''))) ?>">view reported post</a><?php endif; ?><br><small class="muted">by <?= e($w['warned_by_name']) ?></small></span><span class="recent-date"><?= e(time_ago($w['created_at'])) ?></span></div>
+  <div class="recent-row"><span><?= e($w['reason']) ?><?php if (!empty($w['topic_id']) && !empty($w['topic_slug'])): ?> — <a href="<?= e(\RetroBB\Core\Slug::topicUrl(['id' => (int) $w['topic_id'], 'slug' => $w['topic_slug']]) . (!empty($w['post_id']) ? '#p' . (int) $w['post_id'] : '')) ?>">view reported post</a><?php endif; ?><br><small class="muted">by <?= e($w['warned_by_name']) ?></small></span><span class="recent-date"><?= e(time_ago($w['created_at'])) ?></span></div>
 <?php endforeach; ?>
 </div>
 <?php endif; ?>

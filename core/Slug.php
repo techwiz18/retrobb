@@ -27,17 +27,24 @@ class Slug
 
     public static function forumUrl(array $forum): string
     {
-        return \url('/forum/' . self::make($forum['name']) . '.f' . (int) $forum['id']);
+        return \url('/forum/' . self::rowSlug($forum, 'name') . '.f' . (int) $forum['id']);
     }
 
     public static function topicUrl(array $topic): string
     {
-        return \url('/topic/' . self::make($topic['title']) . '.t' . (int) $topic['id']);
+        return \url('/topic/' . self::rowSlug($topic, 'title') . '.t' . (int) $topic['id']);
     }
 
     public static function memberUrl(array $user): string
     {
-        return \url('/members/' . self::make($user['username']) . '.u' . (int) $user['id']);
+        return \url('/members/' . self::rowSlug($user, 'username') . '.u' . (int) $user['id']);
+    }
+
+    /** Queries select the stored slug beside the id; fall back to the display name. */
+    private static function rowSlug(array $row, string $nameField): string
+    {
+        $slug = $row['slug'] ?? '';
+        return is_string($slug) && $slug !== '' ? $slug : self::make((string) ($row[$nameField] ?? ''));
     }
 
     /** Extract numeric id from suffix like "slug.f12", "slug.t45", "name.u1". Returns [slug, id] or null. */
