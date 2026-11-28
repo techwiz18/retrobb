@@ -5,23 +5,14 @@ namespace RetroBB\Controllers;
 
 use RetroBB\Core\Auth;
 use RetroBB\Core\BBCode;
-use RetroBB\Core\Csrf;
 use RetroBB\Core\Db;
+use RetroBB\Core\Guard;
 use RetroBB\Core\Slug;
 use RetroBB\Core\View;
 
 class ImportController
 {
     private const CHUNK = 500;
-
-    private function guard(): void
-    {
-        if (!Auth::isSuper()) {
-            http_response_code(403);
-            View::render('errors/403', ['pageTitle' => 'Forbidden']);
-            exit;
-        }
-    }
 
     /** @return \RetroBB\Core\Import\Base */
     private function reader(array $cfg, \PDO $src): object
@@ -32,17 +23,15 @@ class ImportController
 
     public function form(): void
     {
-        $this->guard();
+        Guard::requireSuper();
         View::render('admin/import', ['stage' => 'form', 'error' => null, 'pageTitle' => 'Import — AdminCP']);
     }
 
     /** Check the source database and preview counts. Credentials live in the session only. */
     public function test(): void
     {
-        $this->guard();
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin/import');
-        }
+        Guard::requireSuper();
+        Guard::csrf('/admin/import');
         $source = (string) ($_POST['source'] ?? '');
         if (!in_array($source, ['phpbb', 'smf'], true)) {
             View::render('admin/import', ['stage' => 'form', 'error' => 'Pick phpBB or SMF.', 'pageTitle' => 'Import — AdminCP']);
@@ -108,12 +97,10 @@ class ImportController
      */
     public function run(): void
     {
-        $this->guard();
+        Guard::requireSuper();
         // POST + CSRF (issue #2): the import token used to ride in the URL,
         // where it leaked through Referer and server logs.
-        if (!Csrf::verify($_POST['csrf'] ?? null)) {
-            redirect('/admin/import');
-        }
+        Guard::csrf('/admin/import');
         $cfg = $_SESSION['import_cfg'] ?? null;
         $token = (string) ($_POST['t'] ?? '');
         if (!$cfg || !isset($_SESSION['import_token']) || !hash_equals((string) $_SESSION['import_token'], $token)) {

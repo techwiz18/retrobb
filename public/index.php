@@ -8,6 +8,7 @@ require_once $root . '/core/Slug.php';
 require_once $root . '/core/Hooks.php';
 require_once $root . '/core/Auth.php';
 require_once $root . '/core/Csrf.php';
+require_once $root . '/core/Guard.php';
 require_once $root . '/core/Passwords.php';
 require_once $root . '/core/Mail.php';
 require_once $root . '/core/BBCode.php';
