@@ -11,6 +11,7 @@ require_once $root . '/core/Csrf.php';
 require_once $root . '/core/Passwords.php';
 require_once $root . '/core/Mail.php';
 require_once $root . '/core/BBCode.php';
+require_once $root . '/core/PostBody.php';
 require_once $root . '/core/HtmlRepair.php';
 require_once $root . '/core/Mentions.php';
 require_once $root . '/core/Import/Base.php';
