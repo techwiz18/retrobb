@@ -1,7 +1,9 @@
-import os, re, sys, urllib.request, urllib.parse, http.cookiejar, urllib.error
+import os, re, subprocess, sys, urllib.request, urllib.parse, http.cookiejar, urllib.error
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _harness import check, finish
+from _harness import check, note, finish
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB = os.environ.get('RETROBB_TEST_DB', 'retrobb_test')
 base = os.environ.get('RETROBB_TEST_BASE', 'http://localhost:8080')
 
 def session():
@@ -61,4 +63,61 @@ post(admin, '/admin/unban/' + m.group(1), {'csrf': csrf(html)})
 login(victim, 'dialup_dan', 'password123')
 _, _, html = get(victim, '/')
 check('login works after unban', 'dialup_dan' in html)
+
+# 3. failed logins are counted in the DB per remote address + account, so a
+#    fresh cookie jar does not reset the count (issue #33). DB truth, not page
+#    text: the user is logged in on the live board while this runs.
+def sql(q):
+    r = subprocess.run(['sh', 'scripts/mysql-sql.sh', q], cwd=ROOT, capture_output=True, text=True,
+                       env=dict(os.environ, RETROBB_TEST_DB=DB))
+    return r.stdout.strip()
+
+def key_row(login):
+    return "SUBSTRING_INDEX(ip,'|',-1)='%s'" % login
+
+def attempts(login='guest_2003'):
+    out = sql('SELECT attempts FROM login_attempts WHERE ' + key_row(login))
+    return int(out) if out else 0
+
+def clear_key(login='guest_2003'):
+    sql('DELETE FROM login_attempts WHERE ' + key_row(login))
+
+def fail_login(op, login, pw='wrong-password'):
+    _, _, html = get(op, '/login')
+    return post(op, '/login', {'csrf': csrf(html), 'login': login, 'password': pw})[1]
+
+def logged_in(op):
+    # The board index also shows Guest_2003 as a post author, so key off nav.
+    return 'Log out' in get(op, '/')[2]
+
+clear_key()
+clear_key('prune_probe')
+# a stale row the one-day prune should remove
+sql("INSERT INTO login_attempts (ip, attempts, last_at) VALUES ('192.0.2.9|prune_probe',3,NOW() - INTERVAL 2 DAY)"
+    " ON DUPLICATE KEY UPDATE last_at=NOW() - INTERVAL 2 DAY")
+
+page = fail_login(session(), 'Guest_2003')  # mixed case: key must be lowercased
+check('failure writes an attempt row keyed ip|login', attempts() == 1, 'attempts=%d' % attempts())
+check('login error is the ordinary one', 'Invalid login.' in page)
+
+for _ in range(9):
+    fail_login(session(), 'guest_2003')  # new cookie jar each time
+check('10 failures in 15 min all counted despite cleared cookies', attempts() == 10, 'attempts=%d' % attempts())
+check('one-day prune removed the stale row', sql("SELECT COUNT(*) FROM login_attempts WHERE " + key_row('prune_probe')) == '0')
+
+throttled = session()
+page = fail_login(throttled, 'guest_2003', 'password123')  # right password, blocked key
+check('blocked attempt rejects the right password', not logged_in(throttled))
+check('blocked attempt shows the ordinary login error', 'Invalid login.' in page)
+
+# a successful login clears the key
+clear_key()
+fail_login(session(), 'guest_2003')
+fail_login(session(), 'guest_2003')
+check('count grows before the successful login', attempts() == 2, 'attempts=%d' % attempts())
+ok = session()
+fail_login(ok, 'guest_2003', 'password123')
+check('successful login works once under the threshold', logged_in(ok))
+check('successful login clears the attempt row', attempts() == 0, 'attempts=%d' % attempts())
+clear_key()
 finish()
