@@ -114,4 +114,80 @@ r = subprocess.run(['docker', 'run', '--rm', '-v', ROOT + ':/app:ro', '-w', '/ap
                    capture_output=True, text=True)
 check('return path follows only local paths', r.returncode == 0,
       (r.stdout + r.stderr).strip()[:200])
+
+# --- AdminCP splits by area (issue #47) ----------------------------------
+# The 28-action class is gone: each area owns one module, the route table
+# resolves to it, and no module grows back into a god class. Behaviour is
+# covered by the page checks above.
+index_src = open(os.path.join(ROOT, 'public', 'index.php')).read()
+routes = {}
+for line in index_src.splitlines():
+    if '/admin' not in line or 'Controllers\\' not in line:
+        continue
+    m = re.search(r"Controllers\\([\w\\]+)::class, '(\w+)'", line)
+    if m:
+        routes.setdefault(m.group(1), set()).add(m.group(2))
+
+EXPECTED = {
+    'Admin\\StructureAdminController': {
+        'structurePage', 'addForum', 'addCategory', 'moveCategory', 'moveForum',
+        'editCategoryForm', 'renameCategory', 'deleteCategory', 'editForumForm',
+        'renameForum', 'deleteForum',
+    },
+    'Admin\\UsersAdminController': {
+        'usersPage', 'setGroup', 'superToggle', 'bansPage', 'unban',
+    },
+    'Admin\\PluginsAdminController': {
+        'pluginsPage', 'pluginToggle', 'pluginUninstall',
+    },
+    'Admin\\MaintenanceAdminController': {
+        'index', 'settingsPage', 'featuresPage', 'spamPage', 'saveSettings',
+        'saveFeatures', 'modlogPage', 'repairHtml', 'runMigrate',
+    },
+}
+
+sources = {}
+for cls, actions in EXPECTED.items():
+    path = os.path.join(ROOT, 'controllers', 'Admin', cls.split('\\')[-1] + '.php')
+    src = open(path).read() if os.path.isfile(path) else ''
+    sources[cls] = src
+    public = set(re.findall(r'public function (\w+)\(', src))
+    check('%s exists with its routes' % cls,
+          src != '' and routes.get(cls) == actions,
+          'routes: %s' % sorted(routes.get(cls, set())))
+    check('%s declares every routed action' % cls, actions <= public,
+          sorted(actions - public))
+    check('%s exposes fewer than 20 actions' % cls, 0 < len(public) < 20, len(public))
+
+check('no catch-all AdminController remains',
+      'AdminController' not in routes
+      and not os.path.isfile(os.path.join(ROOT, 'controllers', 'AdminController.php')),
+      sorted(routes.get('AdminController', set())))
+
+# Other /admin routes keep their shared controllers (import + mod queue).
+check('shared admin routes stay on their own controllers',
+      set(routes) - set(EXPECTED) <= {'ImportController', 'ReportController'},
+      sorted(set(routes) - set(EXPECTED)))
+
+# Each area's writes stay in its module: a structure change cannot need the
+# users module, and plugin/settings work goes through the settled owners.
+struct = sources['Admin\\StructureAdminController']
+users = sources['Admin\\UsersAdminController']
+plugins = sources['Admin\\PluginsAdminController']
+maint = sources['Admin\\MaintenanceAdminController']
+
+def only_in(needle, owner):
+    return needle in sources[owner] and all(needle not in s for c, s in sources.items() if c != owner)
+
+check('structure writes live only in the structure module',
+      only_in('INSERT INTO forums', 'Admin\\StructureAdminController')
+      and only_in('INSERT INTO categories', 'Admin\\StructureAdminController'))
+check('user tier writes live only in the users module',
+      only_in('User::setGroup', 'Admin\\UsersAdminController')
+      and only_in('User::setSuper', 'Admin\\UsersAdminController'))
+check('plugin lifecycle calls go through core Plugins',
+      only_in('Plugins::', 'Admin\\PluginsAdminController') and 'Plugins::toggle' in plugins
+      and 'Plugins::loadOne' in plugins)
+check('settings writes go through core Settings',
+      only_in('Settings::forPage', 'Admin\\MaintenanceAdminController') and 'Settings::coerce' in maint)
 finish()
